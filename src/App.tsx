@@ -1,81 +1,55 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Login from './components/Login';
+import Home from './pages/Home';
+import React, { useEffect, useState } from 'react';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from './lib/firebase';
+import { MainLayout } from './pages/MainLayout';
 import { Header } from './components/layout/Header';
 import { CreateTournament } from './components/tournament/CreateTournament';
 import { TournamentList } from './components/tournament/TournamentList';
-import { TournamentGames } from './components/tournament/TournamentGames';
-import { useNavigate } from 'react-router-dom';
-import { useTournamentStore } from './store/tournamentStore';
+import { TournamentGames } from './components/tournament/TournamentGames'; // Corrected import
 
-function Home() {
-  const navigate = useNavigate();
-
-  return (
-    <div className="max-w-4xl mx-auto">
-      <section className="text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-bold text-poker-black mb-4">
-          Bienvenue sur PokerTour
-        </h1>
-        <p className="text-xl text-gray-600">
-          Organisez et gérez vos tournois de poker comme un professionnel
-        </p>
-      </section>
-
-      <div className="grid md:grid-cols-2 gap-8">
-        <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-          <h2 className="text-2xl font-bold text-poker-red mb-4">
-            Créer un Tournoi
-          </h2>
-          <p className="text-gray-600 mb-4">
-            Configurez rapidement votre prochain tournoi avec notre interface intuitive
-          </p>
-          <button 
-            onClick={() => navigate('/create-tournament')}
-            className="bg-poker-red text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors"
-          >
-            Commencer
-          </button>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-          <h2 className="text-2xl font-bold text-poker-gold mb-4">
-            Rejoindre un Tournoi
-          </h2>
-          <p className="text-gray-600 mb-4">
-            Participez à des tournois existants et suivez vos performances
-          </p>
-          <button 
-            onClick={() => navigate('/tournaments')}
-            className="bg-poker-gold text-white px-6 py-2 rounded-md hover:bg-yellow-600 transition-colors"
-          >
-            Voir les tournois
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function App() {
-  const fetchTournaments = useTournamentStore(state => state.fetchTournaments);
+function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true); // Add a loading state
 
   useEffect(() => {
-    fetchTournaments();
-  }, [fetchTournaments]);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false); // Set loading to false once the auth state is known
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Add a loading state
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
-    <Router>
-      <div className="min-h-screen bg-poker-light">
-        <Header />
-        <main className="container mx-auto px-4 py-8">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/create-tournament" element={<CreateTournament />} />
-            <Route path="/tournaments" element={<TournamentList />} />
-            <Route path="/tournament/:tournamentId" element={<TournamentGames />} />
-          </Routes>
-        </main>
-      </div>
-    </Router>
+    <>
+      <Routes>
+        <Route
+          path="/login"
+          element={user ? <Navigate to="/" /> : <Login />} // Redirect to home if logged in
+        />
+        <Route
+          path="/*"
+          element={
+            user ? (
+              <div className="min-h-screen bg-poker-light">
+                <Header user={user} />
+                <MainLayout user={user}/>
+              </div>
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+      </Routes>
+    </>
   );
 }
+
+export default App;

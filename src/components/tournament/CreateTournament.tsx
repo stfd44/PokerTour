@@ -1,9 +1,15 @@
+// src/components/tournament/CreateTournament.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useTournamentStore } from '../../store/tournamentStore';
+import { User } from 'firebase/auth';
 
-export function CreateTournament() {
+interface CreateTournamentProps {
+    user: User | null;
+}
+
+export function CreateTournament({user}: CreateTournamentProps) {
   const navigate = useNavigate();
   const addTournament = useTournamentStore((state) => state.addTournament);
   const [formData, setFormData] = useState({
@@ -16,23 +22,28 @@ export function CreateTournament() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    addTournament({
-      name: formData.name,
-      date: formData.date,
-      buyin: Number(formData.buyin),
-      maxPlayers: Number(formData.maxPlayers),
-      location: formData.location
-    });
+    console.log("CreateTournament.tsx - handleSubmit - userId:", user?.uid);
+    if (user) {
+      addTournament(
+        {
+          name: formData.name,
+          date: formData.date,
+          buyin: Number(formData.buyin),
+          maxPlayers: Number(formData.maxPlayers),
+          location: formData.location,
+        },
+        user.uid
+      );
+    }
 
-    navigate('/tournaments');
+    navigate('/app/tournaments');
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [id]: value
+      [id]: value,
     }));
   };
 

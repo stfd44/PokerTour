@@ -1,32 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTournamentStore } from '../../store/tournamentStore';
 import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle } from 'lucide-react';
+import { User } from 'firebase/auth';
 
-// Simuler un joueur connecté (à remplacer par l'authentification réelle plus tard)
-const CURRENT_USER = { id: 'user-1', name: 'Thomas Martin' };
+interface TournamentListProps {
+    user: User | null;
+}
 
-export function TournamentList() {
+export function TournamentList({ user }: TournamentListProps) {
   const navigate = useNavigate();
-  const { tournaments, registerToTournament, unregisterFromTournament, startTournament } = useTournamentStore();
+  const { tournaments, registerToTournament, unregisterFromTournament, startTournament, fetchTournaments } = useTournamentStore();
   const [registrationStates, setRegistrationStates] = useState<{[key: string]: 'pending' | 'confirmed' | 'none'}>({});
   const [expandedTournaments, setExpandedTournaments] = useState<Set<string>>(new Set());
 
+  useEffect(() => {
+      fetchTournaments();
+  }, [fetchTournaments]);
+
   const handleRegistration = async (tournamentId: string) => {
-    setRegistrationStates(prev => ({ ...prev, [tournamentId]: 'pending' }));
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    registerToTournament(tournamentId, CURRENT_USER);
-    setRegistrationStates(prev => ({ ...prev, [tournamentId]: 'confirmed' }));
+      if (user) {
+          const isAlreadyRegistered = tournaments.find(t => t.id === tournamentId)?.registrations.some(p => p.id === user.uid);
+          
+          if(isAlreadyRegistered){
+              setRegistrationStates(prev => {
+                const updatedStates = { ...prev };
+                delete updatedStates[tournamentId];
+                return updatedStates;
+              });
+          } else {
+             setRegistrationStates(prev => ({ ...prev, [tournamentId]: 'pending' }));
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            registerToTournament(tournamentId, user.uid, { id: user.uid, name: user.displayName ?? "User" });
+            setRegistrationStates(prev => ({ ...prev, [tournamentId]: 'confirmed' })); 
+          }
+      }
   };
 
-  const handleUnregistration = (tournamentId: string) => {
-    unregisterFromTournament(tournamentId, CURRENT_USER.id);
-    setRegistrationStates(prev => ({ ...prev, [tournamentId]: 'none' }));
+  const handleUnregistration = async (tournamentId: string) => {
+      if (user) {
+          await unregisterFromTournament(tournamentId, user.uid);
+          setRegistrationStates(prev => ({ ...prev, [tournamentId]: 'none' }));
+      }
   };
 
   const handleStartTournament = (tournamentId: string) => {
-    startTournament(tournamentId);
-    navigate(`/tournament/${tournamentId}`);
+    if (user) {
+        startTournament(tournamentId, user.uid);
+        navigate(`/app/tournament/${tournamentId}`);
+    }
   };
 
   const toggleTournamentExpansion = (tournamentId: string) => {
@@ -52,7 +74,7 @@ export function TournamentList() {
   return (
     <div className="grid gap-6">
       {tournaments.map((tournament) => {
-        const isRegistered = tournament.registrations.some(p => p.id === CURRENT_USER.id);
+        const isRegistered = user ? tournament.registrations.some(p => p.id === user.uid) : false;
         const registrationState = registrationStates[tournament.id];
         const isFull = tournament.registrations.length >= tournament.maxPlayers;
         const isExpanded = expandedTournaments.has(tournament.id);
@@ -102,7 +124,7 @@ export function TournamentList() {
                       >
                         <span className="w-6 text-poker-gold">{index + 1}.</span>
                         <span>{player.name}</span>
-                        {player.id === CURRENT_USER.id && (
+                        {user && player.id === user.uid && (
                           <span className="ml-2 text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">
                             Vous
                           </span>
@@ -127,7 +149,7 @@ export function TournamentList() {
               <div>
                 {isStarted ? (
                   <button
-                    onClick={() => navigate(`/tournament/${tournament.id}`)}
+                    onClick={() => navigate(`/app/tournament/${tournament.id}`)}
                     className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
                   >
                     <PlayCircle className="w-5 h-5 mr-2" />

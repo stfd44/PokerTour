@@ -1,29 +1,45 @@
+// src/components/layout/Header.tsx
 import React, { useState } from 'react';
-import { Menu, X, UserCheck as PokerChip } from 'lucide-react';
+import { Menu, X, UserCheck as PokerChip, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
+import { getAuth, signOut } from 'firebase/auth';
+import { auth } from '../../lib/firebase';
 
-export function Header() {
+interface HeaderProps {
+  user: User | null;
+}
+
+export const Header: React.FC<HeaderProps> = ({ user }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const menuItems = [
     { label: 'Accueil', path: '/' },
-    { label: 'Tournois', path: '/tournaments' },
+    { label: 'Tournois', path: '/app/tournaments' },
     { label: 'Statistiques', path: '/stats' },
     { label: 'Profil', path: '/profile' },
   ];
 
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out", error);
+    }
+  };
+
   return (
-    <header className="bg-poker-black text-white shadow-lg">
+    <header className="bg-poker-black text-white shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
+          {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <PokerChip className="w-8 h-8 text-poker-gold" />
             <span className="text-xl font-bold">PokerTour</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-8">
+          <nav className="hidden md:flex items-center space-x-8">
             {menuItems.map((item) => (
               <Link
                 key={item.path}
@@ -33,6 +49,22 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
+            {/* User Info */}
+            {user && (
+              <div className="flex items-center space-x-2">
+                <img
+                  src={user.photoURL || "/default-profile.png"}
+                  alt="Profil"
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+                <span className="font-medium">
+                  {user.displayName || user.email || 'Utilisateur'}
+                </span>
+                <button className='bg-red-500 p-2 rounded-md' onClick={handleSignOut}>
+                  Déconnexion
+                </button>
+              </div>
+            )}
           </nav>
 
           {/* Mobile Menu Button */}
@@ -68,8 +100,15 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          {user && (
+            <div className='mt-20'>
+              <button className='w-full bg-red-500 p-2 rounded-md' onClick={handleSignOut}>
+                Déconnexion
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
   );
-}
+};
