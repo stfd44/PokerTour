@@ -6,6 +6,7 @@ import { TournamentList } from '../components/tournament/TournamentList';
 import { TournamentGames } from '../components/tournament/TournamentGames';
 import { User } from 'firebase/auth';
 import Home from './Home';
+import Tournaments from './Tournaments';
 
 interface MainLayoutProps {
     user: User | null;
@@ -18,9 +19,9 @@ export function MainLayout({ user }: MainLayoutProps) {
             <div className="max-w-4xl mx-auto">
                 <Routes>
                    <Route path="/" element={<Home user={user} />} /> {/* Add Home route here */}
-                    <Route path="/app/create-tournament" element={<CreateTournament user={user} />} />
-                    <Route path="/app/tournaments" element={<TournamentList user={user} />} />
-                    <Route path="/app/tournament/:tournamentId" element={<TournamentGames user={user} />} />
+                    <Route path="/create-tournament" element={<CreateTournament user={user} />} />
+                    <Route path="/tournaments" element={<TournamentList user={user} />} />
+                    <Route path="/tournament/:tournamentId" element={<TournamentGames user={user} />} />
                 </Routes>
             </div>
         </div>

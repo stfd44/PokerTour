@@ -1,14 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
-import Home from './pages/Home';
 import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
 import { MainLayout } from './pages/MainLayout';
 import { Header } from './components/layout/Header';
-import { CreateTournament } from './components/tournament/CreateTournament';
-import { TournamentList } from './components/tournament/TournamentList';
-import { TournamentGames } from './components/tournament/TournamentGames'; // Corrected import
 import Teams from './pages/Teams/Teams'; // Import the Teams component
 import { useAuthStore } from './store/useAuthStore';
 import Stats from './pages/Stats';
@@ -40,7 +36,7 @@ function App() {
           element={user ? <Navigate to="/" /> : <Login />} // Redirect to home if logged in
         />
         <Route
-          path="/"
+          path="/*"
           element={
             user ? (
               <div className="min-h-screen bg-poker-light">

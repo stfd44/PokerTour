@@ -36,7 +36,7 @@ export function CreateTournament({user}: CreateTournamentProps) {
       );
     }
 
-    navigate('/app/tournaments');
+    navigate('/tournaments');
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
