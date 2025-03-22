@@ -13,13 +13,12 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ user }: MainLayoutProps) {
-    console.log("MainLayout.tsx - User:", user);
     return (
         <div className="min-h-screen container mx-auto px-4 py-8">
             <div className="max-w-4xl mx-auto">
                 <Routes>
                    <Route path="/" element={<Home user={user} />} /> {/* Add Home route here */}
-                    <Route path="/create-tournament" element={<CreateTournament user={user} />} />
+                    <Route path="/app/create-tournament" element={<CreateTournament user={user} />} />
                     <Route path="/tournaments" element={<TournamentList user={user} />} />
                     <Route path="/tournament/:tournamentId" element={<TournamentGames user={user} />} />
                 </Routes>

@@ -22,7 +22,6 @@ export function CreateTournament({user}: CreateTournamentProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("CreateTournament.tsx - handleSubmit - userId:", user?.uid);
     if (user) {
       addTournament(
         {
@@ -50,7 +49,7 @@ export function CreateTournament({user}: CreateTournamentProps) {
   return (
     <div className="max-w-2xl mx-auto">
       <button
-        onClick={() => navigate('/')}
+        onClick={() => navigate('/tournaments')}
         className="flex items-center text-poker-black hover:text-poker-red mb-6 transition-colors"
       >
         <ArrowLeft className="w-5 h-5 mr-2" />

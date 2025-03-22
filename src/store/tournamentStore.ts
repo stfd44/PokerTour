@@ -50,19 +50,19 @@ export interface Tournament {
   games: Game[];
 }
 
-// Store Interface (unchanged)
+// Store Interface (modified)
 interface TournamentStore {
   tournaments: Tournament[];
-  fetchTournaments: () => Promise<void>; //remove userId
+  fetchTournaments: () => Promise<void>;
   addTournament: (tournamentData: Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'status' | 'games' | 'date'>, userId: string) => Promise<void>;
   registerToTournament: (tournamentId: string, userId: string, playerData: Player) => Promise<void>;
   unregisterFromTournament: (tournamentId: string, userId: string) => Promise<void>;
-  deleteTournament: (tournamentId: string, userId:string) => Promise<void>; //add userId
+  deleteTournament: (tournamentId: string, userId: string) => Promise<void>;
   startTournament: (tournamentId: string, userId: string) => Promise<void>;
   addGame: (tournamentId: string, game: Omit<Game, "id" | "status">) => Promise<void>;
   startGame: (tournamentId: string, gameId: string, players: Player[]) => Promise<void>;
-  updateGame: (tournamentId: string, gameId: string, update: Partial<Pick<Game, "players">>, userId: string) => Promise<void>;
-  endGame: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
+  updateGame: (tournamentId: string, gameId: string, update: Partial<Pick<Game, "players">>) => Promise<void>; //remove userId
+  endGame: (tournamentId: string, gameId: string) => Promise<void>; //remove userId
   deleteGame: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
 }
 
@@ -70,15 +70,13 @@ interface TournamentStore {
 const handleDatabaseError = (error: any) => {
   if (error instanceof FirestoreError) {
     console.error("Firestore error:", error.code, error.message);
-    // You might want to throw different types of errors based on the Firestore error code
-    // For example, if it's a "permission-denied" error, throw a specific PermissionError
     if (error.code === 'permission-denied') {
       throw new Error('You do not have permission to perform this action.');
     }
   } else {
     console.error("An unexpected error occurred:", error);
   }
-  throw error; // Re-throw the error to be handled by the caller
+  throw error;
 };
 
 // Helper function to check if the user is the creator (DRY)
@@ -95,7 +93,7 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
   tournaments: [],
 
   // Fetching Tournaments
-  fetchTournaments: async () => { //remove userId
+  fetchTournaments: async () => {
     try {
       const tournamentsSnapshot = await getDocs(collection(db, 'tournaments'));
       const tournamentsData = tournamentsSnapshot.docs.map((doc) => ({
@@ -148,46 +146,46 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
         ),
       }));
     } catch (error) {
-       handleDatabaseError(error);
+      handleDatabaseError(error);
     }
   },
- // Unregistering from a Tournament
+  // Unregistering from a Tournament
   unregisterFromTournament: async (tournamentId, userId) => {
     try {
-        const tournament = get().tournaments.find((t) => t.id === tournamentId);
-        if (!tournament) return;
-        const playerToRemove = tournament.registrations.find(p => p.id === userId);
-        if (!playerToRemove) return;
+      const tournament = get().tournaments.find((t) => t.id === tournamentId);
+      if (!tournament) return;
+      const playerToRemove = tournament.registrations.find(p => p.id === userId);
+      if (!playerToRemove) return;
 
-        const tournamentRef = doc(db, 'tournaments', tournamentId);
-        await updateDoc(tournamentRef, {
-          registrations: arrayRemove(playerToRemove)
-        });
-        set((state) => ({
-          tournaments: state.tournaments.map((t) =>
-            t.id === tournamentId
-              ? { ...t, registrations: t.registrations.filter(p => p.id !== userId) }
-              : t
-          ),
-        }));
+      const tournamentRef = doc(db, 'tournaments', tournamentId);
+      await updateDoc(tournamentRef, {
+        registrations: arrayRemove(playerToRemove)
+      });
+      set((state) => ({
+        tournaments: state.tournaments.map((t) =>
+          t.id === tournamentId
+            ? { ...t, registrations: t.registrations.filter(p => p.id !== userId) }
+            : t
+        ),
+      }));
     } catch (error) {
-       handleDatabaseError(error);
+      handleDatabaseError(error);
     }
   },
 
   // Deleting a Tournament
-  deleteTournament: async (tournamentId: string, userId: string) => { // add userId
+  deleteTournament: async (tournamentId: string, userId: string) => {
     try {
-       const tournamentRef = doc(db, "tournaments", tournamentId);
-        if(!await isCreator(tournamentRef,userId)){
-          throw new Error("You are not the creator of this tournament");
-        }
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      if (!await isCreator(tournamentRef, userId)) {
+        throw new Error("You are not the creator of this tournament");
+      }
       await deleteDoc(tournamentRef);
       set((state) => ({
         tournaments: state.tournaments.filter((t) => t.id !== tournamentId),
       }));
     } catch (error) {
-       handleDatabaseError(error);
+      handleDatabaseError(error);
     }
   },
 
@@ -195,9 +193,9 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
   startTournament: async (tournamentId, userId) => {
     try {
       const tournamentRef = doc(db, "tournaments", tournamentId);
-        if(!await isCreator(tournamentRef,userId)){
-          throw new Error("You are not the creator of this tournament");
-        }
+      if (!await isCreator(tournamentRef, userId)) {
+        throw new Error("You are not the creator of this tournament");
+      }
       await updateDoc(tournamentRef, {
         status: "in_progress",
       });
@@ -207,7 +205,7 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
         ),
       }));
     } catch (error) {
-       handleDatabaseError(error);
+      handleDatabaseError(error);
     }
   },
 
@@ -260,77 +258,72 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
   },
 
   // Updating a Game (Restricted to Players)
-  updateGame: async (tournamentId, gameId, update, userId) => {
+  updateGame: async (tournamentId, gameId, update) => {
+    try {
+      const tournament = get().tournaments.find((t) => t.id === tournamentId);
+      if (!tournament) return;
+
+      const updatedGames = tournament.games.map(game =>
+        game.id === gameId ? { ...game, players: update.players } : game
+      );
+
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+
+      await updateDoc(tournamentRef, { games: updatedGames });
+
+      set(state => ({
+        tournaments: state.tournaments.map(t =>
+          t.id === tournamentId ? { ...t, games: updatedGames } : t
+        )
+      }));
+    } catch (error) {
+      handleDatabaseError(error);
+    }
+  },
+  // Ending a Game
+  endGame: async (tournamentId, gameId) => {
+    try {
+      const tournament = get().tournaments.find((t) => t.id === tournamentId);
+      if (!tournament) return;
+
+      const updatedGames = tournament.games.map(game =>
+        game.id === gameId ? { ...game, status: 'finished' } : game
+      );
+
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+
+      await updateDoc(tournamentRef, { games: updatedGames });
+
+      set(state => ({
+        tournaments: state.tournaments.map(t =>
+          t.id === tournamentId ? { ...t, games: updatedGames } : t
+        )
+      }));
+    } catch (error) {
+      handleDatabaseError(error);
+    }
+  },
+
+  // Deleting a Game
+  deleteGame: async (tournamentId, gameId, userId) => {
     try {
       const tournament = get().tournaments.find((t) => t.id === tournamentId);
       if (!tournament) return;
 
       const tournamentRef = doc(db, "tournaments", tournamentId);
-        if(!await isCreator(tournamentRef,userId)){
-          throw new Error("You are not the creator of this tournament");
-        }
-      const updatedGames = tournament.games.map(game =>
-        game.id === gameId ? { ...game, players: update.players } : game
-      );
+      if (!await isCreator(tournamentRef, userId)) {
+        throw new Error("You are not the creator of this tournament");
+      }
 
+      const updatedGames = tournament.games.filter(game => game.id !== gameId);
       await updateDoc(tournamentRef, { games: updatedGames });
-
       set(state => ({
         tournaments: state.tournaments.map(t =>
           t.id === tournamentId ? { ...t, games: updatedGames } : t
         )
       }));
     } catch (error) {
-       handleDatabaseError(error);
+      handleDatabaseError(error);
     }
   },
-  // Ending a Game
-  endGame: async (tournamentId, gameId, userId) => {
-    try {
-        const tournament = get().tournaments.find((t) => t.id === tournamentId);
-        if (!tournament) return;
-
-        const tournamentRef = doc(db, "tournaments", tournamentId);
-         if(!await isCreator(tournamentRef,userId)){
-          throw new Error("You are not the creator of this tournament");
-        }
-
-        const updatedGames = tournament.games.map(game =>
-            game.id === gameId ? { ...game, status: 'finished' } : game
-        );
-
-        await updateDoc(tournamentRef, { games: updatedGames });
-
-        set(state => ({
-            tournaments: state.tournaments.map(t =>
-                t.id === tournamentId ? { ...t, games: updatedGames } : t
-            )
-        }));
-    } catch (error) {
-        handleDatabaseError(error);
-    }
-},
-
- // Deleting a Game
- deleteGame: async (tournamentId, gameId, userId) => {
-  try {
-      const tournament = get().tournaments.find((t) => t.id === tournamentId);
-        if (!tournament) return;
-
-        const tournamentRef = doc(db, "tournaments", tournamentId);
-        if(!await isCreator(tournamentRef,userId)){
-          throw new Error("You are not the creator of this tournament");
-        }
-
-        const updatedGames = tournament.games.filter(game => game.id !== gameId);
-      await updateDoc(tournamentRef, { games: updatedGames });
-      set(state => ({
-        tournaments: state.tournaments.map(t =>
-          t.id === tournamentId ? { ...t, games: updatedGames } : t
-        )
-      }));
-  } catch (error) {
-    handleDatabaseError(error);
-  }
-},
 }));
