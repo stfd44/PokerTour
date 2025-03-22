@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTournamentStore, Tournament } from '../store/tournamentStore';
 import { User } from 'firebase/auth';
-import { Calendar, Users, MapPin, PlayCircle, Trophy, Plus } from 'lucide-react';
+import { Calendar, Users, MapPin, PlayCircle, Trophy, Plus, Trash2 } from 'lucide-react';
 
 
 
@@ -13,7 +13,7 @@ interface HomeProps {
 
 const Home: React.FC<HomeProps> = ({ user }) => {
   const navigate = useNavigate();
-  const { fetchTournaments, tournaments } = useTournamentStore();
+  const { fetchTournaments, tournaments, deleteTournament } = useTournamentStore();
   console.log("Home.tsx - User:", user);
 
   useEffect(() => {
@@ -29,6 +29,17 @@ const Home: React.FC<HomeProps> = ({ user }) => {
 
   // Filter the user's tournament
   const userTournaments = tournaments.filter((tournament: Tournament) => tournament.registrations.some((p) => p.id === user?.uid));
+
+  const handleDeleteTournament = async (tournamentId: string) => {
+    if (user && window.confirm("Êtes-vous sûr de vouloir supprimer ce tournoi ?")) {
+      try {
+        await deleteTournament(tournamentId, user.uid);
+      } catch (error) {
+        console.error('Error deleting tournament:', error);
+        alert((error as Error).message);
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-poker-light">
@@ -102,12 +113,22 @@ const Home: React.FC<HomeProps> = ({ user }) => {
                         <span>{tournament.registrations.length} / {tournament.maxPlayers}</span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => navigate('/tournaments')}
-                      className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors"
-                    >
-                      <PlayCircle className='w-4 h-4 mr-2' /> Rejoindre
-                    </button>
+                    <div className='flex items-center'>
+                      <button
+                        onClick={() => navigate('/tournaments')}
+                        className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors mr-2"
+                      >
+                        <PlayCircle className='w-4 h-4 mr-2' /> Rejoindre
+                      </button>
+                      {user?.uid === tournament.creatorId && (
+                        <button
+                          onClick={() => handleDeleteTournament(tournament.id)}
+                          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded flex items-center"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -133,6 +154,22 @@ const Home: React.FC<HomeProps> = ({ user }) => {
                         <Users className="w-4 h-4" />
                         <span>{tournament.registrations.length} / {tournament.maxPlayers}</span>
                       </div>
+                    </div>
+                    <div className='flex items-center'>
+                      <button
+                        onClick={() => navigate('/tournaments')}
+                        className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors mr-2"
+                      >
+                        <PlayCircle className='w-4 h-4 mr-2' /> Rejoindre
+                      </button>
+                      {user?.uid === tournament.creatorId && (
+                        <button
+                          onClick={() => handleDeleteTournament(tournament.id)}
+                          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded flex items-center"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

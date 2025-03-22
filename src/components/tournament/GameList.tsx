@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTournamentStore } from '../../store/tournamentStore';
-import { Users, Timer, Coins, PlayCircle, Edit2, Eye, StopCircle } from 'lucide-react';
+import { Users, Timer, Coins, PlayCircle, Edit2, Eye, StopCircle, Trash2 } from 'lucide-react';
 import type { Game, Tournament } from '../../store/tournamentStore';
 
 interface GameListProps {
@@ -26,7 +26,7 @@ export function GameList({ tournament, setViewingGame, setIsCreating, setEditing
   };
 
   const handleDeleteGame = (gameId: string) => {
-    if (userId) {
+    if (userId && window.confirm("Êtes-vous sûr de vouloir supprimer cette partie ?")) {
       deleteGame(tournament.id, gameId, userId);
     }
   };
@@ -92,6 +92,7 @@ export function GameList({ tournament, setViewingGame, setIsCreating, setEditing
                       onClick={() => handleDeleteGame(game.id)}
                       className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors flex items-center"
                     >
+                      <Trash2 className="w-5 h-5 mr-2" />
                       Supprimer
                     </button>
                   )}

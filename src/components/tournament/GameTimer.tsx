@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Clock } from 'lucide-react';
 import type { Game } from '../../store/tournamentStore';
+import { useTournamentStore } from '../../store/tournamentStore';
 
 interface GameTimerProps {
   game: Game;
@@ -14,6 +15,9 @@ interface GameTimerData {
 
 export function GameTimer({ game }: GameTimerProps) {
   const [gameTimer, setGameTimer] = useState<GameTimerData | null>(null);
+  const requestRef = useRef<number | null>(null);
+  const previousTimeRef = useRef<number | null>(null);
+  const endGame = useTournamentStore(state => state.endGame);
 
   // Fonction pour calculer les blindes du niveau suivant
   const calculateNextBlinds = (currentSmall: number, currentBig: number): { small: number; big: number } => {
@@ -23,8 +27,10 @@ export function GameTimer({ game }: GameTimerProps) {
     };
   };
 
-  useEffect(() => {
-    const interval = setInterval(() => {
+  const animate = (time: number) => {
+    if (previousTimeRef.current != null) {
+      const deltaTime = time - previousTimeRef.current;
+
       if (!game.startedAt) return;
 
       const startTime = new Date(game.startedAt).getTime();
@@ -49,9 +55,23 @@ export function GameTimer({ game }: GameTimerProps) {
         currentBlinds,
         nextBlinds
       });
-    }, 1000);
 
-    return () => clearInterval(interval);
+      if (timeToNextLevel <= 0) {
+        endGame(game.tournamentId, game.id);
+      }
+    }
+
+    previousTimeRef.current = time;
+    requestRef.current = requestAnimationFrame(animate);
+  };
+
+  useEffect(() => {
+    requestRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
+    };
   }, [game]);
 
   if (!gameTimer) return null;

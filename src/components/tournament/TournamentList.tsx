@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTournamentStore } from '../../store/tournamentStore';
-import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle } from 'lucide-react';
+import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2 } from 'lucide-react';
 import { User } from 'firebase/auth';
 
 interface TournamentListProps {
@@ -10,7 +10,7 @@ interface TournamentListProps {
 
 export function TournamentList({ user }: TournamentListProps) {
   const navigate = useNavigate();
-  const { tournaments, registerToTournament, unregisterFromTournament, startTournament, fetchTournaments } = useTournamentStore();
+  const { tournaments, registerToTournament, unregisterFromTournament, startTournament, fetchTournaments, deleteTournament } = useTournamentStore();
   const [registrationStates, setRegistrationStates] = useState<{[key: string]: 'pending' | 'confirmed' | 'none'}>({});
   const [expandedTournaments, setExpandedTournaments] = useState<Set<string>>(new Set());
 
@@ -63,6 +63,17 @@ export function TournamentList({ user }: TournamentListProps) {
     });
   };
 
+  const handleDeleteTournament = async (tournamentId: string) => {
+    if (user && window.confirm("Êtes-vous sûr de vouloir supprimer ce tournoi ?")) {
+      try {
+        await deleteTournament(tournamentId, user.uid);
+      } catch (error) {
+        console.error('Error deleting tournament:', error);
+        alert((error as Error).message);
+      }
+    }
+  };
+
   if (tournaments.length === 0) {
     return (
       <div className="text-center py-12">
@@ -80,6 +91,7 @@ export function TournamentList({ user }: TournamentListProps) {
         const isExpanded = expandedTournaments.has(tournament.id);
         const canStart = tournament.status === 'scheduled' && tournament.registrations.length >= 2;
         const isStarted = tournament.status === 'in_progress';
+        const isCreator = user?.uid === tournament.creatorId;
 
         return (
           <div key={tournament.id} className="bg-white rounded-lg shadow-md p-6">
@@ -197,6 +209,14 @@ export function TournamentList({ user }: TournamentListProps) {
                     }`}
                   >
                     {isFull ? 'Complet' : isStarted ? 'En cours' : 'Rejoindre'}
+                  </button>
+                )}
+                {isCreator && (
+                  <button
+                    onClick={() => handleDeleteTournament(tournament.id)}
+                    className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded flex items-center"
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 )}
               </div>
