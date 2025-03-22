@@ -1,25 +1,35 @@
 // src/components/Login.tsx
-import React from 'react';
-import { signInWithGoogle } from '../lib/firebase'; // Import the function
+import React, { useEffect } from 'react';
+import { signInWithGoogle } from '../lib/firebase';
+import { useAuthStore } from '../store/useAuthStore'; // Import useAuthStore
+import { useNavigate } from 'react-router-dom';
 
 const Login: React.FC = () => {
-  const handleGoogleSignIn = async () => {
-    const user = await signInWithGoogle();
+  const { login, user, setUser } = useAuthStore(); // Get the login function from the store
+  const navigate = useNavigate();
+
+  useEffect(() => {
     if (user) {
-      console.log('User successfully logged in:', user);
-      // Handle successful login, e.g., redirect the user
-    } else {
-      console.error('Login failed.');
-      // Handle login failure
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  const handleGoogleSignIn = async () => {
+    const userConnected = await signInWithGoogle();
+    if(userConnected){
+      setUser(userConnected);
     }
   };
 
   return (
-    <div>
-      <button id="googleSignInButton" onClick={handleGoogleSignIn}>
-        Sign in with Google
+    <div className="flex flex-col items-center justify-center h-screen bg-poker-light">
+      <h1 className="text-4xl font-bold text-poker-black mb-8">PokerTour</h1>
+      <button
+        onClick={handleGoogleSignIn}
+        className="bg-poker-gold hover:bg-poker-dark text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out"
+      >
+        Se connecter avec Google
       </button>
-      {/* Other login elements */}
     </div>
   );
 };

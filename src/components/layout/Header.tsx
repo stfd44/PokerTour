@@ -3,8 +3,7 @@ import React, { useState } from 'react';
 import { Menu, X, UserCheck as PokerChip, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
-import { getAuth, signOut } from 'firebase/auth';
-import { auth } from '../../lib/firebase';
+import { useAuthStore } from '../../store/useAuthStore'; // Corrected import path
 
 interface HeaderProps {
   user: User | null;
@@ -12,17 +11,19 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ user }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { logout } = useAuthStore();
 
   const menuItems = [
     { label: 'Accueil', path: '/' },
-    { label: 'Tournois', path: '/app/tournaments' },
+    { label: 'Tournois', path: '/tournaments' },
+    { label: 'Teams', path: '/teams' }, // Added the Teams link here
     { label: 'Statistiques', path: '/stats' },
     { label: 'Profil', path: '/profile' },
   ];
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
+      await logout();
     } catch (error) {
       console.error("Error signing out", error);
     }

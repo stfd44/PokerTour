@@ -1,7 +1,7 @@
 // src/pages/Home.tsx
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTournamentStore } from '../store/tournamentStore';
+import { useTournamentStore, Tournament } from '../store/tournamentStore';
 import { User } from 'firebase/auth';
 import { Calendar, Users, MapPin, PlayCircle, Trophy, Plus } from 'lucide-react';
 
@@ -13,8 +13,7 @@ interface HomeProps {
 
 const Home: React.FC<HomeProps> = ({ user }) => {
   const navigate = useNavigate();
-  const fetchTournaments = useTournamentStore(state => state.fetchTournaments);
-  const tournaments = useTournamentStore(state => state.tournaments);
+  const { fetchTournaments, tournaments } = useTournamentStore();
   console.log("Home.tsx - User:", user);
 
   useEffect(() => {
@@ -24,12 +23,12 @@ const Home: React.FC<HomeProps> = ({ user }) => {
 
   // Filter and sort upcoming tournaments
   const upcomingTournaments = tournaments
-    .filter(tournament => tournament.status === 'scheduled')
+    .filter((tournament: Tournament) => tournament.status === 'scheduled')
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3); // Get the next 3
 
   // Filter the user's tournament
-  const userTournaments = tournaments.filter(tournament => tournament.registrations.some(p => p.id === user?.uid));
+  const userTournaments = tournaments.filter((tournament: Tournament) => tournament.registrations.some((p) => p.id === user?.uid));
 
   return (
     <div className="min-h-screen bg-poker-light">
@@ -75,7 +74,7 @@ const Home: React.FC<HomeProps> = ({ user }) => {
                 Participez à des tournois existants et suivez vos performances
               </p>
               <button
-                onClick={() => navigate('/app/tournaments')}
+                onClick={() => navigate('/tournaments')}
                 className="bg-poker-gold text-white px-6 py-2 rounded-md hover:bg-yellow-600 transition-colors"
               >
                 Voir les tournois
@@ -90,7 +89,7 @@ const Home: React.FC<HomeProps> = ({ user }) => {
                 <Calendar className="w-6 h-6 mr-2" /> Prochains Tournois
               </h2>
               <div className="grid gap-4">
-                {upcomingTournaments.map(tournament => (
+                {upcomingTournaments.map((tournament: Tournament) => (
                   <div key={tournament.id} className="bg-white rounded-lg shadow-md p-4 flex justify-between items-center">
                     <div>
                       <h3 className="font-semibold text-lg">{tournament.name}</h3>
@@ -104,7 +103,7 @@ const Home: React.FC<HomeProps> = ({ user }) => {
                       </div>
                     </div>
                     <button
-                      onClick={() => navigate('/app/tournaments')}
+                      onClick={() => navigate('/tournaments')}
                       className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors"
                     >
                       <PlayCircle className='w-4 h-4 mr-2' /> Rejoindre
@@ -122,7 +121,7 @@ const Home: React.FC<HomeProps> = ({ user }) => {
                 <Trophy className="w-6 h-6 mr-2" /> Mes Tournois
               </h2>
               <div className="grid gap-4">
-                {userTournaments.map(tournament => (
+                {userTournaments.map((tournament: Tournament) => (
                   <div key={tournament.id} className="bg-white rounded-lg shadow-md p-4 flex justify-between items-center">
                     <div>
                       <h3 className="font-semibold text-lg">{tournament.name}</h3>

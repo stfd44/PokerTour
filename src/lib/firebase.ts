@@ -1,6 +1,6 @@
 // src/lib/firebase.ts
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, User } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, User, } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore'; // Import Firestore functions
 
 // Firebase configuration from environment variables
@@ -24,7 +24,7 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 // Google Provider
-const provider = new GoogleAuthProvider();
+export const provider = new GoogleAuthProvider();
 
 /**
  * Sign in with Google using a popup.
@@ -33,14 +33,8 @@ const provider = new GoogleAuthProvider();
 export const signInWithGoogle = async (): Promise<User | null> => {
   try {
     const result = await signInWithPopup(auth, provider);
-    // This gives you a Google Access Token. You can use it to access the Google API.
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    const token = credential?.accessToken;
-    // The signed-in user info.
-    const user = result.user;
-    console.log("Utilisateur connecté avec Google :", user);
-    return user;
-  } catch (error) {
+    return result.user;
+  } catch (error: any) {
     // Handle Errors here.
     const errorCode = error.code;
     const errorMessage = error.message;
