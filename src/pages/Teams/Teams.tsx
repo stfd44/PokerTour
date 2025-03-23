@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useTeamStore } from '../../store/useTeamStore';
-import { useAuthStore } from '../../store/useAuthStore';
+import { useTeamStore, Team } from '../../store/useTeamStore';
 import { User } from 'firebase/auth';
+import { Trash2, UserPlus, UserMinus } from 'lucide-react';
 
 interface TeamsProps {
   user: User | null;
@@ -39,8 +39,13 @@ const Teams: React.FC<TeamsProps> = ({ user }) => {
   };
 
   const handleDeleteTeam = async (teamId: string) => {
-    if (user) {
-      await deleteTeam(teamId);
+    if (user && window.confirm("Êtes-vous sûr de vouloir supprimer cette équipe ?")) {
+      try {
+        await deleteTeam(teamId, user.uid);
+      } catch (error) {
+        console.error('Error deleting team:', error);
+        alert((error as Error).message);
+      }
     }
   };
 
@@ -68,31 +73,34 @@ const Teams: React.FC<TeamsProps> = ({ user }) => {
       {/* Team List */}
       {teams.length > 0 ? (
         <ul>
-          {teams.map((team) => (
+          {teams.map((team: Team) => (
             <li key={team.id} className="border border-gray-300 p-3 mb-2 rounded-md">
               <div className="flex justify-between items-center">
                 <span className="font-medium">{team.name}</span>
-                <div>
-                  {team.creatorId === user?.uid && (
+                <div className='flex items-center'>
+                  {user && team.creatorId === user.uid && (
                     <button
                       onClick={() => handleDeleteTeam(team.id)}
-                      className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded mr-2"
+                      className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded mr-2 flex items-center"
                     >
+                      <Trash2 className='w-4 h-4 mr-1'/>
                       Delete
                     </button>
                   )}
                   {team.members.includes(user?.uid || '') ? (
                     <button
                       onClick={() => handleLeaveTeam(team.id)}
-                      className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded mr-2"
+                      className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded mr-2 flex items-center"
                     >
+                      <UserMinus className='w-4 h-4 mr-1'/>
                       Leave
                     </button>
                   ) : team.pastMembers.includes(user?.uid || '') ? (
                     <button
                       onClick={() => handleJoinTeam(team.id)}
-                      className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
+                      className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded flex items-center"
                     >
+                      <UserPlus className='w-4 h-4 mr-1'/>
                       Join
                     </button>
                   ) : null}

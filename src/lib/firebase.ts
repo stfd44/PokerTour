@@ -1,9 +1,7 @@
-// src/lib/firebase.ts
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, User, } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore'; // Import Firestore functions
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
-// Firebase configuration from environment variables
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -11,38 +9,34 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase App
 const app = initializeApp(firebaseConfig);
-
-// Get Firebase Auth instance
-export const auth = getAuth(app);
-
-// Get Firestore instance
 export const db = getFirestore(app);
-
-// Google Provider
+export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
 
-/**
- * Sign in with Google using a popup.
- * @returns A Promise that resolves with the signed-in user.
- */
-export const signInWithGoogle = async (): Promise<User | null> => {
+export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, provider);
     return result.user;
-  } catch (error: any) {
-    // Handle Errors here.
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    // The email of the user's account used.
-    // const email = error.customData.email;
-    // The AuthCredential type that was used.
-    // const credential = GoogleAuthProvider.credentialFromError(error);
-    console.error("Erreur de connexion Google :", errorCode, errorMessage);
+  } catch (error) {
+    console.error('Error signing in with Google:', error);
     return null;
+  }
+};
+
+export const handleDatabaseError = (error: any) => {
+  console.error('Database error:', error);
+  alert((error as Error).message);
+};
+
+export const isCreator = async (docRef: any, userId: string) => {
+  const docSnap = await getDoc(docRef);
+  if (docSnap.exists()) {
+    const data = docSnap.data();
+    return data.creatorId === userId;
+  } else {
+    return false;
   }
 };

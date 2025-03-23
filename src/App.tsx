@@ -1,19 +1,19 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
 import React, { useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './lib/firebase';
 import { MainLayout } from './pages/MainLayout';
 import { Header } from './components/layout/Header';
-import Teams from './pages/Teams/Teams'; // Import the Teams component
+import Teams from './pages/Teams/Teams';
 import { useAuthStore } from './store/useAuthStore';
 import Stats from './pages/Stats';
 import Profile from './pages/Profile';
 import Tournaments from './pages/Tournaments';
 
 function App() {
-  const { user, login, setUser } = useAuthStore();
-  const [loading, setLoading] = useState<boolean>(true); // Add a loading state
+  const { user, setUser } = useAuthStore();
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -21,9 +21,8 @@ function App() {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [setUser]);
 
-  // Add a loading state
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -33,7 +32,7 @@ function App() {
       <Routes>
         <Route
           path="/login"
-          element={user ? <Navigate to="/" /> : <Login />} // Redirect to home if logged in
+          element={user ? <Navigate to="/" /> : <Login />}
         />
         <Route
           path="/*"
@@ -41,21 +40,20 @@ function App() {
             user ? (
               <div className="min-h-screen bg-poker-light">
                 <Header user={user} />
-                <MainLayout user={user}/>
+                <MainLayout user={user} />
               </div>
             ) : (
               <Navigate to="/login" />
             )
           }
         />
-        {/* Add the route for the Teams page */}
         <Route
           path="/teams"
           element={
             user ? (
               <div className="min-h-screen bg-poker-light">
                 <Header user={user} />
-                <Teams user={user}/> {/* Pass the user prop to Teams */}
+                <Teams user={user} />
               </div>
             ) : (
               <Navigate to="/login" />
@@ -68,7 +66,7 @@ function App() {
             user ? (
               <div className="min-h-screen bg-poker-light">
                 <Header user={user} />
-                <Tournaments user={user}/> {/* Pass the user prop to Tournaments */}
+                <Tournaments user={user} />
               </div>
             ) : (
               <Navigate to="/login" />
@@ -81,7 +79,7 @@ function App() {
             user ? (
               <div className="min-h-screen bg-poker-light">
                 <Header user={user} />
-                <Stats user={user}/> {/* Pass the user prop to Stats */}
+                <Stats user={user} />
               </div>
             ) : (
               <Navigate to="/login" />
@@ -94,7 +92,7 @@ function App() {
             user ? (
               <div className="min-h-screen bg-poker-light">
                 <Header user={user} />
-                <Profile user={user}/> {/* Pass the user prop to Profile */}
+                <Profile user={user} />
               </div>
             ) : (
               <Navigate to="/login" />

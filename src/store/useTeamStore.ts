@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import { collection, addDoc, getDocs, query, where, doc, updateDoc, arrayUnion, arrayRemove, serverTimestamp, deleteDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { collection, addDoc, getDocs, query, where, doc, updateDoc, arrayUnion, arrayRemove, serverTimestamp, deleteDoc, getDoc } from 'firebase/firestore';
+import { db, handleDatabaseError, isCreator } from '../lib/firebase';
 import { useAuthStore } from './useAuthStore';
 
-interface Team {
+export interface Team {
   id: string;
   name: string;
   creatorId: string;
@@ -21,8 +21,9 @@ interface TeamStore {
   removeMember: (teamId: string, userId: string) => Promise<void>;
   leaveTeam: (teamId: string, userId: string) => Promise<void>;
   joinTeam: (teamId: string, userId: string) => Promise<void>;
-  deleteTeam: (teamId: string) => Promise<void>;
+  deleteTeam: (teamId: string, userId: string) => Promise<void>;
   setCurrentTeam: (team: Team | null) => void;
+  isCreator: (teamId: string, userId: string) => Promise<boolean>;
 }
 
 export const useTeamStore = create<TeamStore>((set, get) => ({
@@ -49,7 +50,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
         teams: [...state.teams, { ...newTeam, id: docRef.id, createdAt: new Date() }], // Add the createdAt field to the new team
       }));
     } catch (error) {
-      console.error('Error creating team:', error);
+      handleDatabaseError(error);
     }
   },
   fetchTeams: async () => {
@@ -64,7 +65,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       });
       set({ teams: fetchedTeams });
     } catch (error) {
-      console.error('Error fetching teams:', error);
+      handleDatabaseError(error);
     }
   },
   addMember: async (teamId, userId) => {
@@ -79,7 +80,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
         ),
       }));
     } catch (error) {
-      console.error('Error adding member:', error);
+      handleDatabaseError(error);
     }
   },
   removeMember: async (teamId, userId) => {
@@ -95,11 +96,15 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
         ),
       }));
     } catch (error) {
-      console.error('Error removing member:', error);
+      handleDatabaseError(error);
     }
   },
   leaveTeam: async (teamId, userId) => {
-    await get().removeMember(teamId, userId);
+    try {
+      await get().removeMember(teamId, userId);
+    } catch (error) {
+      handleDatabaseError(error);
+    }
   },
   joinTeam: async (teamId, userId) => {
     try {
@@ -114,18 +119,31 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
         ),
       }));
     } catch (error) {
-      console.error('Error adding member:', error);
+      handleDatabaseError(error);
     }
   },
-  deleteTeam: async (teamId) => {
+  deleteTeam: async (teamId, userId) => {
     try {
-      await deleteDoc(doc(db, 'teams', teamId));
+      const teamRef = doc(db, 'teams', teamId);
+      if (!await get().isCreator(teamId, userId)) {
+        throw new Error("You are not the creator of this team");
+      }
+      await deleteDoc(teamRef);
       set((state) => ({
         teams: state.teams.filter((team) => team.id !== teamId),
       }));
     } catch (error) {
-      console.error('Error deleting team:', error);
+      handleDatabaseError(error);
     }
   },
   setCurrentTeam: (team) => set({ currentTeam: team }),
+  isCreator: async (teamId, userId) => {
+    try {
+      const teamRef = doc(db, 'teams', teamId);
+      return await isCreator(teamRef, userId);
+    } catch (error) {
+      handleDatabaseError(error);
+      return false;
+    }
+  },
 }));
