@@ -12,7 +12,7 @@ interface CreateTournamentProps {
 
 export function CreateTournament({ user }: CreateTournamentProps) {
     const navigate = useNavigate();
-    const addTournament = useTournamentStore((state) => state.addTournament);
+    const { addTournament, fetchTournaments } = useTournamentStore();
     const { teams, fetchTeams } = useTeamStore();
     const [formData, setFormData] = useState({
         name: '',
@@ -32,19 +32,20 @@ export function CreateTournament({ user }: CreateTournamentProps) {
         if (user) {
             addTournament(
                 {
-                    name: formData.name,
-                    date: formData.date,
-                    buyin: Number(formData.buyin),
-                    maxPlayers: Number(formData.maxPlayers),
-                    location: formData.location,
+                  name: formData.name,
+                  date: formData.date,
+                  buyin: Number(formData.buyin),
+                  maxPlayers: Number(formData.maxPlayers),
+                  location: formData.location,
                 },
                 user.uid,
                 formData.teamId // Pass teamId to addTournament
-            );
-        }
-
-        navigate('/tournaments');
-    };
+            ).then(() => {
+                fetchTournaments(user.uid);
+                navigate('/');
+            });
+          }    
+      };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { id, value } = e.target;

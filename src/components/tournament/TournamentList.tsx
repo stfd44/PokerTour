@@ -15,8 +15,10 @@ export function TournamentList({ user }: TournamentListProps) {
   const [expandedTournaments, setExpandedTournaments] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-      fetchTournaments();
-  }, [fetchTournaments]);
+    if (user) {
+        fetchTournaments(user.uid); // Pass userId to fetchTournaments
+    }
+}, [fetchTournaments, user]);
 
   const handleRegistration = async (tournamentId: string) => {
       if (user) {

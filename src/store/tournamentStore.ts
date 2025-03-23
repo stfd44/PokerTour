@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { db, handleDatabaseError, isCreator } from '../lib/firebase';
-import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, arrayUnion, arrayRemove, getDoc, query, where } from 'firebase/firestore';
+import { useTeamStore } from './useTeamStore'; // Import useTeamStore
 
 export interface Player {
   id: string;
@@ -40,7 +41,7 @@ export interface Tournament {
 
 interface TournamentStore {
   tournaments: Tournament[];
-  fetchTournaments: () => Promise<void>;
+  fetchTournaments: (userId: string) => Promise<void>; // Add userId parameter
   addTournament: (tournamentData: Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'status'>, userId: string, teamId: string) => Promise<void>; // Add teamId parameter
   deleteTournament: (tournamentId: string, userId: string) => Promise<void>;
   registerToTournament: (tournamentId: string, userId: string, player: Player) => Promise<void>;
@@ -57,16 +58,23 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
   tournaments: [],
 
   // Fetching Tournaments
-  fetchTournaments: async () => {
+  fetchTournaments: async (userId) => { // Add userId parameter
     try {
-      const querySnapshot = await getDocs(collection(db, "tournaments"));
-      const tournaments: Tournament[] = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Tournament[];
-      set({ tournaments });
+        const { teams } = useTeamStore.getState(); // Get the teams from useTeamStore
+        const userTeams = teams.map(team => team.id); // Get the user's team IDs
+        if (userTeams.length === 0) {
+            set({ tournaments: [] }); // If the user is not in any team, display no tournament
+            return;
+        }
+        const q = query(collection(db, "tournaments"), where("teamId", "in", userTeams)); // Query tournaments where teamId is in userTeams
+        const querySnapshot = await getDocs(q);
+        const tournaments: Tournament[] = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+        })) as Tournament[];
+        set({ tournaments });
     } catch (error) {
-      handleDatabaseError(error);
+        handleDatabaseError(error);
     }
   },
 

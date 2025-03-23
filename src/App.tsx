@@ -10,18 +10,23 @@ import { useAuthStore } from './store/useAuthStore';
 import Stats from './pages/Stats';
 import Profile from './pages/Profile';
 import Tournaments from './pages/Tournaments';
+import { useTeamStore } from './store/useTeamStore';
 
 function App() {
   const { user, setUser } = useAuthStore();
+  const { fetchTeams } = useTeamStore();
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
+      if (currentUser) {
+        fetchTeams();
+      }
     });
     return () => unsubscribe();
-  }, [setUser]);
+  }, [setUser, fetchTeams]);
 
   if (loading) {
     return <div>Loading...</div>;
