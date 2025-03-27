@@ -3,6 +3,18 @@ import { collection, addDoc, getDocs, query, where, doc, updateDoc, arrayUnion, 
 import { db, handleDatabaseError, isCreator } from '../lib/firebase';
 import { useAuthStore } from './useAuthStore';
 
+// Fonction pour générer un ID unique à 4 chiffres
+const generateUniqueId = async (): Promise<string> => {
+  while (true) {
+    const id = Math.floor(1000 + Math.random() * 9000).toString();
+    const teamRef = doc(db, 'teams', id);
+    const teamSnap = await getDoc(teamRef);
+    if (!teamSnap.exists()) {
+      return id;
+    }
+  }
+};
+
 export interface Team {
   id: string;
   name: string;
@@ -10,6 +22,7 @@ export interface Team {
   members: string[];
   pastMembers: string[];
   createdAt: Date;
+  tag: string;
 }
 
 interface TeamStore {
@@ -36,12 +49,17 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       return;
     }
 
+    const uniqueId = await generateUniqueId();
+    const tag = `${name.toLowerCase().replace(/\s+/g, '_')}_${uniqueId}`;
+
+
     const newTeam = {
       name,
       creatorId: user.uid,
       members: [user.uid],
       pastMembers: [],
       createdAt: serverTimestamp(), // Use serverTimestamp() instead of new Date()
+      tag: tag, // Ajout du tag
     };
 
     try {
@@ -53,7 +71,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       handleDatabaseError(error);
     }
   },
-  fetchTeams: async () => {
+    fetchTeams: async () => {
     const { user } = useAuthStore.getState();
     if (!user) return;
     try {

@@ -76,7 +76,10 @@ const Teams: React.FC<TeamsProps> = ({ user }) => {
           {teams.map((team: Team) => (
             <li key={team.id} className="border border-gray-300 p-3 mb-2 rounded-md">
               <div className="flex justify-between items-center">
-                <span className="font-medium">{team.name}</span>
+                <div>
+                  <span className="font-medium">{team.name}</span>
+                  <span className="text-sm text-gray-600 ml-2">({team.tag})</span>
+                </div>
                 <div className='flex items-center'>
                   {user && team.creatorId === user.uid && (
                     <button
@@ -84,7 +87,7 @@ const Teams: React.FC<TeamsProps> = ({ user }) => {
                       className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded mr-2 flex items-center"
                     >
                       <Trash2 className='w-4 h-4 mr-1'/>
-                      Delete
+                      Supprimer
                     </button>
                   )}
                   {team.members.includes(user?.uid || '') ? (
@@ -93,7 +96,7 @@ const Teams: React.FC<TeamsProps> = ({ user }) => {
                       className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded mr-2 flex items-center"
                     >
                       <UserMinus className='w-4 h-4 mr-1'/>
-                      Leave
+                      Quitter
                     </button>
                   ) : team.pastMembers.includes(user?.uid || '') ? (
                     <button
@@ -101,19 +104,19 @@ const Teams: React.FC<TeamsProps> = ({ user }) => {
                       className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded flex items-center"
                     >
                       <UserPlus className='w-4 h-4 mr-1'/>
-                      Join
+                      Rejoindre
                     </button>
                   ) : null}
                 </div>
               </div>
               <p className="text-sm text-gray-600">
-                Members: {team.members.length}
+                Membres: {team.members.length}
               </p>
             </li>
           ))}
         </ul>
       ) : (
-        <p>You are not a member of any team yet.</p>
+        <p>Vous n'êtes membre d'aucune équipe pour le moment.</p>
       )}
     </div>
   );
