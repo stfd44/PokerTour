@@ -37,6 +37,7 @@ interface TeamStore {
   deleteTeam: (teamId: string, userId: string) => Promise<void>;
   setCurrentTeam: (team: Team | null) => void;
   isCreator: (teamId: string, userId: string) => Promise<boolean>;
+  joinTeamByTag: (tag: string) => Promise<void>; // Add this line
 }
 
 export const useTeamStore = create<TeamStore>((set, get) => ({
@@ -162,6 +163,47 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     } catch (error) {
       handleDatabaseError(error);
       return false;
+    }
+  },
+  joinTeamByTag: async (tag) => {
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      throw new Error('Utilisateur non connecté.');
+    }
+
+    try {
+      const q = query(collection(db, 'teams'), where('tag', '==', tag));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        throw new Error('Équipe non valide ou inexistante');
+      }
+
+      const teamDoc = querySnapshot.docs[0];
+      const teamId = teamDoc.id;
+      const teamData = teamDoc.data() as Omit<Team, 'id'>;
+
+      if (teamData.members.includes(user.uid)) {
+        throw new Error('Vous êtes déjà membre de cette équipe');
+      }
+
+      const teamRef = doc(db, 'teams', teamId);
+      await updateDoc(teamRef, {
+        members: arrayUnion(user.uid),
+        pastMembers: arrayRemove(user.uid),
+      });
+
+      // Update local state - refetch teams to get the updated list
+      await get().fetchTeams();
+
+    } catch (error) {
+      // Rethrow specific errors or handle database errors
+      if (error instanceof Error && (error.message === 'Équipe non valide ou inexistante' || error.message === 'Vous êtes déjà membre de cette équipe')) {
+        throw error;
+      } else {
+        handleDatabaseError(error);
+        throw new Error('Une erreur est survenue lors de la tentative de rejoindre l\'équipe.'); // Generic error for UI
+      }
     }
   },
 }));

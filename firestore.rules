@@ -4,12 +4,20 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow create: if request.auth != null;
       allow read: if request.auth != null;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.creatorId;
+      // Allow any authenticated user to update (e.g., join/leave)
+      allow update: if request.auth != null;
+      // Only allow the creator to delete
+      allow delete: if request.auth != null && request.auth.uid == resource.data.creatorId;
     }
     match /tournaments/{tournamentId} {
       allow create: if request.auth != null;
-      allow read: if true;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.creatorId;
+      allow read: if true; // Allow anyone to read tournament details
+      // Allow update if user is creator OR if user is a member of the associated team
+      allow update: if request.auth != null &&
+                       (request.auth.uid == resource.data.creatorId ||
+                        get(/databases/$(database)/documents/teams/$(resource.data.teamId)).data.members.hasAny([request.auth.uid]));
+      // Only allow the creator to delete
+      allow delete: if request.auth != null && request.auth.uid == resource.data.creatorId;
     }
   }
 }
