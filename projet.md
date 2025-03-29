@@ -738,6 +738,8 @@ import { CreateTournament } from '../components/tournament/CreateTournament';
 import { TournamentList } from '../components/tournament/TournamentList';
 import { TournamentGames } from '../components/tournament/TournamentGames';
 import Home from './Home';
+// Import the Teams component
+import Teams from './Teams/Teams';
 
 export function MainLayout() {
   return (
@@ -748,6 +750,8 @@ export function MainLayout() {
           <Route path="/app/create-tournament" element={<CreateTournament />} />
           <Route path="/tournaments" element={<TournamentList />} />
           <Route path="/tournament/:tournamentId" element={<TournamentGames />} />
+          {/* Add the route for the Teams page */}
+          <Route path="/teams" element={<Teams />} />
         </Routes>
       </div>
     </div>
