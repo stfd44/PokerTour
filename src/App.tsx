@@ -5,11 +5,11 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
 import { MainLayout } from './pages/MainLayout';
 import { Header } from './components/layout/Header';
-import Teams from './pages/Teams/Teams';
+// Teams is now routed within MainLayout
 import { useAuthStore } from './store/useAuthStore';
-import Stats from './pages/Stats';
-import Profile from './pages/Profile';
-import Tournaments from './pages/Tournaments';
+// Stats is now routed within MainLayout
+// Profile is now routed within MainLayout
+// Tournaments is now routed within MainLayout
 import { useTeamStore } from './store/useTeamStore';
 import { NicknamePrompt } from './components/NicknamePrompt';
 
@@ -64,61 +64,7 @@ function App() {
             )
           }
         />
-         {/* Update other protected routes similarly */}
-             <Route
-          path="/teams"
-          element={
-            user ? (
-              <div className="min-h-screen bg-poker-light">
-                <Header />
-                {/* Pass the user object as a prop */}
-                <Teams user={user} />
-              </div>
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route
-          path="/tournaments"
-          element={
-            user ? (
-              <div className="min-h-screen bg-poker-light">
-                <Header />
-                {/* Pass the user object as a prop */}
-                <Tournaments user={user} />
-              </div>
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route
-          path="/stats"
-          element={
-            user ? (
-              <div className="min-h-screen bg-poker-light">
-                <Header />
-                <Stats />
-              </div>
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            user ? (
-              <div className="min-h-screen bg-poker-light">
-                <Header />
-                <Profile />
-              </div>
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
+        {/* The routes for teams, tournaments, stats, profile are now handled within MainLayout */}
       </Routes>
     </>
   );

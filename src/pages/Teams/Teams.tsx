@@ -1,17 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTeamStore, Team } from '../../store/useTeamStore';
-// Import AppUser from the auth store instead of Firebase User
-import { AppUser } from '../../store/useAuthStore';
+// Import useAuthStore from the auth store (AppUser removed)
+import { useAuthStore } from '../../store/useAuthStore';
 import { Trash2, UserPlus, UserMinus, LogIn, Users } from 'lucide-react'; // Import LogIn and Users icons
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
-interface TeamsProps {
-  // Expect AppUser type from the auth store
-  user: AppUser | null;
-}
-
-const Teams: React.FC<TeamsProps> = ({ user }) => {
+// Remove TeamsProps interface and user prop
+const Teams: React.FC = () => {
+  // Get user directly from the store
+  const { user } = useAuthStore();
   const { teams, createTeam, fetchTeams, leaveTeam, joinTeam, deleteTeam, joinTeamByTag } = useTeamStore();
   const [newTeamName, setNewTeamName] = useState('');
   const [joinTag, setJoinTag] = useState('');

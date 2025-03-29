@@ -20,7 +20,6 @@
 ├── │   ├── layout
 ├── │   │   └── Header.tsx
 ├── │   ├── Login.tsx
-├── │   ├── NicknamePrompt.d.ts
 ├── │   ├── NicknamePrompt.tsx
 ├── │   └── tournament
 ├── │       ├── CreateTournament.tsx
@@ -104,11 +103,11 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
 import { MainLayout } from './pages/MainLayout';
 import { Header } from './components/layout/Header';
-import Teams from './pages/Teams/Teams';
+// Teams is now routed within MainLayout
 import { useAuthStore } from './store/useAuthStore';
-import Stats from './pages/Stats';
-import Profile from './pages/Profile';
-import Tournaments from './pages/Tournaments';
+// Stats is now routed within MainLayout
+// Profile is now routed within MainLayout
+// Tournaments is now routed within MainLayout
 import { useTeamStore } from './store/useTeamStore';
 import { NicknamePrompt } from './components/NicknamePrompt';
 
@@ -120,8 +119,9 @@ function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser: User | null) => {
       await setUser(currentUser);
+      // fetchTeams should be called without arguments, it gets user from the store
       if (currentUser && useAuthStore.getState().user?.nickname) {
-        fetchTeams(currentUser.uid);
+        fetchTeams();
       }
     });
     // Cleanup subscription on unmount
@@ -162,59 +162,7 @@ function App() {
             )
           }
         />
-         {/* Update other protected routes similarly */}
-         <Route
-          path="/teams"
-          element={
-            user ? (
-              <div className="min-h-screen bg-poker-light">
-                <Header />
-                <Teams />
-              </div>
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route
-          path="/tournaments"
-          element={
-            user ? (
-              <div className="min-h-screen bg-poker-light">
-                <Header />
-                <Tournaments />
-              </div>
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route
-          path="/stats"
-          element={
-            user ? (
-              <div className="min-h-screen bg-poker-light">
-                <Header />
-                <Stats />
-              </div>
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            user ? (
-              <div className="min-h-screen bg-poker-light">
-                <Header />
-                <Profile />
-              </div>
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
+        {/* The routes for teams, tournaments, stats, profile are now handled within MainLayout */}
       </Routes>
     </>
   );

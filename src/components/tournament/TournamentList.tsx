@@ -46,7 +46,8 @@ export function TournamentList() {
   const handleStartTournament = (tournamentId: string) => {
     if (user) {
         startTournament(tournamentId, user.uid);
-        navigate(`/app/tournament/${tournamentId}`);
+        // Corrected path: remove '/app' prefix
+        navigate(`/tournament/${tournamentId}`);
     }
   };
 
@@ -160,7 +161,8 @@ export function TournamentList() {
               <div>
                 {isStarted ? (
                   <button
-                    onClick={() => navigate(`/app/tournament/${tournament.id}`)}
+                    // Corrected path: remove '/app' prefix
+                    onClick={() => navigate(`/tournament/${tournament.id}`)}
                     className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
                   >
                     <PlayCircle className="w-5 h-5 mr-2" />
