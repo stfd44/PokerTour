@@ -8,6 +8,7 @@ export interface Player {
   name: string;
   nickname?: string;
   eliminated?: boolean;
+  eliminationTime?: number | null; // Added for tracking elimination time
 }
 
 export interface Blinds {
@@ -28,6 +29,7 @@ export interface Game {
   levelStartTime: number; // Timestamp when the current level started (adjusted for pauses)
   isPaused: boolean; // Is the timer manually paused?
   remainingTimeOnPause: number | null; // Milliseconds remaining when paused
+  endedAt?: number | null; // Added for tracking game end time
 }
 
 export interface Tournament {
@@ -52,7 +54,8 @@ interface TournamentStore {
   registerToTournament: (tournamentId: string, userId: string, player: Player, nickname?: string) => Promise<void>;
   unregisterFromTournament: (tournamentId: string, userId: string) => Promise<void>;
   startTournament: (tournamentId: string, userId: string) => Promise<void>;
-  addGame: (tournamentId: string, gameData: Omit<Game, 'id' | 'status'>) => Promise<void>;
+  // Adjusted addGame gameData type to reflect only fields provided by GameForm
+  addGame: (tournamentId: string, gameData: Pick<Game, 'startingStack' | 'blinds' | 'blindLevels' | 'players' | 'tournamentId'>) => Promise<void>;
   updateGame: (tournamentId: string, gameId: string, gameData: Partial<Game>) => Promise<void>;
   startGame: (tournamentId: string, gameId: string, players: Player[]) => Promise<void>;
   endGame: (tournamentId: string, gameId: string) => Promise<void>;
@@ -61,6 +64,9 @@ interface TournamentStore {
   pauseTimer: (tournamentId: string, gameId: string) => Promise<void>;
   resumeTimer: (tournamentId: string, gameId: string) => Promise<void>;
   advanceBlindLevel: (tournamentId: string, gameId: string) => Promise<void>;
+  // New actions for player elimination/reinstatement
+  eliminatePlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
+  reinstatePlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
 }
 
 // Helper function to find and update a game within the state
@@ -229,7 +235,8 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
   },
 
   // Adding a Game
-  addGame: async (tournamentId: string, gameData: Omit<Game, 'id' | 'status'>) => {
+  // Adjusted gameData type in implementation as well
+  addGame: async (tournamentId: string, gameData: Pick<Game, 'startingStack' | 'blinds' | 'blindLevels' | 'players' | 'tournamentId'>) => {
     try {
       const tournamentRef = doc(db, "tournaments", tournamentId);
       const gameId = Date.now().toString();
@@ -325,8 +332,9 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
       if (!tournamentData) {
         throw new Error("Tournament not found");
       }
+      const now = Date.now();
       const updatedGames = tournamentData.games.map((game: Game) =>
-        game.id === gameId ? { ...game, status: 'ended' } : game
+        game.id === gameId ? { ...game, status: 'ended', endedAt: now } : game // Set endedAt timestamp
       );
       await updateDoc(tournamentRef, {
         games: updatedGames,
@@ -460,6 +468,69 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
       await updateDoc(tournamentRef, { games: updatedGames });
       set((state) => ({
         tournaments: updateGameState(state, tournamentId, gameId, updates),
+      }));
+    } catch (error) {
+      handleDatabaseError(error);
+    }
+  },
+
+  // --- Player Elimination/Reinstatement ---
+
+  eliminatePlayer: async (tournamentId, gameId, playerId) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      const tournamentDoc = await getDoc(tournamentRef);
+      const tournamentData = tournamentDoc.data();
+      if (!tournamentData) throw new Error("Tournament not found");
+
+      const now = Date.now();
+      const updatedGames = tournamentData.games.map((game: Game) => {
+        if (game.id === gameId) {
+          const updatedPlayers = game.players.map(player =>
+            player.id === playerId
+              ? { ...player, eliminated: true, eliminationTime: now }
+              : player
+          );
+          return { ...game, players: updatedPlayers };
+        }
+        return game;
+      });
+
+      await updateDoc(tournamentRef, { games: updatedGames });
+      set((state) => ({
+        tournaments: state.tournaments.map((t) =>
+          t.id === tournamentId ? { ...t, games: updatedGames } : t
+        ),
+      }));
+    } catch (error) {
+      handleDatabaseError(error);
+    }
+  },
+
+  reinstatePlayer: async (tournamentId, gameId, playerId) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      const tournamentDoc = await getDoc(tournamentRef);
+      const tournamentData = tournamentDoc.data();
+      if (!tournamentData) throw new Error("Tournament not found");
+
+      const updatedGames = tournamentData.games.map((game: Game) => {
+        if (game.id === gameId) {
+          const updatedPlayers = game.players.map(player =>
+            player.id === playerId
+              ? { ...player, eliminated: false, eliminationTime: null }
+              : player
+          );
+          return { ...game, players: updatedPlayers };
+        }
+        return game;
+      });
+
+      await updateDoc(tournamentRef, { games: updatedGames });
+      set((state) => ({
+        tournaments: state.tournaments.map((t) =>
+          t.id === tournamentId ? { ...t, games: updatedGames } : t
+        ),
       }));
     } catch (error) {
       handleDatabaseError(error);

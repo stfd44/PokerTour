@@ -1,24 +1,23 @@
 import React from 'react';
 import { useTournamentStore } from '../../store/tournamentStore';
-import { Users, Timer, Coins, PlayCircle, Edit2, Eye, StopCircle, Trash2 } from 'lucide-react';
-import type { Game, Tournament } from '../../store/tournamentStore';
+import { Users, Timer, Coins, PlayCircle, Edit2, Eye, StopCircle, Trash2, CheckCircle } from 'lucide-react'; // Added CheckCircle
+import type { Game, Tournament, Player } from '../../store/tournamentStore'; // Added Player
 
 interface GameListProps {
   tournament: Tournament;
-  setViewingGame: (game: Game | null) => void;
-  setIsCreating: (isCreating: boolean) => void;
-  setEditingGame: (game: Game | null) => void;
+  onViewGame: (gameId: string) => void; // Changed prop
+  onEditGame: (game: Game) => void; // Changed prop
   userId: string | undefined;
 }
 
-export function GameList({ tournament, setViewingGame, setIsCreating, setEditingGame, userId }: GameListProps) {
+export function GameList({ tournament, onViewGame, onEditGame, userId }: GameListProps) {
   const startGame = useTournamentStore(state => state.startGame);
   const endGame = useTournamentStore(state => state.endGame);
   const deleteGame = useTournamentStore(state => state.deleteGame);
 
+  // Use the passed-in onEditGame handler
   const handleEditGame = (game: Game) => {
-    setEditingGame(game);
-    setIsCreating(true);
+    onEditGame(game);
   };
 
   const handleEndGame = (gameId: string) => {
@@ -80,9 +79,20 @@ export function GameList({ tournament, setViewingGame, setIsCreating, setEditing
                     Modifier
                   </button>
                   <button
-                    onClick={() => startGame(tournament.id, game.id, game.players)}
+                    onClick={() => {
+                      // Ensure players have eliminated=false when starting
+                      const startingPlayers: Player[] = tournament.registrations.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        nickname: p.nickname,
+                        eliminated: false, // Explicitly set eliminated to false
+                        eliminationTime: null // Explicitly set eliminationTime to null
+                      }));
+                      startGame(tournament.id, game.id, startingPlayers);
+                      onViewGame(game.id); // View game after starting
+                    }}
                     className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
-                    disabled={game.players.length < 2}
+                    disabled={tournament.registrations.length < 2} // Check registrations length
                   >
                     <PlayCircle className="w-5 h-5 mr-2" />
                     Démarrer
@@ -102,7 +112,7 @@ export function GameList({ tournament, setViewingGame, setIsCreating, setEditing
               {game.status === 'in_progress' && (
                 <>
                   <button
-                    onClick={() => setViewingGame(game)}
+                    onClick={() => onViewGame(game.id)} // Use onViewGame with ID
                     className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors flex items-center"
                   >
                     <Eye className="w-5 h-5 mr-2" />
@@ -116,6 +126,17 @@ export function GameList({ tournament, setViewingGame, setIsCreating, setEditing
                     Arrêter
                   </button>
                 </>
+              )}
+
+              {/* Added button for viewing ended game summary */}
+              {game.status === 'ended' && (
+                <button
+                  onClick={() => onViewGame(game.id)} // Use onViewGame with ID
+                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors flex items-center"
+                >
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Voir Résumé
+                </button>
               )}
             </div>
           </div>

@@ -299,7 +299,11 @@ export interface Game {
   blindLevels: number;
   players: Player[];
   status: 'pending' | 'in_progress' | 'ended';
-  startedAt?: string;
+  startedAt?: number; // Changed to number (timestamp) for consistency
+  currentLevel: number; // Index of the current blind level (starts at 0)
+  levelStartTime: number; // Timestamp when the current level started (adjusted for pauses)
+  isPaused: boolean; // Is the timer manually paused?
+  remainingTimeOnPause: number | null; // Milliseconds remaining when paused
 }
 
 export interface Tournament {
@@ -329,8 +333,27 @@ interface TournamentStore {
   startGame: (tournamentId: string, gameId: string, players: Player[]) => Promise<void>;
   endGame: (tournamentId: string, gameId: string) => Promise<void>;
   deleteGame: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
+  // New Timer Control Actions
+  pauseTimer: (tournamentId: string, gameId: string) => Promise<void>;
+  resumeTimer: (tournamentId: string, gameId: string) => Promise<void>;
+  advanceBlindLevel: (tournamentId: string, gameId: string) => Promise<void>;
 }
 
+// Helper function to find and update a game within the state
+const updateGameState = (state: TournamentStore, tournamentId: string, gameId: string, updates: Partial<Game>): Tournament[] => {
+  return state.tournaments.map((t) =>
+    t.id === tournamentId
+      ? {
+          ...t,
+          games: t.games.map((g) =>
+            g.id === gameId ? { ...g, ...updates } : g
+          ),
+        }
+      : t
+  );
+};
+
+// Removed unused 'get' parameter from create callback
 export const useTournamentStore = create<TournamentStore>((set) => ({
   tournaments: [],
 
@@ -540,8 +563,21 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
       if (!tournamentData) {
         throw new Error("Tournament not found");
       }
+      const now = Date.now();
       const updatedGames = tournamentData.games.map((game: Game) =>
-        game.id === gameId ? { ...game, status: 'in_progress', startedAt: new Date().toISOString(), players: players } : game
+        game.id === gameId
+          ? {
+              ...game,
+              status: 'in_progress',
+              startedAt: now, // Use timestamp
+              players: players,
+              // Initialize new timer fields
+              currentLevel: 0,
+              levelStartTime: now,
+              isPaused: false,
+              remainingTimeOnPause: null,
+            }
+          : game
       );
       await updateDoc(tournamentRef, {
         games: updatedGames,
@@ -601,6 +637,105 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
         tournaments: state.tournaments.map((t) =>
           t.id === tournamentId ? { ...t, games: updatedGames } : t
         ),
+      }));
+    } catch (error) {
+      handleDatabaseError(error);
+    }
+  },
+
+  // --- New Timer Control Implementations ---
+
+  pauseTimer: async (tournamentId, gameId) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      const tournamentDoc = await getDoc(tournamentRef);
+      const tournamentData = tournamentDoc.data();
+      if (!tournamentData) throw new Error("Tournament not found");
+
+      const game = tournamentData.games.find((g: Game) => g.id === gameId);
+      if (!game || game.isPaused || game.status !== 'in_progress') return; // Already paused or not running
+
+      const now = Date.now();
+      const levelDurationMs = game.blindLevels * 60 * 1000;
+      const elapsedInLevel = now - game.levelStartTime;
+      const remainingTime = Math.max(0, levelDurationMs - elapsedInLevel); // Ensure non-negative
+
+      const updates: Partial<Game> = {
+        isPaused: true,
+        remainingTimeOnPause: remainingTime,
+      };
+
+      const updatedGames = tournamentData.games.map((g: Game) =>
+        g.id === gameId ? { ...g, ...updates } : g
+      );
+
+      await updateDoc(tournamentRef, { games: updatedGames });
+      set((state) => ({
+        tournaments: updateGameState(state, tournamentId, gameId, updates),
+      }));
+    } catch (error) {
+      handleDatabaseError(error);
+    }
+  },
+
+  resumeTimer: async (tournamentId, gameId) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      const tournamentDoc = await getDoc(tournamentRef);
+      const tournamentData = tournamentDoc.data();
+      if (!tournamentData) throw new Error("Tournament not found");
+
+      const game = tournamentData.games.find((g: Game) => g.id === gameId);
+      if (!game || !game.isPaused || game.status !== 'in_progress' || game.remainingTimeOnPause === null) return; // Not paused or invalid state
+
+      const now = Date.now();
+      const levelDurationMs = game.blindLevels * 60 * 1000;
+      // Calculate the new effective start time for the level
+      const newLevelStartTime = now - (levelDurationMs - game.remainingTimeOnPause);
+
+      const updates: Partial<Game> = {
+        isPaused: false,
+        levelStartTime: newLevelStartTime,
+        remainingTimeOnPause: null,
+      };
+
+      const updatedGames = tournamentData.games.map((g: Game) =>
+        g.id === gameId ? { ...g, ...updates } : g
+      );
+
+      await updateDoc(tournamentRef, { games: updatedGames });
+      set((state) => ({
+        tournaments: updateGameState(state, tournamentId, gameId, updates),
+      }));
+    } catch (error) {
+      handleDatabaseError(error);
+    }
+  },
+
+  advanceBlindLevel: async (tournamentId, gameId) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      const tournamentDoc = await getDoc(tournamentRef);
+      const tournamentData = tournamentDoc.data();
+      if (!tournamentData) throw new Error("Tournament not found");
+
+      const game = tournamentData.games.find((g: Game) => g.id === gameId);
+      if (!game || game.status !== 'in_progress') return; // Game not running
+
+      const updates: Partial<Game> = {
+        currentLevel: game.currentLevel + 1,
+        levelStartTime: Date.now(),
+        isPaused: false, // Ensure timer is running for the new level
+        remainingTimeOnPause: null,
+      };
+
+      const updatedGames = tournamentData.games.map((g: Game) =>
+        g.id === gameId ? { ...g, ...updates } : g
+      );
+
+      await updateDoc(tournamentRef, { games: updatedGames });
+      set((state) => ({
+        tournaments: updateGameState(state, tournamentId, gameId, updates),
       }));
     } catch (error) {
       handleDatabaseError(error);

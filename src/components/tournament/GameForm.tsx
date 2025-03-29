@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useTournamentStore } from '../../store/tournamentStore';
-import { UserCheck } from 'lucide-react';
+import { UserCheck, X } from 'lucide-react'; // Added X icon for close button
 import type { Game, Player, Tournament } from '../../store/tournamentStore';
 
 interface GameFormProps {
   tournament: Tournament;
-  setIsCreating: (isCreating: boolean) => void;
+  // setIsCreating: (isCreating: boolean) => void; // Removed, handled by onClose
   editingGame: Game | null;
-  setEditingGame: (game: Game | null) => void;
+  // setEditingGame: (game: Game | null) => void; // Removed, handled by onClose
   tournamentId: string;
+  onClose: () => void; // Added onClose prop
 }
 
 interface GameFormType {
@@ -31,7 +32,8 @@ const initialGameForm: GameFormType = {
   players: []
 };
 
-export function GameForm({ tournament, setIsCreating, editingGame, setEditingGame, tournamentId }: GameFormProps) {
+// Removed setIsCreating, setEditingGame from props destructuring, added onClose
+export function GameForm({ tournament, editingGame, tournamentId, onClose }: GameFormProps) {
   const addGame = useTournamentStore(state => state.addGame);
   const updateGame = useTournamentStore(state => state.updateGame);
   const [gameForm, setGameForm] = useState<GameFormType>(initialGameForm);
@@ -52,10 +54,7 @@ export function GameForm({ tournament, setIsCreating, editingGame, setEditingGam
     }
   }, [editingGame]);
 
-  const resetForm = () => {
-    setGameForm(initialGameForm);
-    setSelectedPlayers(new Set());
-  };
+  // Removed unused resetForm function
 
   const handleCreateGame = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,9 +76,8 @@ export function GameForm({ tournament, setIsCreating, editingGame, setEditingGam
       });
     }
 
-    setIsCreating(false);
-    resetForm();
-    setEditingGame(null);
+    // Call onClose instead of manipulating state directly
+    onClose();
   };
 
   const togglePlayer = (playerId: string) => {
@@ -215,16 +213,13 @@ export function GameForm({ tournament, setIsCreating, editingGame, setEditingGam
         </div>
 
         <div className="flex justify-end space-x-4">
+          {/* Updated Cancel button to use onClose */}
           <button
             type="button"
-            onClick={() => {
-              setIsCreating(false);
-              resetForm();
-              setEditingGame(null);
-            }}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            onClick={onClose}
+            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors flex items-center"
           >
-            Annuler
+             <X className="w-4 h-4 mr-1" /> Annuler
           </button>
           <button
             type="submit"
