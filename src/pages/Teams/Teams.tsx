@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTeamStore, Team } from '../../store/useTeamStore';
 import { User } from 'firebase/auth';
-import { Trash2, UserPlus, UserMinus, LogIn } from 'lucide-react'; // Import LogIn icon
+import { Trash2, UserPlus, UserMinus, LogIn, Users } from 'lucide-react'; // Import LogIn and Users icons
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 
 interface TeamsProps {
   user: User | null;
@@ -10,12 +12,61 @@ interface TeamsProps {
 const Teams: React.FC<TeamsProps> = ({ user }) => {
   const { teams, createTeam, fetchTeams, leaveTeam, joinTeam, deleteTeam, joinTeamByTag } = useTeamStore();
   const [newTeamName, setNewTeamName] = useState('');
-  const [joinTag, setJoinTag] = useState(''); // State for join tag input
-  const [joinMessage, setJoinMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null); // State for feedback messages
+  const [joinTag, setJoinTag] = useState('');
+  const [joinMessage, setJoinMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [memberDetails, setMemberDetails] = useState<{ [userId: string]: { name: string } }>({});
+  const [loadingMemberDetails, setLoadingMemberDetails] = useState<boolean>(false);
+
+  const fetchMemberDetails = useCallback(async (memberIds: string[]) => {
+    setLoadingMemberDetails(true);
+    const detailsToFetch = memberIds.filter(id => !memberDetails[id]);
+    if (detailsToFetch.length === 0) {
+      setLoadingMemberDetails(false);
+      return;
+    }
+
+    const fetchedDetails: { [userId: string]: { name: string } } = {};
+    try {
+      const promises = detailsToFetch.map(async (id) => {
+        const userDocRef = doc(db, 'users', id); // Assuming 'users' collection
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          // Assuming user doc has a 'displayName' field
+          fetchedDetails[id] = { name: userDocSnap.data().displayName || 'Utilisateur inconnu' };
+        } else {
+          fetchedDetails[id] = { name: 'Utilisateur inconnu' };
+        }
+      });
+      await Promise.all(promises);
+      setMemberDetails(prev => ({ ...prev, ...fetchedDetails }));
+    } catch (error) {
+      console.error("Error fetching member details:", error);
+      // Set fallback names for failed fetches
+      detailsToFetch.forEach(id => {
+        if (!fetchedDetails[id]) {
+          fetchedDetails[id] = { name: 'Erreur chargement' };
+        }
+      });
+       setMemberDetails(prev => ({ ...prev, ...fetchedDetails }));
+    } finally {
+      setLoadingMemberDetails(false);
+    }
+  }, [memberDetails]); // Dependency on memberDetails to avoid refetching known users
 
   useEffect(() => {
     fetchTeams();
   }, [fetchTeams]);
+
+  useEffect(() => {
+    const allMemberIds = teams.reduce((acc, team) => {
+      team.members.forEach(id => acc.add(id));
+      return acc;
+    }, new Set<string>());
+
+    if (allMemberIds.size > 0) {
+      fetchMemberDetails(Array.from(allMemberIds));
+    }
+  }, [teams, fetchMemberDetails]); // Trigger fetch when teams change
 
   const handleCreateTeam = async () => {
     if (newTeamName.trim() !== '') {
@@ -164,13 +215,25 @@ const Teams: React.FC<TeamsProps> = ({ user }) => {
                   ) : null}
                 </div>
               </div>
-              <p className="text-sm text-gray-600 mt-2">
-                Membres: {team.members.length}
-              </p>
-              {/* Optional: Display member list */}
-              {/* <ul className="text-xs text-gray-500 mt-1 pl-4 list-disc">
-                {team.members.map(memberId => <li key={memberId}>{memberId}</li>)} // Replace with actual member names if available
-              </ul> */}
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <h4 className="text-sm font-semibold mb-2 flex items-center text-gray-700">
+                  <Users className="w-4 h-4 mr-1.5 text-gray-500" />
+                  Membres ({team.members.length})
+                </h4>
+                {loadingMemberDetails && team.members.some(id => !memberDetails[id]) ? (
+                  <p className="text-xs text-gray-500 italic">Chargement des membres...</p>
+                ) : (
+                  <ul className="space-y-1 pl-2">
+                    {team.members.map(memberId => (
+                      <li key={memberId} className="text-sm text-gray-600 flex items-center">
+                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mr-2"></span>
+                        {memberDetails[memberId]?.name || memberId}
+                        {memberId === user?.uid && <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">Vous</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </li>
           ))}
         </ul>

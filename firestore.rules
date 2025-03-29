@@ -19,5 +19,11 @@ service cloud.firestore {
       // Only allow the creator to delete
       allow delete: if request.auth != null && request.auth.uid == resource.data.creatorId;
     }
+    match /users/{userId} {
+      // Allow authenticated users to read user profiles (needed for displaying names)
+      allow read: if request.auth != null;
+      // Allow users to create/update their own profile
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+    }
   }
 }
