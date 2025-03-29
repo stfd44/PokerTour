@@ -1,15 +1,12 @@
 // src/components/layout/Header.tsx
 import React, { useState } from 'react';
-import { Menu, X, UserCheck as PokerChip, User } from 'lucide-react';
+import { Menu, X, UserCheck as PokerChip } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
-import { useAuthStore } from '../../store/useAuthStore'; // Corrected import path
+import { useAuthStore } from '../../store/useAuthStore';
 
-interface HeaderProps {
-  user: User | null;
-}
-
-export const Header: React.FC<HeaderProps> = ({ user }) => {
+export const Header = () => {
+  const { user } = useAuthStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { logout } = useAuthStore();
 
@@ -59,7 +56,7 @@ export const Header: React.FC<HeaderProps> = ({ user }) => {
                   className="w-8 h-8 rounded-full object-cover"
                 />
                 <span className="font-medium">
-                  {user.displayName || user.email || 'Utilisateur'}
+                  {user.nickname || user.displayName || 'Utilisateur'}
                 </span>
                 <button className='bg-red-500 p-2 rounded-md' onClick={handleSignOut}>
                   Déconnexion

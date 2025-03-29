@@ -2,15 +2,12 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTournamentStore, Tournament } from '../store/tournamentStore';
-import { User } from 'firebase/auth';
 import { Calendar, Users, MapPin, PlayCircle, Trophy, Plus, Trash2 } from 'lucide-react';
 import { useTeamStore } from '../store/useTeamStore';
+import { useAuthStore } from '../store/useAuthStore';
 
-interface HomeProps {
-    user: User | null;
-}
-
-const Home: React.FC<HomeProps> = ({ user }) => {
+const Home: React.FC = () => {
+    const { user } = useAuthStore();
     const navigate = useNavigate();
     const { fetchTournaments, tournaments, deleteTournament } = useTournamentStore();
     const { teams } = useTeamStore();

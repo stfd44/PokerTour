@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTournamentStore } from '../../store/tournamentStore';
-import { UserCheck, UserX } from 'lucide-react';
+import { UserCheck } from 'lucide-react';
 import type { Game, Player, Tournament } from '../../store/tournamentStore';
 
 interface GameFormProps {
@@ -66,12 +66,14 @@ export function GameForm({ tournament, setIsCreating, editingGame, setEditingGam
     if (editingGame) {
       updateGame(tournamentId!, editingGame.id, {
         ...gameForm,
-        players: selectedPlayersList
+        players: selectedPlayersList,
+        tournamentId: tournamentId!, // Include tournamentId
       });
     } else {
       addGame(tournamentId!, {
         ...gameForm,
-        players: selectedPlayersList
+        players: selectedPlayersList,
+        tournamentId: tournamentId!, // Include tournamentId
       });
     }
 

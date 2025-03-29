@@ -4,13 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useTournamentStore } from '../../store/tournamentStore';
 import { useTeamStore } from '../../store/useTeamStore';
-import { User } from 'firebase/auth';
+import { useAuthStore } from '../../store/useAuthStore';
 
-interface CreateTournamentProps {
-    user: User | null;
-}
-
-export function CreateTournament({ user }: CreateTournamentProps) {
+export function CreateTournament() {
+    const { user } = useAuthStore();
     const navigate = useNavigate();
     const { addTournament, fetchTournaments } = useTournamentStore();
     const { teams, fetchTeams } = useTeamStore();
@@ -37,6 +34,7 @@ export function CreateTournament({ user }: CreateTournamentProps) {
                   buyin: Number(formData.buyin),
                   maxPlayers: Number(formData.maxPlayers),
                   location: formData.location,
+                  teamId: formData.teamId,
                 },
                 user.uid,
                 formData.teamId // Pass teamId to addTournament

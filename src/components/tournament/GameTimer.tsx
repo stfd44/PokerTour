@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Clock } from 'lucide-react';
 import type { Game } from '../../store/tournamentStore';
 import { useTournamentStore } from '../../store/tournamentStore';
@@ -27,10 +27,8 @@ export function GameTimer({ game }: GameTimerProps) {
     };
   };
 
-  const animate = (time: number) => {
+  const animate = useCallback((time: number) => {
     if (previousTimeRef.current != null) {
-      const deltaTime = time - previousTimeRef.current;
-
       if (!game.startedAt) return;
 
       const startTime = new Date(game.startedAt).getTime();
@@ -63,7 +61,7 @@ export function GameTimer({ game }: GameTimerProps) {
 
     previousTimeRef.current = time;
     requestRef.current = requestAnimationFrame(animate);
-  };
+  }, [game, endGame]);
 
   useEffect(() => {
     requestRef.current = requestAnimationFrame(animate);
@@ -72,7 +70,7 @@ export function GameTimer({ game }: GameTimerProps) {
         cancelAnimationFrame(requestRef.current);
       }
     };
-  }, [game]);
+  }, [animate]);
 
   if (!gameTimer) return null;
 

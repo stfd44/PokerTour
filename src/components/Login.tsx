@@ -1,18 +1,18 @@
 // src/components/Login.tsx
 import React, { useEffect } from 'react';
 import { signInWithGoogle } from '../lib/firebase';
-import { useAuthStore } from '../store/useAuthStore'; // Import useAuthStore
+import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 
 const Login: React.FC = () => {
-  const { login, user, setUser } = useAuthStore(); // Get the login function from the store
+  const { user, setUser, requiresNickname } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
+    if (user && !requiresNickname) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, requiresNickname, navigate]);
 
   const handleGoogleSignIn = async () => {
     const userConnected = await signInWithGoogle();

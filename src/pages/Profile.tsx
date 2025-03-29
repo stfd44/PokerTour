@@ -1,14 +1,10 @@
 import React from 'react';
-import { User } from 'firebase/auth';
 
-interface ProfileProps {
-  user: User | null;
-}
-
-const Profile: React.FC<ProfileProps> = ({ user }) => {
+const Profile: React.FC = () => {
   return (
     <div>
       <h1>Profile</h1>
+      {/* Display user profile information here */}
     </div>
   );
 };

@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTeamStore, Team } from '../../store/useTeamStore';
-import { User } from 'firebase/auth';
+// Import AppUser from the auth store instead of Firebase User
+import { AppUser } from '../../store/useAuthStore';
 import { Trash2, UserPlus, UserMinus, LogIn, Users } from 'lucide-react'; // Import LogIn and Users icons
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
 interface TeamsProps {
-  user: User | null;
+  // Expect AppUser type from the auth store
+  user: AppUser | null;
 }
 
 const Teams: React.FC<TeamsProps> = ({ user }) => {
@@ -32,7 +34,7 @@ const Teams: React.FC<TeamsProps> = ({ user }) => {
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
           // Assuming user doc has a 'displayName' field
-          fetchedDetails[id] = { name: userDocSnap.data().displayName || 'Utilisateur inconnu' };
+          fetchedDetails[id] = { name: userDocSnap.data().nickname || userDocSnap.data().displayName || 'Utilisateur inconnu' };
         } else {
           fetchedDetails[id] = { name: 'Utilisateur inconnu' };
         }
@@ -69,13 +71,28 @@ const Teams: React.FC<TeamsProps> = ({ user }) => {
   }, [teams, fetchMemberDetails]); // Trigger fetch when teams change
 
   const handleCreateTeam = async () => {
-    if (newTeamName.trim() !== '') {
-      if (user) {
-        await createTeam(newTeamName);
-        setNewTeamName('');
-      } else {
-        console.error('User not logged in.');
-      }
+    if (!user) {
+      setJoinMessage({ type: 'error', text: 'Vous devez être connecté pour créer une équipe' });
+      return;
+    }
+    
+    if (newTeamName.trim() === '') {
+      setJoinMessage({ type: 'error', text: 'Veuillez entrer un nom pour votre équipe' });
+      return;
+    }
+
+    try {
+      // Pass the user object to createTeam if needed by the store function
+      // Assuming createTeam in the store now correctly uses useAuthStore.getState().user
+      await createTeam(newTeamName); 
+      setNewTeamName('');
+      setJoinMessage({ type: 'success', text: 'Équipe créée avec succès!' });
+      setTimeout(() => setJoinMessage(null), 3000);
+    } catch (error) {
+      setJoinMessage({ 
+        type: 'error', 
+        text: error instanceof Error ? error.message : 'Erreur lors de la création de l\'équipe'
+      });
     }
   };
 
@@ -109,7 +126,9 @@ const Teams: React.FC<TeamsProps> = ({ user }) => {
     }
     setJoinMessage(null); // Clear previous messages
     try {
-      await joinTeamByTag(joinTag.trim());
+      // Pass the user object if needed by the store function
+      // Assuming joinTeamByTag in the store now correctly uses useAuthStore.getState().user
+      await joinTeamByTag(joinTag.trim()); 
       setJoinMessage({ type: 'success', text: 'Équipe rejointe avec succès !' });
       setJoinTag(''); // Clear input on success
       setTimeout(() => setJoinMessage(null), 3000); // Clear message after 3 seconds
@@ -145,6 +164,12 @@ const Teams: React.FC<TeamsProps> = ({ user }) => {
             Créer
           </button>
         </div>
+        {/* Display error message specifically for the create team action */}
+        {joinMessage && joinMessage.type === 'error' && (
+          <p className="text-sm mt-2 text-red-600">
+            {joinMessage.text}
+          </p>
+        )}
       </div>
 
       {/* Join Team by Tag Section */}
@@ -166,6 +191,7 @@ const Teams: React.FC<TeamsProps> = ({ user }) => {
             Rejoindre
           </button>
         </div>
+        {/* Display message specifically for the join by tag action */}
         {joinMessage && (
           <p className={`text-sm mt-2 ${joinMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
             {joinMessage.text}

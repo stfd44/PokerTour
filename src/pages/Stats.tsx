@@ -1,14 +1,10 @@
 import React from 'react';
-import { User } from 'firebase/auth';
 
-interface StatsProps {
-  user: User | null;
-}
-
-const Stats: React.FC<StatsProps> = ({ user }) => {
+const Stats: React.FC = () => {
   return (
     <div>
       <h1>Stats</h1>
+      {/* Display user statistics here */}
     </div>
   );
 };

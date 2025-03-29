@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
-import React, { useEffect, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import React, { useEffect } from 'react';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
 import { MainLayout } from './pages/MainLayout';
 import { Header } from './components/layout/Header';
@@ -11,53 +11,67 @@ import Stats from './pages/Stats';
 import Profile from './pages/Profile';
 import Tournaments from './pages/Tournaments';
 import { useTeamStore } from './store/useTeamStore';
+import { NicknamePrompt } from './components/NicknamePrompt';
 
 function App() {
-  const { user, setUser } = useAuthStore();
+  // Get user, setUser, isLoading, and requiresNickname from the store
+  const { user, setUser, isLoading, requiresNickname } = useAuthStore();
   const { fetchTeams } = useTeamStore();
-  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-      if (currentUser) {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser: User | null) => {
+      await setUser(currentUser);
+      // fetchTeams should be called without arguments, it gets user from the store
+      if (currentUser && useAuthStore.getState().user?.nickname) {
         fetchTeams();
       }
     });
+    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, [setUser, fetchTeams]);
 
-  if (loading) {
-    return <div>Loading...</div>;
+  // Use the isLoading state from the store
+  if (isLoading) {
+    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
   }
 
+  // If user is logged in but requires a nickname, show the prompt
+  if (user && requiresNickname) {
+    return <NicknamePrompt />;
+  }
+
+  // Main application routes
   return (
     <>
       <Routes>
         <Route
           path="/login"
+          // Redirect to home if user exists (even if nickname is pending, handled above)
           element={user ? <Navigate to="/" /> : <Login />}
         />
+        {/* Protected Routes */}
         <Route
           path="/*"
           element={
             user ? (
               <div className="min-h-screen bg-poker-light">
-                <Header user={user} />
-                <MainLayout user={user} />
+                {/* Pass the AppUser object */}
+                <Header />
+                <MainLayout />
               </div>
             ) : (
               <Navigate to="/login" />
             )
           }
         />
-        <Route
+         {/* Update other protected routes similarly */}
+             <Route
           path="/teams"
           element={
             user ? (
               <div className="min-h-screen bg-poker-light">
-                <Header user={user} />
+                <Header />
+                {/* Pass the user object as a prop */}
                 <Teams user={user} />
               </div>
             ) : (
@@ -70,7 +84,8 @@ function App() {
           element={
             user ? (
               <div className="min-h-screen bg-poker-light">
-                <Header user={user} />
+                <Header />
+                {/* Pass the user object as a prop */}
                 <Tournaments user={user} />
               </div>
             ) : (
@@ -83,8 +98,8 @@ function App() {
           element={
             user ? (
               <div className="min-h-screen bg-poker-light">
-                <Header user={user} />
-                <Stats user={user} />
+                <Header />
+                <Stats />
               </div>
             ) : (
               <Navigate to="/login" />
@@ -96,8 +111,8 @@ function App() {
           element={
             user ? (
               <div className="min-h-screen bg-poker-light">
-                <Header user={user} />
-                <Profile user={user} />
+                <Header />
+                <Profile />
               </div>
             ) : (
               <Navigate to="/login" />

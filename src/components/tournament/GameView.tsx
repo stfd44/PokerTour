@@ -13,7 +13,7 @@ interface GameViewProps {
 export function GameView({ game, setViewingGame, tournamentId }: GameViewProps) {
   const updateGame = useTournamentStore(state => state.updateGame);
   const endGame = useTournamentStore(state => state.endGame);
-  const [gameTimer, setGameTimer] = useState<any>(null);
+  const [gameTimer, setGameTimer] = useState<Game | null>(null);
 
   const handlePlayerElimination = (playerId: string) => {
     const updatedPlayers = game.players.map(player =>
@@ -91,7 +91,7 @@ export function GameView({ game, setViewingGame, tournamentId }: GameViewProps) 
                   <UserCheck className="w-5 h-5 text-green-500 mr-2" />
                 )}
                 <span className={player.eliminated ? 'line-through text-gray-500' : ''}>
-                  {player.name}
+                  {player.nickname || player.name}
                 </span>
               </div>
               <button

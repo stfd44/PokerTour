@@ -4,21 +4,16 @@ import { Routes, Route } from 'react-router-dom';
 import { CreateTournament } from '../components/tournament/CreateTournament';
 import { TournamentList } from '../components/tournament/TournamentList';
 import { TournamentGames } from '../components/tournament/TournamentGames';
-import { User } from 'firebase/auth';
 import Home from './Home';
 
-interface MainLayoutProps {
-  user: User | null;
-}
-
-export function MainLayout({ user }: MainLayoutProps) {
+export function MainLayout() {
   return (
     <div className="min-h-screen container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
         <Routes>
-          <Route path="/" element={<Home user={user} />} />
-          <Route path="/app/create-tournament" element={<CreateTournament user={user} />} />
-          <Route path="/tournaments" element={<TournamentList user={user} />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/app/create-tournament" element={<CreateTournament />} />
+          <Route path="/tournaments" element={<TournamentList />} />
           <Route path="/tournament/:tournamentId" element={<TournamentGames />} />
         </Routes>
       </div>

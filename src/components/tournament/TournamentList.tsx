@@ -2,13 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTournamentStore } from '../../store/tournamentStore';
 import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2 } from 'lucide-react';
-import { User } from 'firebase/auth';
+import { useAuthStore } from '../../store/useAuthStore';
 
-interface TournamentListProps {
-    user: User | null;
-}
-
-export function TournamentList({ user }: TournamentListProps) {
+export function TournamentList() {
+  const { user } = useAuthStore();
   const navigate = useNavigate();
   const { tournaments, registerToTournament, unregisterFromTournament, startTournament, fetchTournaments, deleteTournament } = useTournamentStore();
   const [registrationStates, setRegistrationStates] = useState<{[key: string]: 'pending' | 'confirmed' | 'none'}>({});
@@ -137,7 +134,7 @@ export function TournamentList({ user }: TournamentListProps) {
                         className="flex items-center text-sm py-1"
                       >
                         <span className="w-6 text-poker-gold">{index + 1}.</span>
-                        <span>{player.name}</span>
+                <span>{player.nickname || player.name}</span>
                         {user && player.id === user.uid && (
                           <span className="ml-2 text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">
                             Vous

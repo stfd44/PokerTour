@@ -6,6 +6,7 @@ import { useTeamStore } from './useTeamStore'; // Import useTeamStore
 export interface Player {
   id: string;
   name: string;
+  nickname?: string;
   eliminated?: boolean;
 }
 
@@ -44,7 +45,7 @@ interface TournamentStore {
   fetchTournaments: (userId: string) => Promise<void>; // Add userId parameter
   addTournament: (tournamentData: Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'status'>, userId: string, teamId: string) => Promise<void>; // Add teamId parameter
   deleteTournament: (tournamentId: string, userId: string) => Promise<void>;
-  registerToTournament: (tournamentId: string, userId: string, player: Player) => Promise<void>;
+  registerToTournament: (tournamentId: string, userId: string, player: Player, nickname?: string) => Promise<void>;
   unregisterFromTournament: (tournamentId: string, userId: string) => Promise<void>;
   startTournament: (tournamentId: string, userId: string) => Promise<void>;
   addGame: (tournamentId: string, gameData: Omit<Game, 'id' | 'status'>) => Promise<void>;
@@ -54,11 +55,11 @@ interface TournamentStore {
   deleteGame: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
 }
 
-export const useTournamentStore = create<TournamentStore>((set, get) => ({
+export const useTournamentStore = create<TournamentStore>((set) => ({
   tournaments: [],
 
   // Fetching Tournaments
-  fetchTournaments: async (userId) => { // Add userId parameter
+  fetchTournaments: async () => { // Add userId parameter
     try {
         const { teams } = useTeamStore.getState(); // Get the teams from useTeamStore
         const userTeams = teams.map(team => team.id); // Get the user's team IDs
@@ -79,15 +80,15 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
   },
 
   // Adding a Tournament
-  addTournament: async (tournamentData, userId, teamId) => { // Add teamId parameter
+  addTournament: async (tournamentData, creatorId, teamId) => {
     try {
       const docRef = await addDoc(collection(db, "tournaments"), {
         ...tournamentData,
         registrations: [],
-        creatorId: userId,
+        creatorId: creatorId,
         games: [],
         status: 'scheduled',
-        teamId: teamId, // Add teamId to Firestore document
+        teamId: teamId,
       });
       set((state) => ({
         tournaments: [
@@ -96,10 +97,10 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
             id: docRef.id,
             ...tournamentData,
             registrations: [],
-            creatorId: userId,
+            creatorId: creatorId,
             games: [],
             status: 'scheduled',
-            teamId: teamId, // Add teamId to local state
+            teamId: teamId,
           },
         ],
       }));
@@ -109,7 +110,7 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
   },
 
   // Deleting a Tournament
-  deleteTournament: async (tournamentId: string, userId: string) => {
+  deleteTournament: async (tournamentId, userId) => {
     try {
       const tournamentRef = doc(db, "tournaments", tournamentId);
       if (!await isCreator(tournamentRef, userId)) {
@@ -125,16 +126,27 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
   },
 
   // Registering to a Tournament
-  registerToTournament: async (tournamentId: string, userId: string, player: Player) => {
+    registerToTournament: async (tournamentId, userId, player, nickname) => {
     try {
       const tournamentRef = doc(db, "tournaments", tournamentId);
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      const userNickname = nickname || (userDoc.exists() ? userDoc.data().nickname : null);
+      
       await updateDoc(tournamentRef, {
-        registrations: arrayUnion(player),
+        registrations: arrayUnion({
+          id: player.id,
+          name: userNickname || player.name
+        }),
       });
+      const playerWithNickname = {
+        id: player.id,
+        name: userNickname || player.name,
+        nickname: userNickname || undefined
+      };
       set((state) => ({
         tournaments: state.tournaments.map((t) =>
           t.id === tournamentId
-            ? { ...t, registrations: [...t.registrations, player] }
+            ? { ...t, registrations: [...t.registrations, playerWithNickname] }
             : t
         ),
       }));
@@ -144,7 +156,7 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
   },
 
   // Unregistering from a Tournament
-  unregisterFromTournament: async (tournamentId: string, userId: string) => {
+  unregisterFromTournament: async (tournamentId, userId) => {
     try {
       const tournamentRef = doc(db, "tournaments", tournamentId);
       const tournamentDoc = await getDoc(tournamentRef);
@@ -172,7 +184,7 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
   },
 
   // Starting a Tournament
-  startTournament: async (tournamentId: string, userId: string) => {
+  startTournament: async (tournamentId, userId) => {
     try {
       const tournamentRef = doc(db, "tournaments", tournamentId);
       if (!await isCreator(tournamentRef, userId)) {
@@ -201,7 +213,7 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
       const newGame = {
         id: gameId,
         ...gameData,
-        status: 'pending',
+        status: 'pending', // Ensure status is 'pending'
       };
       await updateDoc(tournamentRef, {
         games: arrayUnion(newGame),
@@ -209,7 +221,7 @@ export const useTournamentStore = create<TournamentStore>((set, get) => ({
       set((state) => ({
         tournaments: state.tournaments.map((t) =>
           t.id === tournamentId
-            ? { ...t, games: [...t.games, newGame] }
+            ? { ...t, games: [...t.games, newGame as Game] } // Type assertion to ensure correct type
             : t
         ),
       }));

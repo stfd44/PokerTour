@@ -1,26 +1,29 @@
 // src/pages/Tournaments.tsx
 import React, { useEffect } from 'react';
-import { User } from 'firebase/auth';
-import { useTournamentStore, Tournament } from '../store/tournamentStore';
+// Import AppUser from the auth store instead of Firebase User
+import { AppUser } from '../store/useAuthStore';
+import { useTournamentStore } from '../store/tournamentStore';
 import { TournamentList } from '../components/tournament/TournamentList';
 
 interface TournamentsProps {
-    user: User | null;
+    // Expect AppUser type from the auth store
+    user: AppUser | null;
 }
 
 const Tournaments: React.FC<TournamentsProps> = ({ user }) => {
-    const { tournaments, fetchTournaments } = useTournamentStore();
+    const { fetchTournaments } = useTournamentStore();
 
     useEffect(() => {
+        // Pass userId only if user exists
         if (user) {
-            fetchTournaments(user.uid); // Pass userId to fetchTournaments
+            fetchTournaments(user.uid);
         }
     }, [fetchTournaments, user]);
 
     return (
         <div className="container mx-auto p-4">
             <h1 className="text-2xl font-bold mb-4">Tournaments</h1>
-            <TournamentList user={user} />
+      <TournamentList />
         </div>
     );
 };
