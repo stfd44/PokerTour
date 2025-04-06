@@ -104,17 +104,21 @@ export interface Tournament {
   games: Game[];
   status: 'scheduled' | 'in_progress' | 'ended';
   teamId: string; // Add teamId to Tournament interface
+  guests?: string[]; // Optional array for guest names
 }
 
 interface TournamentStore {
   tournaments: Tournament[];
   fetchTournaments: (userId: string) => Promise<void>; // Add userId parameter
-  addTournament: (tournamentData: Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'status' | 'creatorNickname'>, userId: string, teamId: string) => Promise<void>; // Add teamId parameter, exclude creatorNickname
+  addTournament: (tournamentData: Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'status' | 'creatorNickname' | 'guests'>, userId: string, teamId: string, initialGuests?: string[]) => Promise<void>; // Add teamId parameter, exclude creatorNickname, add initialGuests
   updateTournament: (tournamentId: string, userId: string, tournamentData: Partial<Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'teamId' | 'creatorNickname'>>) => Promise<void>; // Added update function
   deleteTournament: (tournamentId: string, userId: string) => Promise<void>;
   registerToTournament: (tournamentId: string, userId: string, player: Player, nickname?: string) => Promise<void>;
   unregisterFromTournament: (tournamentId: string, userId: string) => Promise<void>;
   startTournament: (tournamentId: string, userId: string) => Promise<void>;
+  // Guest Management
+  addGuestToTournament: (tournamentId: string, guestName: string, userId: string) => Promise<void>;
+  removeGuestFromTournament: (tournamentId: string, guestName: string, userId: string) => Promise<void>;
   // Adjusted addGame gameData type to include new fields
   addGame: (tournamentId: string, gameData: Pick<Game, 'startingStack' | 'blinds' | 'blindLevels' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings'>) => Promise<void>;
   updateGame: (tournamentId: string, gameId: string, gameData: Partial<Game>) => Promise<void>;
@@ -184,15 +188,23 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
   },
 
   // Adding a Tournament
-  addTournament: async (tournamentData, creatorId, teamId) => { // Excludes creatorNickname from input type
+  addTournament: async (tournamentData, creatorId, teamId, initialGuests = []) => {
     try {
+      // Create registration entries for initial guests
+      const initialRegistrations = initialGuests.map(guestName => ({
+        id: `guest_${guestName.replace(/\s+/g, '_')}`, // Create a simple guest ID
+        name: guestName,
+        // No nickname for guests initially
+      }));
+
       const docRef = await addDoc(collection(db, "tournaments"), {
-        ...tournamentData, // Spread the provided data
-        registrations: [],
+        ...tournamentData,
+        registrations: initialRegistrations, // Add initial guest registrations
         creatorId: creatorId,
-        games: [], // Initialize games array
-        status: 'scheduled', // Set initial status
-        teamId: teamId, // Set teamId
+        games: [],
+        status: 'scheduled',
+        teamId: teamId,
+        guests: initialGuests,
       });
       // Fetch the newly added tournament to get its full data including defaults and ID
       const newTournamentDoc = await getDoc(docRef);
@@ -205,7 +217,7 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
           }
           const newTournament: Tournament = {
               id: docRef.id,
-              ...newTournamentData,
+              ...newTournamentData, // newTournamentData now includes the guests field from Firestore
               creatorNickname: creatorNickname,
           };
           set((state) => ({
@@ -706,6 +718,98 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
       }));
     } catch (error) {
       handleDatabaseError(error);
+    }
+  },
+
+  // --- Guest Management ---
+  addGuestToTournament: async (tournamentId, guestName, userId) => {
+    const trimmedGuestName = guestName.trim();
+    if (!trimmedGuestName) {
+        alert("Guest name cannot be empty.");
+        return;
+    }
+    try {
+        const tournamentRef = doc(db, "tournaments", tournamentId);
+        if (!await isCreator(tournamentRef, userId)) {
+            throw new Error("Only the tournament creator can add guests.");
+        }
+
+        // Create the guest registration object
+        const guestRegistration: Player = {
+            id: `guest_${trimmedGuestName.replace(/\s+/g, '_')}`, // Consistent guest ID
+            name: trimmedGuestName,
+        };
+
+        // Update both guests and registrations arrays atomically
+        await updateDoc(tournamentRef, {
+            guests: arrayUnion(trimmedGuestName),
+            registrations: arrayUnion(guestRegistration) // Add guest to registrations
+        });
+
+        // Update local state
+        set((state) => ({
+            tournaments: state.tournaments.map((t) => {
+                if (t.id === tournamentId) {
+                    // Ensure arrays exist before spreading
+                    const updatedGuests = [...(t.guests || []), trimmedGuestName];
+                    const updatedRegistrations = [...(t.registrations || []), guestRegistration];
+                    return { ...t, guests: updatedGuests, registrations: updatedRegistrations };
+                }
+                return t;
+            }),
+        }));
+    } catch (error) {
+        handleDatabaseError(error);
+    }
+  },
+
+  removeGuestFromTournament: async (tournamentId, guestName, userId) => {
+    try {
+        const tournamentRef = doc(db, "tournaments", tournamentId);
+        if (!await isCreator(tournamentRef, userId)) {
+            throw new Error("Only the tournament creator can remove guests.");
+        }
+
+        // Find the guest registration entry to remove
+        // Need to fetch the current registrations to find the exact object
+        const tournamentDoc = await getDoc(tournamentRef);
+        const currentData = tournamentDoc.data();
+        if (!currentData) throw new Error("Tournament data not found.");
+
+        const guestRegistrationToRemove = currentData.registrations.find(
+            (p: Player) => p.id === `guest_${guestName.replace(/\s+/g, '_')}` && p.name === guestName
+        );
+
+        if (!guestRegistrationToRemove) {
+            console.warn(`Guest registration for "${guestName}" not found. Removing from guests list only.`);
+             await updateDoc(tournamentRef, {
+                 guests: arrayRemove(guestName),
+             });
+        } else {
+            // Remove from both arrays atomically
+            await updateDoc(tournamentRef, {
+                guests: arrayRemove(guestName),
+                registrations: arrayRemove(guestRegistrationToRemove) // Remove the specific registration object
+            });
+        }
+
+
+        // Update local state
+        set((state) => ({
+            tournaments: state.tournaments.map((t) => {
+                if (t.id === tournamentId) {
+                    const updatedGuests = (t.guests || []).filter(g => g !== guestName);
+                    // Also filter local registrations
+                    const updatedRegistrations = (t.registrations || []).filter(
+                        p => !(p.id === `guest_${guestName.replace(/\s+/g, '_')}` && p.name === guestName)
+                    );
+                    return { ...t, guests: updatedGuests, registrations: updatedRegistrations };
+                }
+                return t;
+            }),
+        }));
+    } catch (error) {
+        handleDatabaseError(error);
     }
   },
 

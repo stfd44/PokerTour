@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTournamentStore, Tournament } from '../../store/tournamentStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { X, UserPlus } from 'lucide-react'; // Import icons
 
 export function EditTournament() {
   const { tournamentId } = useParams<{ tournamentId: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { tournaments, updateTournament, fetchTournaments } = useTournamentStore();
+  // Add guest management actions from the store
+  const { tournaments, updateTournament, fetchTournaments, addGuestToTournament, removeGuestFromTournament } = useTournamentStore();
 
   const [tournamentData, setTournamentData] = useState<Partial<Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'teamId' | 'creatorNickname'>>>({
     name: '',
@@ -16,8 +18,12 @@ export function EditTournament() {
     maxPlayers: 0,
     location: '',
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [currentGuest, setCurrentGuest] = useState(''); // State for guest input
+  const [guests, setGuests] = useState<string[]>([]); // State for the list of guests
+  const [isLoading, setIsLoading] = useState(true); // Overall component loading
+  const [isGuestLoading, setIsGuestLoading] = useState(false); // Loading state for guest actions
+  const [error, setError] = useState<string | null>(null); // General error
+  const [guestError, setGuestError] = useState<string | null>(null); // Specific error for guest actions
 
   useEffect(() => {
     // Ensure tournaments are fetched if not already present
@@ -42,13 +48,15 @@ export function EditTournament() {
         setIsLoading(false);
         return;
       }
-      if (currentTournament.status !== 'scheduled') {
-        setError("Ce tournoi ne peut plus être modifié car il a déjà commencé ou est terminé.");
+      // Allow loading if scheduled or in progress, but block if ended
+      if (currentTournament.status === 'ended') {
+        setError("Ce tournoi est terminé et ne peut plus être modifié.");
         setIsLoading(false);
         return;
       }
+      // Note: We allow loading for 'in_progress', but will disable fields below
 
-      // Pre-fill form data
+      // Pre-fill form data (Moved inside the if(currentTournament) block)
       setTournamentData({
         name: currentTournament.name,
         // Format date for input type="datetime-local" (YYYY-MM-DDTHH:mm)
@@ -57,8 +65,11 @@ export function EditTournament() {
         maxPlayers: currentTournament.maxPlayers,
         location: currentTournament.location,
       });
+      // Set initial guests list
+      setGuests(currentTournament.guests || []);
       setIsLoading(false);
-    } else if (tournaments.length > 0) {
+    } // <--- Corrected closing brace position for if(currentTournament)
+    else if (tournaments.length > 0) {
       // Tournaments are loaded, but this one wasn't found
       setError("Tournoi non trouvé.");
       setIsLoading(false);
@@ -73,6 +84,66 @@ export function EditTournament() {
       [name]: type === 'number' ? Number(value) : value,
     }));
   };
+
+  // --- Guest Management Handlers ---
+  const handleAddGuest = async () => {
+    if (!tournamentId || !user || !currentGuest.trim() || isGuestLoading) return;
+
+    const trimmedGuestName = currentGuest.trim();
+    const currentTournament = tournaments.find(t => t.id === tournamentId);
+
+    // Check status - Allow adding if scheduled or in progress, but not ended.
+    if (currentTournament?.status === 'ended') {
+        setGuestError("Les invités ne peuvent pas être ajoutés à un tournoi terminé.");
+        return;
+    }
+    // Check if already exists
+    if (guests.includes(trimmedGuestName)) {
+        alert('Ce nom est déjà dans la liste des invités.'); // Keep alert for direct feedback
+        return;
+    }
+
+    setIsGuestLoading(true);
+    setGuestError(null); // Clear previous guest error
+
+    try {
+      await addGuestToTournament(tournamentId, trimmedGuestName, user.uid);
+      // Update local state *after* successful save
+      setGuests([...guests, trimmedGuestName]);
+      setCurrentGuest(''); // Clear input
+    } catch (err) {
+      // Use specific guest error state
+      setGuestError((err as Error).message || "Erreur lors de l'ajout de l'invité.");
+    } finally {
+      setIsGuestLoading(false); // Stop loading indicator
+    }
+  };
+
+  const handleRemoveGuest = async (guestToRemove: string) => {
+    if (!tournamentId || !user || isGuestLoading) return;
+
+     const currentTournament = tournaments.find(t => t.id === tournamentId);
+     // Check status - Allow removing if scheduled or in progress, but not ended.
+     if (currentTournament?.status === 'ended') {
+         setGuestError("Les invités ne peuvent pas être retirés d'un tournoi terminé.");
+         return;
+     }
+
+    setIsGuestLoading(true);
+    setGuestError(null); // Clear previous guest error
+
+    try {
+      await removeGuestFromTournament(tournamentId, guestToRemove, user.uid);
+      // Update local state *after* successful removal
+      setGuests(guests.filter(g => g !== guestToRemove));
+    } catch (err) {
+       // Use specific guest error state
+      setGuestError((err as Error).message || "Erreur lors de la suppression de l'invité.");
+    } finally {
+       setIsGuestLoading(false); // Stop loading indicator
+    }
+  };
+  // --- End Guest Management Handlers ---
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +190,9 @@ export function EditTournament() {
             value={tournamentData.name}
             onChange={handleChange}
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm"
+            // Find current tournament again for disabling logic, handle potential undefined
+            disabled={tournaments.find(t => t.id === tournamentId)?.status === 'in_progress'}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm disabled:bg-gray-100"
           />
         </div>
         <div>
@@ -131,7 +204,9 @@ export function EditTournament() {
             value={tournamentData.date}
             onChange={handleChange}
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm"
+            // Find current tournament again for disabling logic, handle potential undefined
+            disabled={tournaments.find(t => t.id === tournamentId)?.status === 'in_progress'}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm disabled:bg-gray-100"
           />
         </div>
         <div>
@@ -144,7 +219,9 @@ export function EditTournament() {
             onChange={handleChange}
             required
             min="0"
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm"
+            // Find current tournament again for disabling logic, handle potential undefined
+            disabled={tournaments.find(t => t.id === tournamentId)?.status === 'in_progress'}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm disabled:bg-gray-100"
           />
         </div>
         <div>
@@ -157,7 +234,9 @@ export function EditTournament() {
             onChange={handleChange}
             required
             min="2"
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm"
+            // Find current tournament again for disabling logic, handle potential undefined
+            disabled={tournaments.find(t => t.id === tournamentId)?.status === 'in_progress'}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm disabled:bg-gray-100"
           />
         </div>
         <div>
@@ -169,10 +248,69 @@ export function EditTournament() {
             value={tournamentData.location}
             onChange={handleChange}
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm"
+            // Find current tournament again for disabling logic, handle potential undefined
+            disabled={tournaments.find(t => t.id === tournamentId)?.status === 'in_progress'}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm disabled:bg-gray-100"
           />
         </div>
-        <div className="flex justify-end space-x-3">
+
+        {/* Guest Management Section - Conditionally Rendered based on status */}
+        {/* Guest Management Section - Conditionally Rendered based on status */}
+        {(tournaments.find(t => t.id === tournamentId)?.status === 'scheduled' || tournaments.find(t => t.id === tournamentId)?.status === 'in_progress') && (
+            <div className="border-t pt-6 mt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Gestion des Invités</h3>
+                 {/* Display specific guest error */}
+                 {guestError && <p className="text-red-500 text-sm mb-3 bg-red-100 p-2 rounded">{guestError}</p>}
+                <label htmlFor="guestName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Ajouter un invité
+                </label>
+                <div className="flex items-center space-x-2 mb-4">
+                    <input
+                        type="text"
+                        id="guestName"
+                        value={currentGuest}
+                        onChange={(e) => setCurrentGuest(e.target.value)}
+                        className="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-blue focus:border-transparent sm:text-sm"
+                        placeholder="Nom de l'invité"
+                    />
+                    <button
+                        type="button"
+                        onClick={handleAddGuest}
+                        className={`p-2 bg-poker-blue text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 ${isGuestLoading ? 'animate-pulse' : ''}`}
+                        aria-label="Ajouter l'invité"
+                        disabled={!currentGuest.trim() || isGuestLoading} // Disable while loading
+                    >
+                        {isGuestLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <UserPlus className="w-5 h-5" />}
+                    </button>
+                </div>
+                {guests.length > 0 && (
+                    <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-gray-600">Invités actuels :</h4>
+                        <ul className="list-none p-0 m-0 space-y-1 max-h-40 overflow-y-auto border rounded p-2 bg-gray-50">
+                            {guests.map((guest, index) => (
+                                <li key={index} className="flex justify-between items-center bg-white px-3 py-1.5 rounded shadow-sm text-sm">
+                                    <span>{guest}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveGuest(guest)}
+                                        className="text-red-500 hover:text-red-700 ml-2 disabled:opacity-50"
+                                        aria-label={`Retirer ${guest}`}
+                                        disabled={isGuestLoading} // Disable while loading
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+                 {guests.length === 0 && <p className="text-sm text-gray-500 italic">Aucun invité ajouté.</p>}
+            </div>
+        )}
+        {/* End Guest Management Section */}
+
+
+        <div className="flex justify-end space-x-3 pt-4">
           <button
             type="button"
             onClick={() => navigate('/tournaments')}
@@ -180,12 +318,16 @@ export function EditTournament() {
           >
             Annuler
           </button>
-          <button
-            type="submit"
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-poker-gold hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-poker-gold"
-          >
-            Enregistrer les modifications
-          </button>
+          {/* Only show Save Changes button if tournament is scheduled */}
+          {/* Find current tournament again for button logic, handle potential undefined */}
+          {tournaments.find(t => t.id === tournamentId)?.status === 'scheduled' && (
+            <button
+              type="submit"
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-poker-gold hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-poker-gold"
+            >
+              Enregistrer les modifications
+            </button>
+          )}
         </div>
       </form>
     </div>

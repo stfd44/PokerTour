@@ -1,7 +1,7 @@
 // src/components/tournament/CreateTournament.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X, UserPlus } from 'lucide-react'; // Import X and UserPlus icons
 import { useTournamentStore } from '../../store/tournamentStore';
 import { useTeamStore } from '../../store/useTeamStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -19,13 +19,33 @@ export function CreateTournament() {
         location: '',
         teamId: '', // Add teamId to formData
     });
+    const [currentGuest, setCurrentGuest] = useState(''); // State for guest input
+    const [guests, setGuests] = useState<string[]>([]); // State for list of guests
 
     useEffect(() => {
         fetchTeams();
     }, [fetchTeams]);
 
+    const handleAddGuest = () => {
+        if (currentGuest.trim() && !guests.includes(currentGuest.trim())) {
+            setGuests([...guests, currentGuest.trim()]);
+            setCurrentGuest(''); // Clear input after adding
+        } else if (guests.includes(currentGuest.trim())) {
+            alert('Ce nom est déjà dans la liste des invités.');
+        }
+    };
+
+    const handleRemoveGuest = (guestToRemove: string) => {
+        setGuests(guests.filter(guest => guest !== guestToRemove));
+    };
+
+    // Ensure guests are passed correctly in handleSubmit
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!formData.teamId) {
+            alert("Veuillez sélectionner une équipe.");
+            return;
+        }
         if (user) {
             addTournament(
                 {
@@ -37,10 +57,11 @@ export function CreateTournament() {
                   teamId: formData.teamId,
                 },
                 user.uid,
-                formData.teamId // Pass teamId to addTournament
+                formData.teamId, // Pass teamId to addTournament
+                guests // Pass the list of guests
             ).then(() => {
-                fetchTournaments(user.uid);
-                navigate('/');
+                fetchTournaments(user.uid); // Fetch tournaments for the specific user might be incorrect if based on teams? Check fetchTournaments logic. Assuming it fetches based on teams now.
+                navigate('/tournaments'); // Navigate back to the list
             });
           }    
       };
@@ -165,6 +186,52 @@ export function CreateTournament() {
                             ))}
                         </select>
                     </div>
+
+                    {/* Guest Management Section */}
+                    <div className="border-t pt-6 mt-6">
+                        <label htmlFor="guestName" className="block text-sm font-medium text-gray-700 mb-1">
+                            Ajouter un invité (optionnel)
+                        </label>
+                        <div className="flex items-center space-x-2">
+                            <input
+                                type="text"
+                                id="guestName"
+                                value={currentGuest}
+                                onChange={(e) => setCurrentGuest(e.target.value)}
+                                className="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+                                placeholder="Nom de l'invité"
+                            />
+                            <button
+                                type="button"
+                                onClick={handleAddGuest}
+                                className="p-2 bg-poker-blue text-white rounded-md hover:bg-blue-700 transition-colors"
+                                aria-label="Ajouter l'invité"
+                            >
+                                <UserPlus className="w-5 h-5" />
+                            </button>
+                        </div>
+                        {guests.length > 0 && (
+                            <div className="mt-4 space-y-2">
+                                <h3 className="text-xs font-medium text-gray-500 uppercase">Invités ajoutés :</h3>
+                                <ul className="list-none p-0 m-0 space-y-1">
+                                    {guests.map((guest, index) => (
+                                        <li key={index} className="flex justify-between items-center bg-gray-100 px-3 py-1 rounded text-sm">
+                                            <span>{guest}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveGuest(guest)}
+                                                className="text-red-500 hover:text-red-700"
+                                                aria-label={`Retirer ${guest}`}
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+
 
                     <button
                         type="submit"

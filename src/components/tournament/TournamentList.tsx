@@ -227,11 +227,12 @@ export function TournamentList() {
                     <Trash2 className="h-4 w-4" />
                   </button>
                 )}
-                {/* Edit Button */}
-                {isCreator && tournament.status === 'scheduled' && (
+                {/* Edit Button - Show if creator and status is scheduled OR in_progress */}
+                {isCreator && (tournament.status === 'scheduled' || tournament.status === 'in_progress') && (
                   <button
-                    onClick={() => navigate(`/tournament/${tournament.id}/edit`)} // Navigate to edit page (needs to be created)
-                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-2 rounded flex items-center" // Adjusted padding
+                    onClick={() => navigate(`/tournament/${tournament.id}/edit`)}
+                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-2 rounded flex items-center"
+                    title="Modifier le tournoi / Gérer les invités" // Add title for clarity
                   >
                     <Edit className="h-4 w-4" />
                   </button>
