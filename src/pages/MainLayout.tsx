@@ -4,6 +4,7 @@ import { Routes, Route } from 'react-router-dom';
 import { CreateTournament } from '../components/tournament/CreateTournament';
 import { TournamentList } from '../components/tournament/TournamentList';
 import { TournamentGames } from '../components/tournament/TournamentGames';
+import { EditTournament } from '../components/tournament/EditTournament'; // Import EditTournament
 import Home from './Home';
 // Import the Teams component
 import Teams from './Teams/Teams';
@@ -17,6 +18,7 @@ export function MainLayout() {
           <Route path="/app/create-tournament" element={<CreateTournament />} />
           <Route path="/tournaments" element={<TournamentList />} />
           <Route path="/tournament/:tournamentId" element={<TournamentGames />} />
+          <Route path="/tournament/:tournamentId/edit" element={<EditTournament />} /> {/* Add route for editing */}
           {/* Add the route for the Teams page */}
           <Route path="/teams" element={<Teams />} />
         </Routes>

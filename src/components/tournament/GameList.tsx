@@ -97,15 +97,7 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
                     <PlayCircle className="w-5 h-5 mr-2" />
                     Démarrer
                   </button>
-                  {userId && (
-                    <button
-                      onClick={() => handleDeleteGame(game.id)}
-                      className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors flex items-center"
-                    >
-                      <Trash2 className="w-5 h-5 mr-2" />
-                      Supprimer
-                    </button>
-                  )}
+                  {/* Delete button moved outside status checks */}
                 </>
               )}
 
@@ -138,6 +130,16 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
                   Voir Résumé
                 </button>
               )}
+              {/* Delete Button - Always visible for creator */}
+              {userId === tournament.creatorId && (
+                 <button
+                   onClick={() => handleDeleteGame(game.id)}
+                   className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors flex items-center text-sm ml-auto" // Added ml-auto for positioning
+                 >
+                   <Trash2 className="w-4 h-4 mr-1" /> {/* Adjusted icon size */}
+                   Supprimer
+                 </button>
+               )}
             </div>
           </div>
         </div>

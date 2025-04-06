@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTournamentStore } from '../../store/tournamentStore';
-import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2 } from 'lucide-react';
+import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2, Edit, User } from 'lucide-react'; // Added Edit and User icons
 import { useAuthStore } from '../../store/useAuthStore';
 
 export function TournamentList() {
@@ -155,6 +155,13 @@ export function TournamentList() {
                 <MapPin className="w-5 h-5 mr-2 text-poker-gold" />
                 <span>{tournament.location}</span>
               </div>
+              {/* Display Organizer Nickname */}
+              {tournament.creatorNickname && (
+                <div className="flex items-center text-sm text-gray-500 mt-1">
+                  <User className="w-4 h-4 mr-2 text-poker-gold" />
+                  <span>Organisé par : {tournament.creatorNickname}</span>
+                </div>
+              )}
             </div>
             
             <div className="mt-4 flex justify-between items-center">
@@ -215,9 +222,18 @@ export function TournamentList() {
                 {isCreator && (
                   <button
                     onClick={() => handleDeleteTournament(tournament.id)}
-                    className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded flex items-center"
+                    className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-2 rounded flex items-center" // Adjusted padding
                   >
                     <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+                {/* Edit Button */}
+                {isCreator && tournament.status === 'scheduled' && (
+                  <button
+                    onClick={() => navigate(`/tournament/${tournament.id}/edit`)} // Navigate to edit page (needs to be created)
+                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-2 rounded flex items-center" // Adjusted padding
+                  >
+                    <Edit className="h-4 w-4" />
                   </button>
                 )}
               </div>

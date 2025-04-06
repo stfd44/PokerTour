@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { db, handleDatabaseError, isCreator } from '../lib/firebase';
+import { db, handleDatabaseError, isCreator, getUserData } from '../lib/firebase'; // Import getUserData
 import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, arrayUnion, arrayRemove, getDoc, query, where } from 'firebase/firestore';
 import { useTeamStore } from './useTeamStore'; // Import useTeamStore
 
@@ -93,6 +93,7 @@ export interface Game {
 
 export interface Tournament {
   id: string;
+  creatorNickname?: string; // Added field for organizer's nickname
   name: string;
   date: string;
   buyin: number;
@@ -108,7 +109,8 @@ export interface Tournament {
 interface TournamentStore {
   tournaments: Tournament[];
   fetchTournaments: (userId: string) => Promise<void>; // Add userId parameter
-  addTournament: (tournamentData: Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'status'>, userId: string, teamId: string) => Promise<void>; // Add teamId parameter
+  addTournament: (tournamentData: Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'status' | 'creatorNickname'>, userId: string, teamId: string) => Promise<void>; // Add teamId parameter, exclude creatorNickname
+  updateTournament: (tournamentId: string, userId: string, tournamentData: Partial<Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'teamId' | 'creatorNickname'>>) => Promise<void>; // Added update function
   deleteTournament: (tournamentId: string, userId: string) => Promise<void>;
   registerToTournament: (tournamentId: string, userId: string, player: Player, nickname?: string) => Promise<void>;
   unregisterFromTournament: (tournamentId: string, userId: string) => Promise<void>;
@@ -147,50 +149,104 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
   tournaments: [],
 
   // Fetching Tournaments
-  fetchTournaments: async () => { // Add userId parameter
+  fetchTournaments: async () => {
     try {
-        const { teams } = useTeamStore.getState(); // Get the teams from useTeamStore
-        const userTeams = teams.map(team => team.id); // Get the user's team IDs
+        const { teams } = useTeamStore.getState();
+        const userTeams = teams.map(team => team.id);
         if (userTeams.length === 0) {
             set({ tournaments: [] }); // If the user is not in any team, display no tournament
             return;
         }
-        const q = query(collection(db, "tournaments"), where("teamId", "in", userTeams)); // Query tournaments where teamId is in userTeams
+        const q = query(collection(db, "tournaments"), where("teamId", "in", userTeams));
         const querySnapshot = await getDocs(q);
-        const tournaments: Tournament[] = querySnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-        })) as Tournament[];
+
+        // Fetch creator nicknames in parallel
+        const tournamentsPromises = querySnapshot.docs.map(async (doc): Promise<Tournament> => {
+            const data = doc.data() as Omit<Tournament, 'id' | 'creatorNickname'>; // Type assertion for raw data
+            let creatorNickname: string | undefined = undefined;
+            if (data.creatorId) {
+                const creatorData = await getUserData(data.creatorId);
+                creatorNickname = creatorData?.nickname ?? undefined; // Use nickname if available
+            }
+            return {
+                id: doc.id,
+                ...data,
+                creatorNickname: creatorNickname, // Add the fetched nickname
+            };
+        });
+
+        const tournaments = await Promise.all(tournamentsPromises);
         set({ tournaments });
     } catch (error) {
         handleDatabaseError(error);
+        set({ tournaments: [] }); // Clear tournaments on error
     }
   },
 
   // Adding a Tournament
-  addTournament: async (tournamentData, creatorId, teamId) => {
+  addTournament: async (tournamentData, creatorId, teamId) => { // Excludes creatorNickname from input type
     try {
       const docRef = await addDoc(collection(db, "tournaments"), {
-        ...tournamentData,
+        ...tournamentData, // Spread the provided data
         registrations: [],
         creatorId: creatorId,
-        games: [],
-        status: 'scheduled',
-        teamId: teamId,
+        games: [], // Initialize games array
+        status: 'scheduled', // Set initial status
+        teamId: teamId, // Set teamId
       });
+      // Fetch the newly added tournament to get its full data including defaults and ID
+      const newTournamentDoc = await getDoc(docRef);
+      if (newTournamentDoc.exists()) {
+          const newTournamentData = newTournamentDoc.data() as Omit<Tournament, 'id' | 'creatorNickname'>;
+          let creatorNickname: string | undefined = undefined;
+          if (newTournamentData.creatorId) {
+              const creatorData = await getUserData(newTournamentData.creatorId);
+              creatorNickname = creatorData?.nickname ?? undefined;
+          }
+          const newTournament: Tournament = {
+              id: docRef.id,
+              ...newTournamentData,
+              creatorNickname: creatorNickname,
+          };
+          set((state) => ({
+              tournaments: [...state.tournaments, newTournament],
+          }));
+      }
+    } catch (error) {
+      handleDatabaseError(error);
+    }
+  },
+
+  // Updating a Tournament (New Function)
+  updateTournament: async (tournamentId, userId, tournamentData) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      const tournamentDoc = await getDoc(tournamentRef);
+
+      if (!tournamentDoc.exists()) {
+        throw new Error("Tournament not found");
+      }
+
+      const currentData = tournamentDoc.data() as Tournament;
+
+      // Check 1: Is the user the creator?
+      if (currentData.creatorId !== userId) {
+        throw new Error("You are not authorized to edit this tournament.");
+      }
+
+      // Check 2: Is the tournament status 'scheduled'?
+      if (currentData.status !== 'scheduled') {
+        throw new Error("Cannot edit a tournament that has already started or ended.");
+      }
+
+      // Perform the update
+      await updateDoc(tournamentRef, tournamentData);
+
+      // Update local state
       set((state) => ({
-        tournaments: [
-          ...state.tournaments,
-          {
-            id: docRef.id,
-            ...tournamentData,
-            registrations: [],
-            creatorId: creatorId,
-            games: [],
-            status: 'scheduled',
-            teamId: teamId,
-          },
-        ],
+        tournaments: state.tournaments.map((t) =>
+          t.id === tournamentId ? { ...t, ...tournamentData } : t
+        ),
       }));
     } catch (error) {
       handleDatabaseError(error);
@@ -523,21 +579,32 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
       const tournamentRef = doc(db, "tournaments", tournamentId);
       const tournamentDoc = await getDoc(tournamentRef);
       const tournamentData = tournamentDoc.data();
+
       if (!tournamentData) {
         throw new Error("Tournament not found");
       }
-      if (!await isCreator(tournamentRef, userId)) {
-        throw new Error("You are not the creator of this tournament");
+
+      // Check if the user is the creator - This is the only check needed now.
+      if (tournamentData.creatorId !== userId) {
+         // Use direct comparison since we have the data
+        throw new Error("You are not authorized to delete games in this tournament.");
       }
+
+      // Filter out the game to be deleted (no status check needed)
       const updatedGames = tournamentData.games.filter((game: Game) => game.id !== gameId);
+
+      // Update the document in Firestore
       await updateDoc(tournamentRef, {
         games: updatedGames,
       });
+
+      // Update the local state
       set((state) => ({
         tournaments: state.tournaments.map((t) =>
           t.id === tournamentId ? { ...t, games: updatedGames } : t
         ),
       }));
+      // Removed duplicate set call below
     } catch (error) {
       handleDatabaseError(error);
     }
