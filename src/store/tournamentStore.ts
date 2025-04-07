@@ -201,35 +201,49 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
   // Adding a Tournament
   addTournament: async (tournamentData, creatorId, teamId, initialGuests = []) => {
     try {
+      // Fetch creator's data to get their nickname
+      const creatorData = await getUserData(creatorId);
+      const creatorNickname = creatorData?.nickname; // Get nickname, might be null
+
+      // Create the creator's registration entry
+      const creatorRegistration: Player = {
+        id: creatorId,
+        name: creatorNickname || `Utilisateur_${creatorId.substring(0, 5)}`, // Fallback name if no nickname
+        nickname: creatorNickname || undefined,
+      };
+
       // Create registration entries for initial guests
-      const initialRegistrations = initialGuests.map(guestName => ({
+      const guestRegistrations = initialGuests.map(guestName => ({
         id: `guest_${guestName.replace(/\s+/g, '_')}`, // Create a simple guest ID
         name: guestName,
         // No nickname for guests initially
       }));
 
+      // Combine creator and guest registrations
+      const initialRegistrations = [creatorRegistration, ...guestRegistrations];
+
       const docRef = await addDoc(collection(db, "tournaments"), {
         ...tournamentData,
-        registrations: initialRegistrations, // Add initial guest registrations
+        registrations: initialRegistrations, // Add creator + guests
         creatorId: creatorId,
         games: [],
         status: 'scheduled',
         teamId: teamId,
         guests: initialGuests,
       });
-      // Fetch the newly added tournament to get its full data including defaults and ID
+      // Fetch the newly added tournament to get its full data including ID and merged registrations
       const newTournamentDoc = await getDoc(docRef);
       if (newTournamentDoc.exists()) {
+          // Data from Firestore already includes the creator in registrations
           const newTournamentData = newTournamentDoc.data() as Omit<Tournament, 'id' | 'creatorNickname'>;
-          let creatorNickname: string | undefined = undefined;
-          if (newTournamentData.creatorId) {
-              const creatorData = await getUserData(newTournamentData.creatorId);
-              creatorNickname = creatorData?.nickname ?? undefined;
-          }
+
+          // We already fetched the creator's nickname above, reuse it
+          const finalCreatorNickname = creatorNickname || undefined;
+
           const newTournament: Tournament = {
               id: docRef.id,
-              ...newTournamentData, // newTournamentData now includes the guests field from Firestore
-              creatorNickname: creatorNickname,
+              ...newTournamentData, // This now includes the creator in registrations from Firestore
+              creatorNickname: finalCreatorNickname,
           };
           set((state) => ({
               tournaments: [...state.tournaments, newTournament],
@@ -331,6 +345,12 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
       if (!tournamentData) {
         throw new Error("Tournament not found");
       }
+
+      // Check if the user trying to unregister is the creator
+      if (tournamentData.creatorId === userId) {
+        throw new Error("The tournament creator cannot unregister.");
+      }
+
       const playerToRemove = tournamentData.registrations.find((p: Player) => p.id === userId);
       if (!playerToRemove) {
         throw new Error("Player not found in registrations");
