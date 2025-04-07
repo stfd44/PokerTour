@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-// import { useTeamStore } from '../store/useTeamStore'; // Removed unused import
-import { useTournamentStore, Game, PlayerResult } from '../store/tournamentStore'; // Import PlayerResult, Removed unused Tournament import
+import { useTeamStore } from '../store/useTeamStore'; // Import useTeamStore
+import { useTournamentStore, Game, PlayerResult } from '../store/tournamentStore'; // Import PlayerResult
+import clsx from 'clsx'; // Import clsx
 
 interface PlayerStats {
   id: string;
@@ -22,9 +23,19 @@ interface CalculatedStats {
 
 const Stats: React.FC = () => {
   const { user } = useAuthStore();
-  // const { teams } = useTeamStore(); // Removed unused variable
+  const { teams, fetchTeams } = useTeamStore(); // Get teams and fetchTeams
   const { tournaments, fetchTournaments } = useTournamentStore();
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>('all'); // 'all' or team ID
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear()); // State for selected year
+
+  useEffect(() => {
+    // Fetch teams first if not already loaded
+    if (user?.uid && teams.length === 0) {
+      fetchTeams(); // Fetch teams associated with the user
+    }
+  }, [user, teams, fetchTeams]);
+
 
   useEffect(() => {
     const loadData = async () => {
@@ -39,13 +50,46 @@ const Stats: React.FC = () => {
     loadData();
   }, [user, fetchTournaments]); // Depend on user and fetchTournaments
 
-  const currentYear = new Date().getFullYear();
+  // Determine available years from tournament data for the selector
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    tournaments.forEach(t => {
+      try {
+        const year = new Date(t.date).getFullYear();
+        if (!isNaN(year)) {
+          years.add(year);
+        }
+      } catch (e) {
+        console.error("Error parsing date for year extraction:", t.date, e);
+      }
+    });
+    // Add current year if no tournaments exist yet or if it's not already included
+    const currentSystemYear = new Date().getFullYear();
+    if (!years.has(currentSystemYear)) {
+        years.add(currentSystemYear);
+    }
+    return Array.from(years).sort((a, b) => b - a); // Sort descending
+  }, [tournaments]);
+
+  // Update selectedYear if it becomes invalid (e.g., data changes)
+  useEffect(() => {
+    if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
+      setSelectedYear(availableYears[0]); // Default to the latest available year
+    }
+  }, [availableYears, selectedYear]);
+
 
   // Memoize calculations to avoid re-computing on every render
-  const statistics: CalculatedStats = useMemo(() => { // Explicitly type the return value
-    console.log("[Stats Calculation] Raw tournaments data:", tournaments); // Log raw data
-    if (!tournaments || tournaments.length === 0) {
-      console.log("[Stats Calculation] No tournaments found or empty array.");
+  const statistics: CalculatedStats = useMemo(() => {
+    // Filter tournaments based on selected team *before* any calculations
+    const filteredTournaments = selectedTeamId === 'all'
+      ? tournaments
+      : tournaments.filter(t => t.teamId === selectedTeamId);
+
+    console.log(`[Stats Calculation] Selected Team: ${selectedTeamId}, Raw tournaments: ${tournaments.length}, Filtered tournaments: ${filteredTournaments.length}`);
+
+    if (!filteredTournaments || filteredTournaments.length === 0) {
+      console.log("[Stats Calculation] No relevant tournaments found after filtering.");
       return {
         tournamentsPlayedThisYear: 0,
         gamesPlayedThisYear: 0,
@@ -55,16 +99,17 @@ const Stats: React.FC = () => {
       };
     }
 
-    const relevantTournaments = tournaments.filter(t => t.status === 'ended' || t.status === 'in_progress'); // Consider both for counts
+    // Use the already filtered list for further processing
+    const relevantTournaments = filteredTournaments.filter(t => t.status === 'ended' || t.status === 'in_progress');
 
-    // --- Current Year Stats ---
+    // --- Selected Year Stats ---
     const tournamentsThisYear = relevantTournaments.filter(t => {
         try {
-            // Assuming t.date is in 'YYYY-MM-DD' format
-            return new Date(t.date).getFullYear() === currentYear;
+            // Filter by selectedYear now
+            return new Date(t.date).getFullYear() === selectedYear;
         } catch (e) {
             console.error("Error parsing tournament date:", t.date, e);
-            return false;
+            return false; // Skip if date is invalid
         }
     });
     const tournamentsPlayedThisYear = tournamentsThisYear.length;
@@ -73,10 +118,10 @@ const Stats: React.FC = () => {
     // --- Player Rankings (Points & Winnings) ---
     const playerAggregates: Record<string, PlayerStats> = {};
 
-    // Calculate endedTournaments inside useMemo
-    const endedTournaments = tournaments.filter(t => t.status === 'ended');
-    const endedTournamentsCount = endedTournaments.length; // Get count
-    console.log("[Stats Calculation] Filtered endedTournaments:", endedTournaments); // Log ended tournaments
+    // Calculate endedTournaments from the filtered list
+    const endedTournaments = filteredTournaments.filter(t => t.status === 'ended');
+    const endedTournamentsCount = endedTournaments.length;
+    console.log("[Stats Calculation] Filtered endedTournaments (for selected team):", endedTournaments);
 
     endedTournaments.forEach(tournament => {
       console.log(`[Stats Calculation] Processing tournament: ${tournament.name} (${tournament.id})`); // Log tournament being processed
@@ -130,9 +175,9 @@ const Stats: React.FC = () => {
       mostProfitableTournament,
       endedTournamentsCount, // Return the count
     };
-    console.log("[Stats Calculation] Final calculated statistics object:", finalStats); // Log final object
+    console.log("[Stats Calculation] Final calculated statistics object:", finalStats);
     return finalStats;
-  }, [tournaments, currentYear]); // Recalculate only when tournaments or year change
+  }, [tournaments, selectedYear, selectedTeamId]); // Update dependency array
 
   if (isLoading) {
     return <div className="text-center py-12">Chargement des statistiques...</div>;
@@ -148,16 +193,62 @@ const Stats: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold text-poker-black mb-6">Statistiques ({currentYear})</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <h1 className="text-3xl font-bold text-poker-black">Statistiques ({selectedYear})</h1>
+        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+          {/* Year Selector */}
+          {availableYears.length > 0 && (
+            <div className="w-full sm:w-auto">
+              <label htmlFor="year-select" className="block text-sm font-medium text-gray-700">
+                Année :
+              </label>
+              <select
+                id="year-select"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-poker-blue focus:border-poker-blue sm:text-sm rounded-md shadow-sm"
+              >
+                {availableYears.map(year => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {/* Team Selector */}
+          {teams.length > 1 && (
+            <div className="w-full sm:w-auto">
+              <label htmlFor="team-select" className="block text-sm font-medium text-gray-700">
+                Équipe :
+              </label>
+              <select
+              id="team-select"
+              value={selectedTeamId ?? 'all'}
+              onChange={(e) => setSelectedTeamId(e.target.value)}
+              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-poker-blue focus:border-poker-blue sm:text-sm rounded-md shadow-sm"
+            >
+              <option value="all">Toutes les équipes</option>
+              {teams.map(team => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          )}
+        </div> {/* Closing tag for the flex container of selectors */}
+      </div>
 
-      {/* Current Year Summary */}
+
+      {/* Selected Year Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         <div className="bg-white p-4 rounded-lg shadow border border-gray-200 text-center">
-          <p className="text-sm font-medium text-gray-500">Tournois Joués ({currentYear})</p>
+          <p className="text-sm font-medium text-gray-500">Tournois Joués ({selectedYear})</p>
           <p className="text-3xl font-bold text-poker-blue">{statistics.tournamentsPlayedThisYear}</p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow border border-gray-200 text-center">
-          <p className="text-sm font-medium text-gray-500">Parties Jouées ({currentYear})</p>
+          <p className="text-sm font-medium text-gray-500">Parties Jouées ({selectedYear})</p>
           <p className="text-3xl font-bold text-poker-blue">{statistics.gamesPlayedThisYear}</p>
         </div>
       </div>
@@ -179,19 +270,45 @@ const Stats: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {sortedByPoints.map((player, index) => (
-                    <tr key={player.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{index + 1}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{player.name}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700 text-right">{player.totalPoints}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700 text-right">{player.gamesPlayed}</td>
+                  {sortedByPoints.map((player, index) => {
+                    const rank = index + 1;
+                    const isCurrentUser = player.id === user?.uid;
+                    return (
+                      <tr
+                        key={player.id}
+                        className={clsx(
+                          // Apply user highlight first (blue), then rank highlights, then alternating row colors
+                          isCurrentUser ? 'bg-blue-100 font-semibold' :
+                          rank === 1 ? 'bg-yellow-100' : // Gold-ish
+                          rank === 2 ? 'bg-gray-200' :   // Silver-ish
+                          rank === 3 ? 'bg-orange-100' : // Bronze-ish
+                          (index % 2 === 0 ? 'bg-white' : 'bg-gray-50') // Alternating rows
+                        )}
+                      >
+                        <td className={clsx(
+                          "px-4 py-2 whitespace-nowrap text-sm font-medium text-center", // Centered rank
+                           // Keep text color consistent unless highlighted
+                          isCurrentUser ? 'text-blue-800' : 'text-gray-900'
+                        )}>
+                          {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank}
+                        </td>
+                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm", isCurrentUser ? 'text-blue-800' : 'text-gray-700')}>
+                          {player.name}{isCurrentUser && ' (Vous)'}
+                        </td>
+                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm text-right", isCurrentUser ? 'text-blue-800' : 'text-gray-700')}>
+                          {player.totalPoints}
+                        </td>
+                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm text-right", isCurrentUser ? 'text-blue-800' : 'text-gray-700')}>
+                          {player.gamesPlayed}
+                        </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>
           ) : (
-            <p className="text-gray-500">Aucune donnée de classement par points disponible.</p>
+            <p className="text-gray-500 text-center py-4">Aucune donnée de classement par points disponible pour la sélection.</p>
           )}
         </div>
 
@@ -210,42 +327,68 @@ const Stats: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {sortedByWinnings.map((player, index) => (
-                    <tr key={player.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{index + 1}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{player.name}</td>
-                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700 text-right">{player.totalWinnings.toFixed(2)}</td>
-                       <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700 text-right">{player.gamesPlayed}</td>
+                  {sortedByWinnings.map((player, index) => {
+                     const rank = index + 1;
+                     const isCurrentUser = player.id === user?.uid;
+                    return (
+                      <tr
+                        key={player.id}
+                        className={clsx(
+                          // Apply user highlight first (blue), then rank highlights, then alternating row colors
+                          isCurrentUser ? 'bg-blue-100 font-semibold' :
+                          rank === 1 ? 'bg-yellow-100' : // Gold-ish
+                          rank === 2 ? 'bg-gray-200' :   // Silver-ish
+                          rank === 3 ? 'bg-orange-100' : // Bronze-ish
+                          (index % 2 === 0 ? 'bg-white' : 'bg-gray-50') // Alternating rows
+                        )}
+                      >
+                         <td className={clsx(
+                          "px-4 py-2 whitespace-nowrap text-sm font-medium text-center", // Centered rank
+                           // Keep text color consistent unless highlighted
+                          isCurrentUser ? 'text-blue-800' : 'text-gray-900'
+                        )}>
+                          {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank}
+                        </td>
+                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm", isCurrentUser ? 'text-blue-800' : 'text-gray-700')}>
+                          {player.name}{isCurrentUser && ' (Vous)'}
+                        </td>
+                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm text-right", isCurrentUser ? 'text-blue-800' : 'text-gray-700')}>
+                          {player.totalWinnings.toFixed(2)}
+                        </td>
+                       <td className={clsx("px-4 py-2 whitespace-nowrap text-sm text-right", isCurrentUser ? 'text-blue-800' : 'text-gray-700')}>
+                          {player.gamesPlayed}
+                        </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>
           ) : (
-             <p className="text-gray-500">Aucune donnée de classement par gains disponible.</p>
+             <p className="text-gray-500 text-center py-4">Aucune donnée de classement par gains disponible pour la sélection.</p>
           )}
         </div>
       </div>
 
       {/* Most Profitable Tournament */}
-      {statistics.mostProfitableTournament ? ( // Check if it exists before accessing properties
+      {statistics.mostProfitableTournament ? (
         <div className="bg-white p-6 rounded-lg shadow border border-gray-200 mt-8">
-          <h2 className="text-xl font-semibold text-poker-black mb-3">Tournoi le Plus Rémunérateur ({currentYear})</h2>
+          <h2 className="text-xl font-semibold text-poker-black mb-3">Tournoi le Plus Rémunérateur ({selectedYear})</h2>
           <p><span className="font-medium">Nom:</span> {statistics.mostProfitableTournament.name}</p>
           <p><span className="font-medium">Organisateur:</span> {statistics.mostProfitableTournament.organizer}</p>
           <p><span className="font-medium">Prize Pool Total:</span> {statistics.mostProfitableTournament.totalPrize.toFixed(2)} €</p>
         </div>
       ) : (
-         statistics.endedTournamentsCount > 0 && ( // Only show this message if there were ended tournaments but none had prize pools > 0
+         statistics.endedTournamentsCount > 0 && (
            <div className="bg-white p-6 rounded-lg shadow border border-gray-200 mt-8">
-             <h2 className="text-xl font-semibold text-poker-black mb-3">Tournoi le Plus Rémunérateur ({currentYear})</h2>
-             <p className="text-gray-500">Aucun tournoi terminé avec un prize pool défini trouvé pour cette année.</p>
+             <h2 className="text-xl font-semibold text-poker-black mb-3">Tournoi le Plus Rémunérateur ({selectedYear})</h2>
+             <p className="text-gray-500">Aucun tournoi terminé avec un prize pool défini trouvé pour cette sélection et cette année.</p>
            </div>
          )
       )}
        {/* Removed the potentially duplicated block */}
 
-    </div>
+    </div> // Closing tag for the main content div
   );
 };
 
