@@ -71,6 +71,15 @@ export interface Blinds {
   big: number;
 }
 
+// Define the structure for storing detailed game results per player
+export interface PlayerResult { // ADDED export keyword
+  playerId: string;
+  name: string;     // Player's name/nickname at game end
+  rank: number;     // Final rank (1, 2, 3, ...)
+  points: number;   // Points awarded based on rank
+  winnings: number; // Cash winnings for this game (0 if not 1st-3rd or no prize)
+}
+
 export interface Game {
   id: string;
   tournamentId: string;
@@ -89,6 +98,7 @@ export interface Game {
   prizePool?: number;
   distributionPercentages?: { first: number; second: number; third: number };
   winnings?: { first: number; second: number; third: number };
+  results?: PlayerResult[]; // ADDED: Stores results for all players
 }
 
 export interface Tournament {
@@ -116,6 +126,7 @@ interface TournamentStore {
   registerToTournament: (tournamentId: string, userId: string, player: Player, nickname?: string) => Promise<void>;
   unregisterFromTournament: (tournamentId: string, userId: string) => Promise<void>;
   startTournament: (tournamentId: string, userId: string) => Promise<void>;
+  endTournament: (tournamentId: string, userId: string) => Promise<void>; // ADDED endTournament action
   // Guest Management
   addGuestToTournament: (tournamentId: string, guestName: string, userId: string) => Promise<void>;
   removeGuestFromTournament: (tournamentId: string, guestName: string, userId: string) => Promise<void>;
@@ -361,6 +372,31 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
     }
   },
 
+  // Ending a Tournament (New Action)
+  endTournament: async (tournamentId, userId) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      // Verify user is the creator before updating
+      if (!await isCreator(tournamentRef, userId)) {
+        throw new Error("You are not authorized to end this tournament.");
+      }
+      // Update status in Firestore
+      await updateDoc(tournamentRef, {
+        status: 'ended',
+      });
+      // Update status in local state
+      set((state) => ({
+        tournaments: state.tournaments.map((t) =>
+          t.id === tournamentId
+            ? { ...t, status: 'ended' }
+            : t
+        ),
+      }));
+    } catch (error) {
+      handleDatabaseError(error); // Use existing error handler
+    }
+  },
+
   // Adding a Game
   // Adjusted gameData type in implementation as well
   addGame: async (tournamentId: string, gameData: Pick<Game, 'startingStack' | 'blinds' | 'blindLevels' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings'>) => {
@@ -568,13 +604,79 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
       if (!tournamentData) {
         throw new Error("Tournament not found");
       }
+
+      const gameToEndIndex = tournamentData.games.findIndex((g: Game) => g.id === gameId);
+      if (gameToEndIndex === -1) {
+        throw new Error("Game not found within the tournament");
+      }
+      const gameToEnd = tournamentData.games[gameToEndIndex];
+
+      // --- Calculate Results ---
       const now = Date.now();
-      const updatedGames = tournamentData.games.map((game: Game) =>
-        game.id === gameId ? { ...game, status: 'ended', endedAt: now } : game // Set endedAt timestamp
-      );
+      const players = gameToEnd.players || [];
+
+      // Sort players: winner first, then by elimination time descending
+      const sortedPlayers = [...players].sort((a, b) => {
+        if (!a.eliminated && b.eliminated) return -1; // Winner (a) comes first
+        if (a.eliminated && !b.eliminated) return 1;  // Winner (b) comes first
+        if (!a.eliminated && !b.eliminated) return 0; // Should only be one winner if game ends correctly
+        // Both eliminated, sort by time (descending - later elimination = better rank)
+        return (b.eliminationTime ?? 0) - (a.eliminationTime ?? 0);
+      });
+
+      // Assign ranks and calculate points/winnings
+      const results: PlayerResult[] = sortedPlayers.map((player, index) => {
+        const rank = index + 1;
+        let points = 0;
+        let winnings = 0;
+
+        // Assign points based on rank (10, 7, 5, 3, 2, 1)
+        switch (rank) {
+          case 1: points = 10; break;
+          case 2: points = 7; break;
+          case 3: points = 5; break;
+          case 4: points = 3; break;
+          case 5: points = 2; break;
+          default: points = 1; break;
+        }
+
+        // Assign winnings based on rank
+        if (gameToEnd.winnings) {
+          if (rank === 1) winnings = gameToEnd.winnings.first ?? 0;
+          else if (rank === 2) winnings = gameToEnd.winnings.second ?? 0;
+          else if (rank === 3) winnings = gameToEnd.winnings.third ?? 0;
+        }
+
+        return {
+          playerId: player.id,
+          name: player.nickname || player.name, // Use nickname if available
+          rank: rank,
+          points: points,
+          winnings: winnings,
+        };
+      });
+      // --- End Calculate Results ---
+
+      // Create the updated game object
+      const updatedGameData = cleanGameForFirestore({
+        ...gameToEnd,
+        status: 'ended',
+        endedAt: now,
+        results: results, // Add the calculated results
+      });
+
+      // Create a new games array with the updated game
+      const updatedGames = [
+          ...tournamentData.games.slice(0, gameToEndIndex),
+          updatedGameData,
+          ...tournamentData.games.slice(gameToEndIndex + 1),
+      ].map(g => cleanGameForFirestore(g)); // Clean all games just in case
+
       await updateDoc(tournamentRef, {
         games: updatedGames,
       });
+
+      // Update local state
       set((state) => ({
         tournaments: state.tournaments.map((t) =>
           t.id === tournamentId ? { ...t, games: updatedGames } : t

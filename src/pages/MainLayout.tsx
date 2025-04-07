@@ -6,6 +6,7 @@ import { TournamentList } from '../components/tournament/TournamentList';
 import { TournamentGames } from '../components/tournament/TournamentGames';
 import { EditTournament } from '../components/tournament/EditTournament'; // Import EditTournament
 import Home from './Home';
+import Stats from './Stats'; // Import the Stats component
 // Import the Teams component
 import Teams from './Teams/Teams';
 
@@ -21,6 +22,8 @@ export function MainLayout() {
           <Route path="/tournament/:tournamentId/edit" element={<EditTournament />} /> {/* Add route for editing */}
           {/* Add the route for the Teams page */}
           <Route path="/teams" element={<Teams />} />
+          {/* Add the route for the Stats page */}
+          <Route path="/stats" element={<Stats />} />
         </Routes>
       </div>
     </div>

@@ -4,15 +4,16 @@ import { useTournamentStore } from '../../store/tournamentStore';
 import { GameForm } from './GameForm';
 import { GameView } from './GameView';
 import { GameList } from './GameList';
-// No longer need Game type here directly for state
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Game } from '../../store/tournamentStore'; // Keep for GameForm prop type
+import { FlagOff } from 'lucide-react'; // Import icon for end tournament button
 
 export function TournamentGames() {
   const { tournamentId } = useParams<{ tournamentId: string }>();
   const tournament = useTournamentStore(state =>
-    state.tournaments.find(t => t.id === tournamentId)
+   state.tournaments.find(t => t.id === tournamentId)
   );
+  const endTournamentAction = useTournamentStore(state => state.endTournament); // Get endTournament action
   const { user } = useAuthStore(); // Keep only one declaration
 
   const [isCreating, setIsCreating] = useState(false);
@@ -44,6 +45,21 @@ export function TournamentGames() {
     setIsCreating(false);
     setEditingGame(null);
     setViewingGameId(null);
+  };
+
+  // Handler for ending the tournament
+  const handleEndTournament = async () => {
+    if (!tournamentId || !user?.uid) return;
+    if (window.confirm(`Êtes-vous sûr de vouloir terminer le tournoi "${tournament?.name}" ? Cette action est irréversible.`)) {
+      try {
+        await endTournamentAction(tournamentId, user.uid);
+        // Optionally navigate away or show a success message
+        alert('Tournoi terminé avec succès.');
+      } catch (error) {
+        // Error handling is done within the store action, but you could add specific UI feedback here
+        console.error("Error ending tournament from component:", error);
+      }
+    }
   };
 
   // Add checks for undefined tournamentId or tournament
@@ -78,15 +94,28 @@ export function TournamentGames() {
             <h1 className="text-3xl font-bold text-poker-black">
               {tournament.name} - Parties
             </h1>
-            {/* Show create button only if not already creating/editing */}
-            {!isCreating && (
-              <button
-                onClick={handleCreateGameClick}
-                className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
-              >
-                Nouvelle partie
-              </button>
-            )}
+            <div className="flex space-x-2"> {/* Container for buttons */}
+              {/* Show create button only if not already creating/editing and tournament is not ended */}
+              {!isCreating && tournament.status !== 'ended' && (
+                <button
+                  onClick={handleCreateGameClick}
+                  className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
+                >
+                  Nouvelle partie
+                </button>
+              )}
+              {/* Show End Tournament button only if user is creator and tournament is in_progress */}
+              {user?.uid === tournament.creatorId && tournament.status === 'in_progress' && !isCreating && !viewingGameId && (
+                <button
+                  onClick={handleEndTournament}
+                  className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors flex items-center"
+                  title="Terminer le tournoi (irréversible)"
+                >
+                  <FlagOff className="w-4 h-4 mr-2" />
+                  Terminer Tournoi
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Show GameForm if creating or editing */}
