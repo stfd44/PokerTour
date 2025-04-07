@@ -99,6 +99,10 @@ export interface Game {
   distributionPercentages?: { first: number; second: number; third: number };
   winnings?: { first: number; second: number; third: number };
   results?: PlayerResult[]; // ADDED: Stores results for all players
+  // Rebuy fields
+  rebuyAllowedUntilLevel: number; // Max level for rebuys (e.g., 2)
+  totalRebuys: number; // Count of rebuys made
+  rebuyAmount: number; // Cost of one rebuy (usually tournament buyin)
 }
 
 export interface Tournament {
@@ -130,8 +134,12 @@ interface TournamentStore {
   // Guest Management
   addGuestToTournament: (tournamentId: string, guestName: string, userId: string) => Promise<void>;
   removeGuestFromTournament: (tournamentId: string, guestName: string, userId: string) => Promise<void>;
-  // Adjusted addGame gameData type to include new fields
-  addGame: (tournamentId: string, gameData: Pick<Game, 'startingStack' | 'blinds' | 'blindLevels' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings'>) => Promise<void>;
+  // Adjusted addGame gameData type to include new fields and rebuy level
+  addGame: (
+    tournamentId: string,
+    gameData: Pick<Game, 'startingStack' | 'blinds' | 'blindLevels' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings'>,
+    rebuyAllowedUntilLevel?: number // Optional rebuy level
+  ) => Promise<void>;
   updateGame: (tournamentId: string, gameId: string, gameData: Partial<Game>) => Promise<void>;
   startGame: (tournamentId: string, gameId: string, players: Player[]) => Promise<void>;
   endGame: (tournamentId: string, gameId: string) => Promise<void>;
@@ -143,6 +151,8 @@ interface TournamentStore {
   // New actions for player elimination/reinstatement
   eliminatePlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
   reinstatePlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
+  // Rebuy action
+  rebuyPlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
 }
 
 // Helper function to find and update a game within the state
@@ -418,15 +428,25 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
   },
 
   // Adding a Game
-  // Adjusted gameData type in implementation as well
-  addGame: async (tournamentId: string, gameData: Pick<Game, 'startingStack' | 'blinds' | 'blindLevels' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings'>) => {
+  // Adjusted gameData type and added rebuyAllowedUntilLevel parameter
+  addGame: async (
+    tournamentId: string,
+    gameData: Pick<Game, 'startingStack' | 'blinds' | 'blindLevels' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings'>,
+    rebuyAllowedUntilLevel: number = 2 // Default rebuy level to 2
+  ) => {
     try {
       const tournamentRef = doc(db, "tournaments", tournamentId);
+      const tournamentDoc = await getDoc(tournamentRef); // Fetch tournament to get buyin
+      if (!tournamentDoc.exists()) {
+        throw new Error("Tournament not found");
+      }
+      const tournamentData = tournamentDoc.data() as Tournament;
       const gameId = Date.now().toString();
+
       // Construct the full newGame object with all defaults
       const newGame: Game = {
         id: gameId,
-        // Fields from gameData (guaranteed by Pick type)
+        // Fields from gameData
         startingStack: gameData.startingStack,
         blinds: gameData.blinds,
         blindLevels: gameData.blindLevels,
@@ -449,9 +469,13 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
         remainingTimeOnPause: null,
         startedAt: undefined, // Not started yet
         endedAt: null, // Not ended yet
+        // Rebuy fields initialization
+        rebuyAllowedUntilLevel: rebuyAllowedUntilLevel,
+        totalRebuys: 0,
+        rebuyAmount: tournamentData.buyin, // Set rebuy amount from tournament buyin
       };
       // Clean the object before saving
-      const cleanNewGame = cleanGameForFirestore(newGame);
+      const cleanNewGame = cleanGameForFirestore(newGame); // cleanGameForFirestore needs update too
       await updateDoc(tournamentRef, {
         games: arrayUnion(cleanNewGame), // Add the cleaned game object
       });
@@ -550,7 +574,7 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
       const now = Date.now();
       const updatedGames = tournamentData.games.map((game: Game): Game => { // Ensure map returns Game[]
         // Define a helper to ensure all fields have valid defaults for ANY game object
-        const ensureDefaults = (g: Game): Game => ({
+        const ensureDefaults = (g: Game): Game => ({ // Ensure this helper includes rebuy fields
             id: g.id,
             tournamentId: g.tournamentId,
             startingStack: g.startingStack, // Assuming these core fields always exist
@@ -573,6 +597,10 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
             prizePool: g.prizePool ?? 0,
             distributionPercentages: g.distributionPercentages ?? { first: 60, second: 25, third: 15 },
             winnings: g.winnings ?? { first: 0, second: 0, third: 0 },
+            // Add defaults for rebuy fields here
+            rebuyAllowedUntilLevel: g.rebuyAllowedUntilLevel ?? 2, // Default if somehow missing
+            totalRebuys: g.totalRebuys ?? 0,
+            rebuyAmount: g.rebuyAmount ?? 0, // Default to 0 if missing, though should be set on creation
         });
 
         if (game.id === gameId) {
@@ -675,7 +703,23 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
           winnings: winnings,
         };
       });
-      // --- End Calculate Results ---
+
+      // --- Adjust Winnings for Rebuys ---
+      const totalRebuyAmount = (gameToEnd.totalRebuys || 0) * (gameToEnd.rebuyAmount || 0);
+      // Initialize finalWinnings based on original game data or defaults
+      const finalWinnings = { ...(gameToEnd.winnings ?? { first: 0, second: 0, third: 0 }) }; // Use const
+
+      if (results.length > 0 && totalRebuyAmount > 0) {
+        // Find the winner (rank 1)
+        const winnerIndex = results.findIndex(r => r.rank === 1);
+        if (winnerIndex !== -1) {
+          // Add the total rebuy amount to the winner's winnings in the results array
+          results[winnerIndex].winnings += totalRebuyAmount;
+          // Also update the first place winnings in the finalWinnings object
+          finalWinnings.first = (finalWinnings.first ?? 0) + totalRebuyAmount;
+        }
+      }
+      // --- End Adjust Winnings ---
 
       // Create the updated game object
       const updatedGameData = cleanGameForFirestore({
@@ -683,6 +727,7 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
         status: 'ended',
         endedAt: now,
         results: results, // Add the calculated results
+        winnings: finalWinnings, // Add the updated winnings object including rebuys
       });
 
       // Create a new games array with the updated game
@@ -995,6 +1040,70 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
       }));
     } catch (error) {
       handleDatabaseError(error);
+    }
+  },
+
+  // --- Rebuy Player ---
+  rebuyPlayer: async (tournamentId, gameId, playerId) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      const tournamentDoc = await getDoc(tournamentRef);
+      const tournamentData = tournamentDoc.data();
+      if (!tournamentData) throw new Error("Tournament not found");
+
+      const gameIndex = tournamentData.games.findIndex((g: Game) => g.id === gameId);
+      if (gameIndex === -1) throw new Error("Game not found");
+
+      const game = tournamentData.games[gameIndex];
+
+      // --- Validation Checks ---
+      if (game.status !== 'in_progress') {
+        throw new Error("Game is not in progress.");
+      }
+      if (game.currentLevel >= game.rebuyAllowedUntilLevel) { // Use >= because levels are 0-indexed, level 2 means until *end* of level 2
+        throw new Error(`Rebuys are only allowed up to level ${game.rebuyAllowedUntilLevel}. Current level: ${game.currentLevel + 1}.`);
+      }
+      const playerIndex = game.players.findIndex((p: Player) => p.id === playerId); // Add type Player
+      if (playerIndex === -1) {
+        throw new Error("Player not found in this game.");
+      }
+      if (!game.players[playerIndex].eliminated) {
+        throw new Error("Player is not eliminated.");
+      }
+      // --- End Validation ---
+
+      // --- Perform Rebuy ---
+      const updatedPlayers = game.players.map((player: Player) => // Add type Player
+        player.id === playerId
+          ? { ...player, eliminated: false, eliminationTime: null } // Reinstate player
+          : player
+      );
+
+      const updatedGameData: Game = cleanGameForFirestore({
+        ...game,
+        players: updatedPlayers,
+        totalRebuys: (game.totalRebuys || 0) + 1, // Increment rebuy count
+      });
+
+      const updatedGames = [
+        ...tournamentData.games.slice(0, gameIndex),
+        updatedGameData,
+        ...tournamentData.games.slice(gameIndex + 1),
+      ].map(g => cleanGameForFirestore(g)); // Clean all games
+
+      await updateDoc(tournamentRef, { games: updatedGames });
+
+      // Update local state
+      set((state) => ({
+        tournaments: state.tournaments.map((t) =>
+          t.id === tournamentId ? { ...t, games: updatedGames } : t
+        ),
+      }));
+
+    } catch (error) {
+      handleDatabaseError(error);
+      // Re-throw the error so the UI can potentially catch it and display a message
+      throw error;
     }
   },
 }));

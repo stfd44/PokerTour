@@ -54,6 +54,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
   const [gameForm, setGameForm] = useState<GameFormType>(initialGameForm);
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [distributionPercentages, setDistributionPercentages] = useState<DistributionPercentages>(initialPercentages);
+  const [rebuyLevel, setRebuyLevel] = useState<number>(2); // State for rebuy level
 
   useEffect(() => {
     if (editingGame) {
@@ -62,21 +63,17 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
         blinds: { ...editingGame.blinds },
         blindLevels: editingGame.blindLevels,
         players: [...editingGame.players],
-        // Load saved percentages if editing game has them, otherwise use initial
-        // Assuming editingGame might have these properties in the future
         // distributionPercentages: editingGame.distributionPercentages || initialPercentages,
       });
       setSelectedPlayers(new Set(editingGame.players.map(p => p.id)));
-      // Load percentages if they exist on the game being edited
-      if (editingGame.distributionPercentages) {
-        setDistributionPercentages(editingGame.distributionPercentages);
-      } else {
-        setDistributionPercentages(initialPercentages);
-      }
+      // Load percentages and rebuy level if they exist on the game being edited
+      setDistributionPercentages(editingGame.distributionPercentages || initialPercentages);
+      setRebuyLevel(editingGame.rebuyAllowedUntilLevel ?? 2); // Load existing rebuy level or default to 2
     } else {
       setGameForm(initialGameForm);
       setSelectedPlayers(new Set());
       setDistributionPercentages(initialPercentages); // Reset percentages for new game
+      setRebuyLevel(2); // Reset rebuy level for new game
     }
   }, [editingGame]);
 
@@ -98,12 +95,16 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
       prizePool: prizePool, // Add calculated prize pool
       distributionPercentages: distributionPercentages, // Add percentages
       winnings: winnings, // Add calculated winnings
+      // Include rebuy level in the data for updateGame
+      rebuyAllowedUntilLevel: rebuyLevel,
     };
 
     if (editingGame) {
+      // Pass the full gameData including rebuy level to updateGame
       updateGame(tournamentId!, editingGame.id, gameData);
     } else {
-      addGame(tournamentId!, gameData);
+      // Pass gameData and rebuyLevel separately to addGame
+      addGame(tournamentId!, gameData, rebuyLevel);
     }
 
     // Call onClose instead of manipulating state directly
@@ -292,6 +293,25 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
             required
           />
         </div>
+
+        {/* --- Rebuy Level Input --- */}
+        <div>
+          <label htmlFor="rebuyLevel" className="block text-sm font-medium text-gray-700 mb-1">
+            Rebuy autorisé jusqu'au niveau (inclus)
+          </label>
+          <input
+            type="number"
+            id="rebuyLevel"
+            value={rebuyLevel}
+            onChange={(e) => setRebuyLevel(Math.max(0, parseInt(e.target.value)))} // Ensure non-negative
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+            min="0" // Level 0 means no rebuys after start
+            step="1"
+            required
+          />
+           <p className="text-xs text-gray-500 mt-1">Niveau 0 = pas de rebuy après le début. Niveau 2 (défaut) = rebuy possible pendant niveaux 1 et 2.</p>
+        </div>
+
 
         {/* --- Player Selection --- */}
         <div>
