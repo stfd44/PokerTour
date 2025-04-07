@@ -7,6 +7,7 @@ import { TournamentGames } from '../components/tournament/TournamentGames';
 import { EditTournament } from '../components/tournament/EditTournament'; // Import EditTournament
 import Home from './Home';
 import Stats from './Stats'; // Import the Stats component
+import Profile from './Profile'; // Import the Profile component
 // Import the Teams component
 import Teams from './Teams/Teams';
 
@@ -24,6 +25,8 @@ export function MainLayout() {
           <Route path="/teams" element={<Teams />} />
           {/* Add the route for the Stats page */}
           <Route path="/stats" element={<Stats />} />
+          {/* Add the route for the Profile page */}
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </div>
     </div>

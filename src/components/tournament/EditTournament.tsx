@@ -278,7 +278,8 @@ export function EditTournament() {
                         <button
                             type="button"
                             onClick={handleAddGuest}
-                            className={`inline-flex items-center justify-center p-2 bg-poker-blue text-white rounded-md hover:bg-blue-700 disabled:opacity-50 ${isGuestLoading ? 'animate-pulse' : ''}`}
+                            // Re-applying consistent button styling, keeping padding, loading/disabled states
+                            className={`inline-flex items-center justify-center py-2 px-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded transition-colors disabled:opacity-50 ${isGuestLoading ? 'animate-pulse' : ''}`}
                             aria-label="Ajouter l'invité"
                             disabled={!currentGuest.trim() || isGuestLoading} // Disable while loading
                         >

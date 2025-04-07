@@ -207,11 +207,11 @@ export function CreateTournament() {
                                 <button
                                     type="button"
                                     onClick={handleAddGuest}
-                                    // Match visible Edit button style (flex, padding, font)
-                                    className="bg-poker-blue hover:bg-blue-700 text-white font-bold py-2 px-2 rounded flex items-center"
+                                    // Apply consistent button styling
+                                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-2 rounded transition-colors flex items-center" // Adjusted padding for icon-only button
                                     aria-label="Ajouter l'invité"
                                 >
-                                    <UserPlus className="h-4 w-4" /> {/* Match icon size */}
+                                    <UserPlus className="h-5 w-5" /> {/* Slightly larger icon */}
                                 </button>
                             </div>
                         </div>
