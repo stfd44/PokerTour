@@ -1,8 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTournamentStore } from '../../store/tournamentStore';
-import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2, Edit, User } from 'lucide-react'; // Added Edit and User icons
+import { useTournamentStore, Tournament } from '../../store/tournamentStore'; // Import Tournament type
+import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2, Edit, User, Info } from 'lucide-react'; // Added Edit, User, Info icons
 import { useAuthStore } from '../../store/useAuthStore';
+
+// Helper function to get status text and color
+const getStatusInfo = (status: Tournament['status']) => {
+  switch (status) {
+    case 'scheduled':
+      return { text: 'Prévu', color: 'bg-blue-500', icon: <Calendar className="w-4 h-4 mr-1" /> };
+    case 'in_progress':
+      return { text: 'En cours', color: 'bg-green-500', icon: <PlayCircle className="w-4 h-4 mr-1" /> };
+    case 'ended':
+      return { text: 'Terminé', color: 'bg-gray-500', icon: <Check className="w-4 h-4 mr-1" /> };
+    default:
+      return { text: 'Inconnu', color: 'bg-gray-400', icon: <Info className="w-4 h-4 mr-1" /> };
+  }
+};
+
 
 export function TournamentList() {
   const { user } = useAuthStore();
@@ -91,12 +106,21 @@ export function TournamentList() {
         const isExpanded = expandedTournaments.has(tournament.id);
         const canStart = tournament.status === 'scheduled' && tournament.registrations.length >= 2;
         const isStarted = tournament.status === 'in_progress';
+        const isEnded = tournament.status === 'ended'; // Added isEnded
         const isCreator = user?.uid === tournament.creatorId;
+        const statusInfo = getStatusInfo(tournament.status); // Get status info
 
         return (
           <div key={tournament.id} className="bg-white rounded-lg shadow-md p-6">
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-xl font-bold text-poker-black">{tournament.name}</h3>
+              <div>
+                <h3 className="text-xl font-bold text-poker-black mb-1">{tournament.name}</h3>
+                {/* Status Badge */}
+                <span className={`inline-flex items-center text-white px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                  {statusInfo.icon}
+                  {statusInfo.text}
+                </span>
+              </div>
               <span className="bg-poker-red text-white px-3 py-1 rounded-full text-sm">
                 {tournament.buyin}€
               </span>
@@ -166,16 +190,17 @@ export function TournamentList() {
             
             <div className="mt-4 flex justify-between items-center">
               <div>
-                {isStarted ? (
+                {/* Show "Accéder" button if started OR ended */}
+                {(isStarted || isEnded) ? (
                   <button
-                    // Corrected path: remove '/app' prefix
                     onClick={() => navigate(`/tournament/${tournament.id}`)}
                     className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
                   >
                     <PlayCircle className="w-5 h-5 mr-2" />
-                    Accéder au tournoi
+                    {isEnded ? 'Voir le résumé' : 'Accéder au tournoi'}
                   </button>
-                ) : canStart ? (
+                // Show "Débuter" button only if creator and canStart
+                ) : isCreator && canStart ? (
                   <button
                     onClick={() => handleStartTournament(tournament.id)}
                     className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
@@ -187,39 +212,46 @@ export function TournamentList() {
               </div>
               
               <div className="flex items-center space-x-4">
-                {isRegistered ? (
+                {/* Only show registration buttons if tournament is scheduled */}
+                {tournament.status === 'scheduled' && (
                   <>
-                    <span className="flex items-center text-green-600">
-                      <Check className="w-5 h-5 mr-1" />
-                      Inscrit
-                    </span>
-                    <button
-                      onClick={() => handleUnregistration(tournament.id)}
-                      className="flex items-center text-red-600 hover:text-red-700"
-                    >
-                      <X className="w-5 h-5 mr-1" />
-                      Se désinscrire
-                    </button>
+                    {isRegistered ? (
+                      <>
+                        <span className="flex items-center text-green-600">
+                          <Check className="w-5 h-5 mr-1" />
+                          Inscrit
+                        </span>
+                        <button
+                          onClick={() => handleUnregistration(tournament.id)}
+                          className="flex items-center text-red-600 hover:text-red-700"
+                        >
+                          <X className="w-5 h-5 mr-1" />
+                          Se désinscrire
+                        </button>
+                      </>
+                    ) : registrationState === 'pending' ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-poker-gold mr-2"></div>
+                        Inscription en cours...
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleRegistration(tournament.id)}
+                        // Disable only if full (status check is handled by outer condition)
+                        disabled={isFull}
+                        className={`bg-poker-gold text-white px-4 py-2 rounded transition-colors ${
+                          isFull
+                            ? 'opacity-50 cursor-not-allowed' 
+                            : 'hover:bg-yellow-600'
+                        }`}
+                      >
+                        {isFull ? 'Complet' : 'Rejoindre'}
+                      </button>
+                    )}
                   </>
-                ) : registrationState === 'pending' ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-poker-gold mr-2"></div>
-                    Inscription en cours...
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => handleRegistration(tournament.id)}
-                    disabled={isFull || isStarted}
-                    className={`bg-poker-gold text-white px-4 py-2 rounded transition-colors ${
-                      isFull || isStarted
-                        ? 'opacity-50 cursor-not-allowed' 
-                        : 'hover:bg-yellow-600'
-                    }`}
-                  >
-                    {isFull ? 'Complet' : isStarted ? 'En cours' : 'Rejoindre'}
-                  </button>
                 )}
-                {isCreator && (
+                {/* Delete button: Show only if creator and scheduled */}
+                {isCreator && tournament.status === 'scheduled' && (
                   <button
                     onClick={() => handleDeleteTournament(tournament.id)}
                     className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-2 rounded flex items-center" // Adjusted padding
