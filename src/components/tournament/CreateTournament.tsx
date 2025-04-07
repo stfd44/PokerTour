@@ -192,23 +192,28 @@ export function CreateTournament() {
                         <label htmlFor="guestName" className="block text-sm font-medium text-gray-700 mb-1">
                             Ajouter un invité (optionnel)
                         </label>
+                        {/* Correctly wrap input and button */}
                         <div className="flex items-center space-x-2">
-                            <input
-                                type="text"
-                                id="guestName"
+                                <input
+                                    type="text"
+                                    id="guestName"
                                 value={currentGuest}
                                 onChange={(e) => setCurrentGuest(e.target.value)}
                                 className="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
                                 placeholder="Nom de l'invité"
                             />
-                            <button
-                                type="button"
-                                onClick={handleAddGuest}
-                                className="p-2 bg-poker-blue text-white rounded-md hover:bg-blue-700 transition-colors"
-                                aria-label="Ajouter l'invité"
-                            >
-                                <UserPlus className="w-5 h-5" />
-                            </button>
+                            {/* Correctly wrap only the button */}
+                            <div>
+                                <button
+                                    type="button"
+                                    onClick={handleAddGuest}
+                                    // Match visible Edit button style (flex, padding, font)
+                                    className="bg-poker-blue hover:bg-blue-700 text-white font-bold py-2 px-2 rounded flex items-center"
+                                    aria-label="Ajouter l'invité"
+                                >
+                                    <UserPlus className="h-4 w-4" /> {/* Match icon size */}
+                                </button>
+                            </div>
                         </div>
                         {guests.length > 0 && (
                             <div className="mt-4 space-y-2">

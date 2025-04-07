@@ -273,15 +273,18 @@ export function EditTournament() {
                         className="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-blue focus:border-transparent sm:text-sm"
                         placeholder="Nom de l'invité"
                     />
-                    <button
-                        type="button"
-                        onClick={handleAddGuest}
-                        className={`p-2 bg-poker-blue text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 ${isGuestLoading ? 'animate-pulse' : ''}`}
-                        aria-label="Ajouter l'invité"
-                        disabled={!currentGuest.trim() || isGuestLoading} // Disable while loading
-                    >
-                        {isGuestLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <UserPlus className="w-5 h-5" />}
-                    </button>
+                    {/* Correctly wrap only the button */}
+                    <div>
+                        <button
+                            type="button"
+                            onClick={handleAddGuest}
+                            className={`inline-flex items-center justify-center p-2 bg-poker-blue text-white rounded-md hover:bg-blue-700 disabled:opacity-50 ${isGuestLoading ? 'animate-pulse' : ''}`}
+                            aria-label="Ajouter l'invité"
+                            disabled={!currentGuest.trim() || isGuestLoading} // Disable while loading
+                        >
+                            {isGuestLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <UserPlus className="w-5 h-5" />}
+                        </button>
+                    </div>
                 </div>
                 {guests.length > 0 && (
                     <div className="space-y-2">
