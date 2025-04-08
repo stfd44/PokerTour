@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { db, handleDatabaseError, isCreator, getUserData } from '../lib/firebase'; // Import getUserData
-import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, arrayUnion, arrayRemove, getDoc, query, where } from 'firebase/firestore';
+// ADDED runTransaction import
+import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, arrayUnion, arrayRemove, getDoc, query, where, runTransaction } from 'firebase/firestore';
 import { useTeamStore } from './useTeamStore'; // Import useTeamStore
 import { calculateSettlementTransactions } from '../lib/utils'; // Import the new utility function
 
@@ -183,6 +184,55 @@ const updateGameState = (state: TournamentStore, tournamentId: string, gameId: s
       : t
   );
 };
+
+// Helper function to calculate results for a single game
+// Moved from endGame to be used by calculateAndStoreSettlement
+const calculateResultsForGame = (game: Game): { results: PlayerResult[], finalWinnings: { first: number; second: number; third: number } } | null => {
+    if (!game || !game.players || game.players.length === 0) {
+        console.warn(`[calculateResultsForGame - ${game.id}] Cannot calculate results, missing player data.`);
+        return null; // Cannot calculate without players
+    }
+
+    const players = game.players;
+    const sortedPlayers = [...players].sort((a, b) => {
+        if (!a.eliminated && b.eliminated) return -1;
+        if (a.eliminated && !b.eliminated) return 1;
+        if (!a.eliminated && !b.eliminated) return 0;
+        return (b.eliminationTime ?? 0) - (a.eliminationTime ?? 0);
+    });
+
+    const results: PlayerResult[] = sortedPlayers.map((player, index) => {
+        const rank = index + 1;
+        let points = 0;
+        let winnings = 0;
+        switch (rank) {
+          case 1: points = 10; break;
+          case 2: points = 7; break;
+          case 3: points = 5; break;
+          case 4: points = 3; break;
+          case 5: points = 2; break;
+          default: points = 1; break;
+        }
+        if (game.winnings) {
+          if (rank === 1) winnings = game.winnings.first ?? 0;
+          else if (rank === 2) winnings = game.winnings.second ?? 0;
+          else if (rank === 3) winnings = game.winnings.third ?? 0;
+        }
+        return { playerId: player.id, name: player.nickname || player.name, rank, points, winnings };
+    });
+
+    const totalRebuyAmount = (game.totalRebuys || 0) * (game.rebuyAmount || 0);
+    const finalWinnings = { ...(game.winnings ?? { first: 0, second: 0, third: 0 }) };
+    if (results.length > 0 && totalRebuyAmount > 0) {
+        const winnerIndex = results.findIndex(r => r.rank === 1);
+        if (winnerIndex !== -1) {
+          results[winnerIndex].winnings += totalRebuyAmount;
+          finalWinnings.first = (finalWinnings.first ?? 0) + totalRebuyAmount;
+        }
+    }
+    return { results, finalWinnings };
+};
+
 
 // Removed unused 'get' parameter from create callback
 export const useTournamentStore = create<TournamentStore>((set) => ({
@@ -577,195 +627,147 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
     }
   },
 
-  // Starting a Game
-  startGame: async (tournamentId: string, gameId: string, players: Player[]) => {
+  // Starting a Game - Refactored to use Firestore Transaction
+  startGame: async (tournamentId: string, gameId: string, inputPlayers: Player[]) => {
+    const tournamentRef = doc(db, "tournaments", tournamentId);
     try {
-      const tournamentRef = doc(db, "tournaments", tournamentId);
-      const tournamentDoc = await getDoc(tournamentRef);
-      const tournamentData = tournamentDoc.data();
-      if (!tournamentData) {
-        throw new Error("Tournament not found");
-      }
-      const now = Date.now();
-      const updatedGames = tournamentData.games.map((game: Game): Game => { // Ensure map returns Game[]
-        // Define a helper to ensure all fields have valid defaults for ANY game object
-        const ensureDefaults = (g: Game): Game => ({ // Ensure this helper includes rebuy fields
-            id: g.id,
-            tournamentId: g.tournamentId,
-            startingStack: g.startingStack, // Assuming these core fields always exist
-            blinds: g.blinds,
-            blindLevels: g.blindLevels,
-            players: (g.players || []).map(p => ({ // Sanitize players array robustly
-                id: p.id,
-                name: p.name,
-                nickname: p.nickname ?? undefined,
-                eliminated: p.eliminated ?? false,
-                eliminationTime: p.eliminationTime ?? null,
-            })),
-            status: g.status ?? 'pending', // Default status if missing
-            startedAt: g.startedAt ?? undefined, // Default startedAt to undefined if missing
-            currentLevel: g.currentLevel ?? 0,
-            levelStartTime: g.levelStartTime ?? 0,
-            isPaused: g.isPaused ?? false,
-            remainingTimeOnPause: g.remainingTimeOnPause ?? null,
-            endedAt: g.endedAt ?? null,
-            prizePool: g.prizePool ?? 0,
-            distributionPercentages: g.distributionPercentages ?? { first: 60, second: 25, third: 15 },
-            winnings: g.winnings ?? { first: 0, second: 0, third: 0 },
-            // Add defaults for rebuy fields here
-            rebuyAllowedUntilLevel: g.rebuyAllowedUntilLevel ?? 2, // Default if somehow missing
-            totalRebuys: g.totalRebuys ?? 0,
-            rebuyAmount: g.rebuyAmount ?? 0, // Default to 0 if missing, though should be set on creation
+      await runTransaction(db, async (transaction) => {
+        const tournamentDoc = await transaction.get(tournamentRef);
+        if (!tournamentDoc.exists()) {
+          throw new Error("Tournament not found");
+        }
+        const tournamentData = tournamentDoc.data();
+         if (!tournamentData || !tournamentData.games) {
+           throw new Error("Tournament data or games array is missing");
+        }
+
+        const gameToStartIndex = tournamentData.games.findIndex((g: Game) => g.id === gameId);
+        if (gameToStartIndex === -1) {
+          console.log(`[startGame Transaction - ${gameId}] Game not found.`);
+          return; // Exit transaction if game doesn't exist
+        }
+        const gameToStart = tournamentData.games[gameToStartIndex];
+
+        // Avoid re-starting if already in progress or ended
+        if (gameToStart.status !== 'pending') {
+            console.log(`[startGame Transaction - ${gameId}] Game already started or ended (status: ${gameToStart.status}).`);
+            return;
+        }
+
+        const now = Date.now();
+        // Sanitize the input players array
+        const sanitizedPlayers = inputPlayers.map(p => ({
+            id: p.id,
+            name: p.name,
+            nickname: p.nickname ?? undefined,
+            eliminated: p.eliminated ?? false,
+            eliminationTime: p.eliminationTime ?? null,
+        }));
+
+        // Prepare the updated game data
+        const updatedGameData = cleanGameForFirestore({
+            ...gameToStart, // Keep existing game data
+            players: sanitizedPlayers, // Use the sanitized input players
+            status: 'in_progress',
+            startedAt: now,
+            levelStartTime: now, // Reset level start time
+            isPaused: false, // Ensure not paused
+            remainingTimeOnPause: null, // Clear pause time
+            // Ensure other fields retain their values or defaults if needed
+            currentLevel: gameToStart.currentLevel ?? 0,
+            prizePool: gameToStart.prizePool ?? 0,
+            distributionPercentages: gameToStart.distributionPercentages ?? { first: 60, second: 25, third: 15 },
+            winnings: gameToStart.winnings ?? { first: 0, second: 0, third: 0 },
+            rebuyAllowedUntilLevel: gameToStart.rebuyAllowedUntilLevel ?? 2,
+            totalRebuys: gameToStart.totalRebuys ?? 0,
+            rebuyAmount: gameToStart.rebuyAmount ?? 0,
         });
 
-        if (game.id === gameId) {
-          // Apply defaults to the game being started, then apply start-specific updates
-          const gameWithDefaults = ensureDefaults(game);
-          const updatedGameData: Game = {
-              ...gameWithDefaults, // Start with the fully defaulted object
-              // Apply start-specific updates
-              players: players.map(p => ({ // Re-sanitize the *input* players array
-                  id: p.id,
-                  name: p.name,
-                  nickname: p.nickname ?? undefined,
-                  eliminated: p.eliminated ?? false,
-                  eliminationTime: p.eliminationTime ?? null,
-              })),
-              status: 'in_progress',
-              startedAt: now,
-              levelStartTime: now, // Reset level start time on game start
-              isPaused: false, // Ensure not paused
-              remainingTimeOnPause: null, // Clear pause time
-          };
-          // Clean the final object before returning
-          return cleanGameForFirestore(updatedGameData);
-        }
-        // For games *not* being started, ensure they have defaults and are cleaned
-        return cleanGameForFirestore(ensureDefaults(game)); // Use the specific cleaner
-      });
-       // Ensure the entire array passed to updateDoc is clean
-       // No need to map again as cleanGameForFirestore was applied inside the map
-      await updateDoc(tournamentRef, {
-        games: updatedGames, // Write the fully cleaned array
-      });
-      set((state) => ({
-        tournaments: state.tournaments.map((t) =>
-          t.id === tournamentId ? { ...t, games: updatedGames } : t
-        ),
-      }));
+        // Create the updated games array based on the data read within the transaction
+        const updatedGames = tournamentData.games.map((g: Game, index: number) =>
+            index === gameToStartIndex ? updatedGameData : g
+        ).map((g: Game) => cleanGameForFirestore(g)); // Clean all games // Added explicit type Game for g
+
+        // Perform the update within the transaction
+        transaction.update(tournamentRef, { games: updatedGames });
+        console.log(`[startGame Transaction - ${gameId}] Transaction update scheduled.`);
+
+        // Update local state optimistically
+        set((state) => ({
+            tournaments: state.tournaments.map((t) =>
+              t.id === tournamentId ? { ...t, games: updatedGames } : t
+            ),
+        }));
+      }); // End of runTransaction
+
+      console.log(`[startGame - ${gameId}] Transaction committed successfully.`);
+
     } catch (error) {
+      console.error(`[startGame - ${gameId}] Transaction failed:`, error);
       handleDatabaseError(error);
     }
   },
 
-  // Ending a Game
+  // Ending a Game - Refactored to use Firestore Transaction (Simplified: Only marks as ended)
   endGame: async (tournamentId: string, gameId: string) => {
+    const tournamentRef = doc(db, "tournaments", tournamentId);
     try {
-      const tournamentRef = doc(db, "tournaments", tournamentId);
-      const tournamentDoc = await getDoc(tournamentRef);
-      const tournamentData = tournamentDoc.data();
-      if (!tournamentData) {
-        throw new Error("Tournament not found");
-      }
-
-      const gameToEndIndex = tournamentData.games.findIndex((g: Game) => g.id === gameId);
-      if (gameToEndIndex === -1) {
-        throw new Error("Game not found within the tournament");
-      }
-      const gameToEnd = tournamentData.games[gameToEndIndex];
-
-      // --- Calculate Results ---
-      const now = Date.now();
-      const players = gameToEnd.players || [];
-
-      // Sort players: winner first, then by elimination time descending
-      const sortedPlayers = [...players].sort((a, b) => {
-        if (!a.eliminated && b.eliminated) return -1; // Winner (a) comes first
-        if (a.eliminated && !b.eliminated) return 1;  // Winner (b) comes first
-        if (!a.eliminated && !b.eliminated) return 0; // Should only be one winner if game ends correctly
-        // Both eliminated, sort by time (descending - later elimination = better rank)
-        return (b.eliminationTime ?? 0) - (a.eliminationTime ?? 0);
-      });
-
-      // Assign ranks and calculate points/winnings
-      const results: PlayerResult[] = sortedPlayers.map((player, index) => {
-        const rank = index + 1;
-        let points = 0;
-        let winnings = 0;
-
-        // Assign points based on rank (10, 7, 5, 3, 2, 1)
-        switch (rank) {
-          case 1: points = 10; break;
-          case 2: points = 7; break;
-          case 3: points = 5; break;
-          case 4: points = 3; break;
-          case 5: points = 2; break;
-          default: points = 1; break;
+      await runTransaction(db, async (transaction) => {
+        const tournamentDoc = await transaction.get(tournamentRef);
+        if (!tournamentDoc.exists()) {
+          throw new Error("Tournament not found");
+        }
+        const tournamentData = tournamentDoc.data();
+        if (!tournamentData || !tournamentData.games) {
+           throw new Error("Tournament data or games array is missing");
         }
 
-        // Assign winnings based on rank
-        if (gameToEnd.winnings) {
-          if (rank === 1) winnings = gameToEnd.winnings.first ?? 0;
-          else if (rank === 2) winnings = gameToEnd.winnings.second ?? 0;
-          else if (rank === 3) winnings = gameToEnd.winnings.third ?? 0;
+        const gameToEndIndex = tournamentData.games.findIndex((g: Game) => g.id === gameId);
+        if (gameToEndIndex === -1) {
+          console.log(`[endGame Transaction - ${gameId}] Game not found.`);
+          return; // Exit transaction if game doesn't exist
+        }
+        const gameToEnd = tournamentData.games[gameToEndIndex];
+
+        // Only proceed if the game is not already ended
+        if (gameToEnd.status === 'ended') {
+            console.log(`[endGame Transaction - ${gameId}] Game already marked as ended.`);
+            return;
         }
 
-        return {
-          playerId: player.id,
-          name: player.nickname || player.name, // Use nickname if available
-          rank: rank,
-          points: points,
-          winnings: winnings,
-        };
-      });
+        const now = Date.now();
+        // Simplified: Only update status and endedAt. Results calculation moved to settlement.
+        const updatedGameData = cleanGameForFirestore({
+            ...gameToEnd,
+            status: 'ended',
+            endedAt: now,
+            // results and winnings are NOT calculated or updated here anymore
+        });
 
-      // --- Adjust Winnings for Rebuys ---
-      const totalRebuyAmount = (gameToEnd.totalRebuys || 0) * (gameToEnd.rebuyAmount || 0);
-      // Initialize finalWinnings based on original game data or defaults
-      const finalWinnings = { ...(gameToEnd.winnings ?? { first: 0, second: 0, third: 0 }) }; // Use const
+        // Create the updated games array
+        const updatedGames = tournamentData.games.map((g: Game, index: number) =>
+            index === gameToEndIndex ? updatedGameData : g
+        ).map((g: Game) => cleanGameForFirestore(g));
 
-      if (results.length > 0 && totalRebuyAmount > 0) {
-        // Find the winner (rank 1)
-        const winnerIndex = results.findIndex(r => r.rank === 1);
-        if (winnerIndex !== -1) {
-          // Add the total rebuy amount to the winner's winnings in the results array
-          results[winnerIndex].winnings += totalRebuyAmount;
-          // Also update the first place winnings in the finalWinnings object
-          finalWinnings.first = (finalWinnings.first ?? 0) + totalRebuyAmount;
-        }
-      }
-      // --- End Adjust Winnings ---
+        // Perform the update within the transaction
+        transaction.update(tournamentRef, { games: updatedGames });
+        console.log(`[endGame Transaction - ${gameId}] Marked game as ended. Transaction update scheduled.`);
 
-      // Create the updated game object
-      const updatedGameData = cleanGameForFirestore({
-        ...gameToEnd,
-        status: 'ended',
-        endedAt: now,
-        results: results, // Add the calculated results
-        winnings: finalWinnings, // Add the updated winnings object including rebuys
-      });
+        // Update local state optimistically (optional, but can improve UI responsiveness)
+         set((state) => ({
+             tournaments: state.tournaments.map((t) =>
+               t.id === tournamentId ? { ...t, games: updatedGames } : t
+             ),
+         }));
+      }); // End of runTransaction
 
-      // Create a new games array with the updated game
-      const updatedGames = [
-          ...tournamentData.games.slice(0, gameToEndIndex),
-          updatedGameData,
-          ...tournamentData.games.slice(gameToEndIndex + 1),
-      ].map(g => cleanGameForFirestore(g)); // Clean all games just in case
+      console.log(`[endGame - ${gameId}] Mark as ended transaction committed successfully.`);
 
-      await updateDoc(tournamentRef, {
-        games: updatedGames,
-      });
-
-      // Update local state
-      set((state) => ({
-        tournaments: state.tournaments.map((t) =>
-          t.id === tournamentId ? { ...t, games: updatedGames } : t
-        ),
-      }));
     } catch (error) {
+      console.error(`[endGame - ${gameId}] Mark as ended transaction failed:`, error);
       handleDatabaseError(error);
     }
-  },
+  }, // End of endGame function
 
   // Deleting a Game
   deleteGame: async (tournamentId: string, gameId: string, userId: string) => {
@@ -1123,99 +1125,140 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
   },
 
   // --- Settlement Actions ---
-
+  // Refactored to calculate missing results within the transaction
   calculateAndStoreSettlement: async (tournamentId) => {
+    const tournamentRef = doc(db, "tournaments", tournamentId);
     try {
-      const tournamentRef = doc(db, "tournaments", tournamentId);
-      const tournamentDoc = await getDoc(tournamentRef);
-      if (!tournamentDoc.exists()) {
-        throw new Error("Tournament not found");
-      }
-      const tournament = { id: tournamentDoc.id, ...tournamentDoc.data() } as Tournament;
-
-      // Ensure tournament is ended
-      if (tournament.status !== 'ended') {
-        throw new Error("Tournament is not ended yet.");
-      }
-      // Optional: Check if settlementTransactions already exist to prevent recalculation
-      // if (tournament.settlementTransactions && tournament.settlementTransactions.length > 0) {
-      //   console.log("Settlement already calculated for this tournament.");
-      //   return; // Or maybe force recalculation if needed?
-      // }
-
-      // 1. Calculate Balances (Corrected Logic)
-      console.log(`Calculating balances for tournament ${tournamentId}. Buy-in: ${tournament.buyin}`);
-      const playerBalancesMap: Map<string, { name: string; balance: number }> = new Map();
-
-      // Initialize balances with buy-in cost for all registered players
-      tournament.registrations.forEach(player => {
-        console.log(`Initializing balance for ${player.nickname || player.name} (ID: ${player.id}) with buy-in: ${-tournament.buyin}`);
-        playerBalancesMap.set(player.id, { name: player.nickname || player.name, balance: -tournament.buyin });
-      });
-
-      // Add winnings from each game (Ensure iteration over ALL games)
-      console.log(`Processing ${tournament.games.length} games...`);
-      tournament.games.forEach((game, gameIndex) => {
-        console.log(` > Game ${gameIndex + 1} (ID: ${game.id}), Status: ${game.status}`);
-        // Ensure game has results and is ended before processing winnings
-        if (game.results && game.results.length > 0 && game.status === 'ended') {
-          console.log(`   >> Found ${game.results.length} results for ended game ${game.id}`);
-          game.results.forEach(result => {
-            const currentPlayerData = playerBalancesMap.get(result.playerId);
-            if (currentPlayerData) {
-              console.log(`     - Adding winnings ${result.winnings} to ${currentPlayerData.name} (ID: ${result.playerId}). Old balance: ${currentPlayerData.balance}`);
-              currentPlayerData.balance += result.winnings;
-              console.log(`     - New balance for ${currentPlayerData.name}: ${currentPlayerData.balance}`);
-            } else {
-              // This case might happen if a player played but wasn't in final registrations?
-              console.warn(`     - Player ${result.playerId} (${result.name}) found in game results but not in tournament registrations. Initializing balance with winnings ${result.winnings} minus buy-in ${tournament.buyin}.`);
-              playerBalancesMap.set(result.playerId, { name: result.name, balance: result.winnings - tournament.buyin });
+        // Use a transaction for the entire read-modify-write process
+        await runTransaction(db, async (transaction) => {
+            const tournamentDoc = await transaction.get(tournamentRef);
+            if (!tournamentDoc.exists()) {
+              throw new Error("Tournament not found");
             }
-          });
-        } else if (game.status !== 'ended') {
-            console.log(`   >> Skipping game ${game.id} because its status is '${game.status}'.`);
-        } else {
-           console.log(`   >> No results found for game ${game.id}`);
-        }
-      });
+            const tournament = { id: tournamentDoc.id, ...tournamentDoc.data() } as Tournament;
 
-      console.log("Final calculated balances before settlement:");
-      playerBalancesMap.forEach((data, id) => {
-          console.log(`  - ${data.name} (ID: ${id}): ${data.balance.toFixed(2)}`); // Log with fixed decimals
-      });
+            if (tournament.status !== 'ended') {
+              throw new Error("Tournament is not ended yet.");
+            }
 
-      // Convert Map to array for the utility function
-      const balancesArray = Array.from(playerBalancesMap.entries()).map(([id, data]) => ({
-        id,
-        name: data.name,
-        balance: data.balance, // Pass the final calculated balance
-      }));
+            console.log(`[calculateAndStoreSettlement Transaction - ${tournamentId}] Starting calculation...`);
 
-      // 2. Calculate Optimized Transactions
-      console.log("Calculating settlement transactions...");
-      const transactions = calculateSettlementTransactions(balancesArray);
-      console.log("Calculated transactions:", transactions);
+            let needsUpdate = false; // Flag to track if games array needs updating
+            const gamesWithResults = [...tournament.games]; // Create a mutable copy
+
+            // --- Calculate Missing Results ---
+            console.log(`Processing ${gamesWithResults.length} games for missing results...`);
+            for (let i = 0; i < gamesWithResults.length; i++) {
+                const game = gamesWithResults[i];
+                if (game.status === 'ended' && (!game.results || game.results.length === 0)) {
+                    console.log(`   >> Game ${i + 1} (ID: ${game.id}) is ended but missing results. Calculating...`);
+                    const calculation = calculateResultsForGame(game); // Use helper function
+                    if (calculation) {
+                        gamesWithResults[i] = {
+                            ...game,
+                            results: calculation.results,
+                            winnings: calculation.finalWinnings, // Store adjusted winnings too
+                        };
+                        needsUpdate = true;
+                        console.log(`   >> Calculated results for Game ${i + 1} (ID: ${game.id})`);
+                    } else {
+                         console.warn(`   >> Failed to calculate results for Game ${i + 1} (ID: ${game.id})`);
+                    }
+                }
+            }
+            // --- End Calculate Missing Results ---
 
 
-      // 3. Store Transactions in Firestore
-      await updateDoc(tournamentRef, {
-        settlementTransactions: transactions,
-      });
-      console.log(`Stored settlement transactions for tournament ${tournamentId}`);
+            // 1. Calculate Balances (Corrected Logic: Buy-in per game participation)
+            console.log(`Calculating balances for tournament ${tournamentId}. Buy-in per game: ${tournament.buyin}`);
+            const playerBalancesMap: Map<string, { name: string; balance: number }> = new Map();
 
+            // Initialize balances to 0 for all registered players first
+            tournament.registrations.forEach(player => {
+                playerBalancesMap.set(player.id, { name: player.nickname || player.name, balance: 0 });
+            });
 
-      // 4. Update Local State
-      set((state) => ({
-        tournaments: state.tournaments.map((t) =>
-          t.id === tournamentId
-            ? { ...t, settlementTransactions: transactions }
-            : t
-        ),
-      }));
+            console.log(`Processing ${gamesWithResults.length} games for buy-ins and winnings...`);
+            gamesWithResults.forEach((game, gameIndex) => { // Iterate over the potentially updated array
+                console.log(` > Processing Game ${gameIndex + 1} (ID: ${game.id})`);
+
+                // Subtract buy-in for each player *in this game*
+                game.players.forEach(playerInGame => {
+                    const currentPlayerData = playerBalancesMap.get(playerInGame.id);
+                    if (currentPlayerData) {
+                        console.log(`   - Subtracting buy-in ${tournament.buyin} for ${currentPlayerData.name} (ID: ${playerInGame.id}) for game ${game.id}. Old balance: ${currentPlayerData.balance}`);
+                        currentPlayerData.balance -= tournament.buyin;
+                        console.log(`   - New balance for ${currentPlayerData.name}: ${currentPlayerData.balance}`);
+                    } else {
+                        // If player played but wasn't registered (e.g., guest removed later?), initialize with negative buy-in
+                        console.warn(`   - Player ${playerInGame.name} (ID: ${playerInGame.id}) played game ${game.id} but not found in final registrations. Initializing balance with buy-in: ${-tournament.buyin}.`);
+                        playerBalancesMap.set(playerInGame.id, { name: playerInGame.name, balance: -tournament.buyin });
+                    }
+                });
+
+                // Add winnings if game is ended and has results
+                if (game.results && game.results.length > 0 && game.status === 'ended') {
+                    console.log(`   >> Adding winnings for ended game ${gameIndex + 1} (ID: ${game.id})`);
+                    game.results.forEach(result => {
+                        const currentPlayerData = playerBalancesMap.get(result.playerId);
+                        if (currentPlayerData) {
+                             console.log(`     - Adding winnings ${result.winnings} to ${currentPlayerData.name} (ID: ${result.playerId}). Old balance: ${currentPlayerData.balance}`);
+                            currentPlayerData.balance += result.winnings;
+                             console.log(`     - New balance for ${currentPlayerData.name}: ${currentPlayerData.balance}`);
+                        } else {
+                            // This case should be less likely now due to the loop above, but keep as a fallback
+                            console.warn(`     - Player ${result.playerId} (${result.name}) in results but not map. Balance might be incorrect.`);
+                            // Avoid setting balance here as buy-in wasn't subtracted if they weren't in game.players
+                        }
+                    });
+                } else {
+                     console.log(`   >> Skipping winnings for game ${gameIndex + 1} (ID: ${game.id}). Status: ${game.status}, Results Length: ${game.results?.length ?? 0}`);
+                }
+            });
+
+            console.log("Final calculated balances before settlement:");
+            playerBalancesMap.forEach((data, id) => {
+                console.log(`  - ${data.name} (ID: ${id}): ${data.balance.toFixed(2)}`);
+            });
+
+            const balancesArray = Array.from(playerBalancesMap.entries()).map(([id, data]) => ({
+                id, name: data.name, balance: data.balance,
+            }));
+
+            // 2. Calculate Optimized Transactions
+            console.log("Calculating settlement transactions...");
+            const transactions = calculateSettlementTransactions(balancesArray);
+            console.log("Calculated transactions:", transactions);
+
+            // 3. Update Firestore within the transaction
+            const updateData: { settlementTransactions: Transaction[]; games?: Game[] } = {
+                settlementTransactions: transactions
+            };
+            if (needsUpdate) {
+                // Only include games if results were calculated
+                updateData.games = gamesWithResults.map(g => cleanGameForFirestore(g));
+                console.log(`[calculateAndStoreSettlement Transaction - ${tournamentId}] Scheduling update for games array (results added) and settlementTransactions.`);
+            } else {
+                 console.log(`[calculateAndStoreSettlement Transaction - ${tournamentId}] Scheduling update for settlementTransactions only.`);
+            }
+            transaction.update(tournamentRef, updateData);
+
+            // 4. Update Local State (after scheduling transaction)
+            set((state) => ({
+                tournaments: state.tournaments.map((t) =>
+                  t.id === tournamentId
+                    ? { ...t, games: needsUpdate ? gamesWithResults : t.games, settlementTransactions: transactions } // Update games only if needed
+                    : t
+                ),
+            }));
+        }); // End of runTransaction
+
+        console.log(`[calculateAndStoreSettlement - ${tournamentId}] Transaction committed successfully.`);
 
     } catch (error) {
+      console.error(`[calculateAndStoreSettlement - ${tournamentId}] Transaction failed:`, error);
       handleDatabaseError(error);
-      throw error; // Re-throw for UI handling
+      throw error;
     }
   },
 

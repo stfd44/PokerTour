@@ -70,24 +70,36 @@ function SettleAccounts() {
 
     const balances: Map<string, { name: string; balance: number }> = new Map();
 
-    // Initialize with buy-in cost
+    // Initialize balances to 0 for all registered players
     tournament.registrations.forEach(player => {
-      balances.set(player.id, { name: player.nickname || player.name, balance: -tournament.buyin });
+        balances.set(player.id, { name: player.nickname || player.name, balance: 0 });
     });
 
-    // Add winnings
+    // Iterate through games to subtract buy-ins and add winnings
     tournament.games.forEach(game => {
-      if (game.results) {
-        game.results.forEach((result: PlayerResult) => { // Explicitly type result
-          const current = balances.get(result.playerId);
-          if (current) {
-            current.balance += result.winnings;
-          } else {
-            // Handle case where player in results might not be in registrations (e.g., guest removed?)
-             balances.set(result.playerId, { name: result.name, balance: result.winnings - tournament.buyin });
-          }
+        // Subtract buy-in for each player who participated in this game
+        game.players.forEach(playerInGame => {
+            const current = balances.get(playerInGame.id);
+            if (current) {
+                current.balance -= tournament.buyin;
+            } else {
+                 // Player might have been unregistered after playing? Initialize with negative buy-in.
+                 balances.set(playerInGame.id, { name: playerInGame.name, balance: -tournament.buyin });
+            }
         });
-      }
+
+        // Add winnings if game is ended and has results
+        if (game.results) {
+            game.results.forEach((result: PlayerResult) => {
+                const current = balances.get(result.playerId);
+                if (current) {
+                    current.balance += result.winnings;
+                }
+                // If player not in map here, it means they weren't registered but had results?
+                // This case is less likely if registrations are managed properly.
+                // We avoid adding them here if their buy-in wasn't subtracted.
+            });
+        }
     });
 
     return Array.from(balances.entries()).map(([id, data]) => ({
