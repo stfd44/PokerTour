@@ -154,7 +154,7 @@ interface TournamentStore {
     rebuyAllowedUntilLevel?: number // Optional rebuy level
   ) => Promise<void>;
   updateGame: (tournamentId: string, gameId: string, gameData: Partial<Game>) => Promise<void>;
-  startGame: (tournamentId: string, gameId: string, players: Player[]) => Promise<void>;
+  startGame: (tournamentId: string, gameId: string) => Promise<void>; // Removed players parameter
   endGame: (tournamentId: string, gameId: string) => Promise<void>;
   deleteGame: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
   // New Timer Control Actions
@@ -628,7 +628,8 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
   },
 
   // Starting a Game - Refactored to use Firestore Transaction
-  startGame: async (tournamentId: string, gameId: string, inputPlayers: Player[]) => {
+  // Removed inputPlayers parameter
+  startGame: async (tournamentId: string, gameId: string) => {
     const tournamentRef = doc(db, "tournaments", tournamentId);
     try {
       await runTransaction(db, async (transaction) => {
@@ -655,19 +656,12 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
         }
 
         const now = Date.now();
-        // Sanitize the input players array
-        const sanitizedPlayers = inputPlayers.map(p => ({
-            id: p.id,
-            name: p.name,
-            nickname: p.nickname ?? undefined,
-            eliminated: p.eliminated ?? false,
-            eliminationTime: p.eliminationTime ?? null,
-        }));
+        // Removed sanitization of inputPlayers, we use gameToStart.players directly
 
-        // Prepare the updated game data
+        // Prepare the updated game data using existing players
         const updatedGameData = cleanGameForFirestore({
             ...gameToStart, // Keep existing game data
-            players: sanitizedPlayers, // Use the sanitized input players
+            // players: gameToStart.players, // Use the players already in the game data (cleanGameForFirestore handles this)
             status: 'in_progress',
             startedAt: now,
             levelStartTime: now, // Reset level start time

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTournamentStore } from '../../store/tournamentStore';
 import { Users, Timer, Coins, PlayCircle, Edit2, Eye, StopCircle, Trash2, CheckCircle } from 'lucide-react'; // Added CheckCircle
-import type { Game, Tournament, Player } from '../../store/tournamentStore'; // Added Player
+import type { Game, Tournament } from '../../store/tournamentStore'; // Removed Player import
 
 interface GameListProps {
   tournament: Tournament;
@@ -80,15 +80,8 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
                   </button>
                   <button
                     onClick={() => {
-                      // Ensure players have eliminated=false when starting
-                      const startingPlayers: Player[] = tournament.registrations.map(p => ({
-                        id: p.id,
-                        name: p.name,
-                        nickname: p.nickname,
-                        eliminated: false, // Explicitly set eliminated to false
-                        eliminationTime: null // Explicitly set eliminationTime to null
-                      }));
-                      startGame(tournament.id, game.id, startingPlayers);
+                      // No longer need to define or pass startingPlayers
+                      startGame(tournament.id, game.id); // Removed startingPlayers argument
                       onViewGame(game.id); // View game after starting
                     }}
                     className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
