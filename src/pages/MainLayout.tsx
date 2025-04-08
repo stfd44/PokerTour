@@ -10,6 +10,7 @@ import Stats from './Stats'; // Import the Stats component
 import Profile from './Profile'; // Import the Profile component
 // Import the Teams component
 import Teams from './Teams/Teams';
+import SettleAccounts from '../components/tournament/SettleAccounts'; // Import the new component
 
 export function MainLayout() {
   return (
@@ -27,6 +28,8 @@ export function MainLayout() {
           <Route path="/stats" element={<Stats />} />
           {/* Add the route for the Profile page */}
           <Route path="/profile" element={<Profile />} />
+          {/* ADDED: Route for the settlement page */}
+          <Route path="/tournament/:tournamentId/settle" element={<SettleAccounts />} />
         </Routes>
       </div>
     </div>

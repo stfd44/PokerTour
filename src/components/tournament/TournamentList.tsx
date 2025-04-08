@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom'; // Import Link
 import { useTournamentStore, Tournament } from '../../store/tournamentStore'; // Import Tournament type
-import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2, Edit, User, Info } from 'lucide-react'; // Added Edit, User, Info icons
+import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2, Edit, User, Info, Calculator } from 'lucide-react'; // Added Edit, User, Info, Calculator icons
 import { useAuthStore } from '../../store/useAuthStore';
 
 // Helper function to get status text and color
@@ -189,8 +189,8 @@ export function TournamentList() {
             </div>
             
             <div className="mt-4 flex justify-between items-center">
-              <div>
-                {/* Show "Accéder" button if started OR ended */}
+              <div className="flex space-x-2"> {/* Wrap buttons in a div for spacing */}
+                {/* Show "Accéder/Voir Résumé" button if started OR ended */}
                 {(isStarted || isEnded) ? (
                   <button
                     onClick={() => navigate(`/tournament/${tournament.id}`)}
@@ -199,8 +199,19 @@ export function TournamentList() {
                     <PlayCircle className="w-5 h-5 mr-2" />
                     {isEnded ? 'Voir le résumé' : 'Accéder au tournoi'}
                   </button>
-                // Show "Débuter" button only if creator and canStart
-                ) : isCreator && canStart ? (
+                ) : null}
+                {/* Show "Faire les comptes" button only if ended */}
+                {isEnded && (
+                  <Link
+                    to={`/tournament/${tournament.id}/settle`}
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors flex items-center"
+                  >
+                    <Calculator className="w-5 h-5 mr-2" />
+                    Faire les comptes
+                  </Link>
+                )}
+                 {/* Show "Débuter" button only if creator and canStart and NOT started/ended */}
+                 {!isStarted && !isEnded && isCreator && canStart && (
                   <button
                     onClick={() => handleStartTournament(tournament.id)}
                     className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
@@ -208,7 +219,7 @@ export function TournamentList() {
                     <PlayCircle className="w-5 h-5 mr-2" />
                     Débuter le tournoi
                   </button>
-                ) : null}
+                 )}
               </div>
               
               <div className="flex items-center space-x-4">

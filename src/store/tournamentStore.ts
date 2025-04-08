@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { db, handleDatabaseError, isCreator, getUserData } from '../lib/firebase'; // Import getUserData
 import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, arrayUnion, arrayRemove, getDoc, query, where } from 'firebase/firestore';
 import { useTeamStore } from './useTeamStore'; // Import useTeamStore
+import { calculateSettlementTransactions } from '../lib/utils'; // Import the new utility function
 
 // Helper function to specifically clean a Game object for Firestore
 // Removes undefined fields, ensuring compatibility.
@@ -105,6 +106,16 @@ export interface Game {
   rebuyAmount: number; // Cost of one rebuy (usually tournament buyin)
 }
 
+// ADDED: Interface for settlement transactions
+export interface Transaction {
+  fromPlayerId: string;
+  fromPlayerName: string;
+  toPlayerId: string;
+  toPlayerName: string;
+  amount: number;
+  completed: boolean;
+}
+
 export interface Tournament {
   id: string;
   creatorNickname?: string; // Added field for organizer's nickname
@@ -119,6 +130,7 @@ export interface Tournament {
   status: 'scheduled' | 'in_progress' | 'ended';
   teamId: string; // Add teamId to Tournament interface
   guests?: string[]; // Optional array for guest names
+  settlementTransactions?: Transaction[]; // ADDED: Optional array for settlement transactions
 }
 
 interface TournamentStore {
@@ -153,6 +165,9 @@ interface TournamentStore {
   reinstatePlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
   // Rebuy action
   rebuyPlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
+  // Settlement actions
+  calculateAndStoreSettlement: (tournamentId: string) => Promise<void>;
+  updateSettlementTransaction: (tournamentId: string, transactionIndex: number, completed: boolean) => Promise<void>;
 }
 
 // Helper function to find and update a game within the state
@@ -1106,4 +1121,140 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
       throw error;
     }
   },
+
+  // --- Settlement Actions ---
+
+  calculateAndStoreSettlement: async (tournamentId) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      const tournamentDoc = await getDoc(tournamentRef);
+      if (!tournamentDoc.exists()) {
+        throw new Error("Tournament not found");
+      }
+      const tournament = { id: tournamentDoc.id, ...tournamentDoc.data() } as Tournament;
+
+      // Ensure tournament is ended
+      if (tournament.status !== 'ended') {
+        throw new Error("Tournament is not ended yet.");
+      }
+      // Optional: Check if settlementTransactions already exist to prevent recalculation
+      // if (tournament.settlementTransactions && tournament.settlementTransactions.length > 0) {
+      //   console.log("Settlement already calculated for this tournament.");
+      //   return; // Or maybe force recalculation if needed?
+      // }
+
+      // 1. Calculate Balances (Corrected Logic)
+      console.log(`Calculating balances for tournament ${tournamentId}. Buy-in: ${tournament.buyin}`);
+      const playerBalancesMap: Map<string, { name: string; balance: number }> = new Map();
+
+      // Initialize balances with buy-in cost for all registered players
+      tournament.registrations.forEach(player => {
+        console.log(`Initializing balance for ${player.nickname || player.name} (ID: ${player.id}) with buy-in: ${-tournament.buyin}`);
+        playerBalancesMap.set(player.id, { name: player.nickname || player.name, balance: -tournament.buyin });
+      });
+
+      // Add winnings from each game (Ensure iteration over ALL games)
+      console.log(`Processing ${tournament.games.length} games...`);
+      tournament.games.forEach((game, gameIndex) => {
+        console.log(` > Game ${gameIndex + 1} (ID: ${game.id}), Status: ${game.status}`);
+        // Ensure game has results and is ended before processing winnings
+        if (game.results && game.results.length > 0 && game.status === 'ended') {
+          console.log(`   >> Found ${game.results.length} results for ended game ${game.id}`);
+          game.results.forEach(result => {
+            const currentPlayerData = playerBalancesMap.get(result.playerId);
+            if (currentPlayerData) {
+              console.log(`     - Adding winnings ${result.winnings} to ${currentPlayerData.name} (ID: ${result.playerId}). Old balance: ${currentPlayerData.balance}`);
+              currentPlayerData.balance += result.winnings;
+              console.log(`     - New balance for ${currentPlayerData.name}: ${currentPlayerData.balance}`);
+            } else {
+              // This case might happen if a player played but wasn't in final registrations?
+              console.warn(`     - Player ${result.playerId} (${result.name}) found in game results but not in tournament registrations. Initializing balance with winnings ${result.winnings} minus buy-in ${tournament.buyin}.`);
+              playerBalancesMap.set(result.playerId, { name: result.name, balance: result.winnings - tournament.buyin });
+            }
+          });
+        } else if (game.status !== 'ended') {
+            console.log(`   >> Skipping game ${game.id} because its status is '${game.status}'.`);
+        } else {
+           console.log(`   >> No results found for game ${game.id}`);
+        }
+      });
+
+      console.log("Final calculated balances before settlement:");
+      playerBalancesMap.forEach((data, id) => {
+          console.log(`  - ${data.name} (ID: ${id}): ${data.balance.toFixed(2)}`); // Log with fixed decimals
+      });
+
+      // Convert Map to array for the utility function
+      const balancesArray = Array.from(playerBalancesMap.entries()).map(([id, data]) => ({
+        id,
+        name: data.name,
+        balance: data.balance, // Pass the final calculated balance
+      }));
+
+      // 2. Calculate Optimized Transactions
+      console.log("Calculating settlement transactions...");
+      const transactions = calculateSettlementTransactions(balancesArray);
+      console.log("Calculated transactions:", transactions);
+
+
+      // 3. Store Transactions in Firestore
+      await updateDoc(tournamentRef, {
+        settlementTransactions: transactions,
+      });
+      console.log(`Stored settlement transactions for tournament ${tournamentId}`);
+
+
+      // 4. Update Local State
+      set((state) => ({
+        tournaments: state.tournaments.map((t) =>
+          t.id === tournamentId
+            ? { ...t, settlementTransactions: transactions }
+            : t
+        ),
+      }));
+
+    } catch (error) {
+      handleDatabaseError(error);
+      throw error; // Re-throw for UI handling
+    }
+  },
+
+  updateSettlementTransaction: async (tournamentId, transactionIndex, completed) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      const tournamentDoc = await getDoc(tournamentRef);
+      if (!tournamentDoc.exists()) {
+        throw new Error("Tournament not found");
+      }
+      const tournament = { id: tournamentDoc.id, ...tournamentDoc.data() } as Tournament;
+
+      if (!tournament.settlementTransactions || transactionIndex < 0 || transactionIndex >= tournament.settlementTransactions.length) {
+        throw new Error("Invalid transaction index or settlement not calculated yet.");
+      }
+
+      // Create a new array with the updated transaction
+      const updatedTransactions = tournament.settlementTransactions.map((tx, index) =>
+        index === transactionIndex ? { ...tx, completed: completed } : tx
+      );
+
+      // Update Firestore
+      await updateDoc(tournamentRef, {
+        settlementTransactions: updatedTransactions,
+      });
+
+      // Update Local State
+      set((state) => ({
+        tournaments: state.tournaments.map((t) =>
+          t.id === tournamentId
+            ? { ...t, settlementTransactions: updatedTransactions }
+            : t
+        ),
+      }));
+
+    } catch (error) {
+      handleDatabaseError(error);
+      throw error; // Re-throw for UI handling
+    }
+  },
+
 }));

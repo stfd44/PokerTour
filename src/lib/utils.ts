@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
-import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import type { Transaction } from '../store/tournamentStore'; // Import Transaction type
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -86,4 +86,73 @@ export function calculateWinnings(
     second: roundedSecond,
     third: roundedThird,
   };
+}
+
+// --- Debt Simplification Algorithm ---
+
+interface PlayerBalance {
+  id: string;
+  name: string; // Keep name for the Transaction object
+  balance: number; // Positive for creditor, negative for debtor
+}
+
+/**
+ * Calculates the minimum number of transactions required to settle debts among players.
+ * Uses a greedy approach to match debtors and creditors.
+ *
+ * @param balances - An array of objects, each containing player id, name, and their net balance (positive for credit, negative for debt).
+ * @returns An array of Transaction objects representing the optimized payments.
+ */
+export function calculateSettlementTransactions(balances: PlayerBalance[]): Transaction[] {
+  const transactions: Transaction[] = [];
+  // Use a small epsilon for floating point comparisons
+  const epsilon = 0.01; // Adjust if needed based on currency precision
+
+  // Separate debtors and creditors, filter out zero balances
+  // Use const as these arrays are modified via shift(), not reassigned
+  const debtors = balances.filter(p => p.balance < -epsilon).sort((a, b) => a.balance - b.balance); // Most negative first
+  const creditors = balances.filter(p => p.balance > epsilon).sort((a, b) => b.balance - a.balance); // Most positive first
+
+  while (debtors.length > 0 && creditors.length > 0) {
+    const debtor = debtors[0];
+    const creditor = creditors[0];
+
+    const amountToTransfer = Math.min(-debtor.balance, creditor.balance);
+
+    // Create the transaction
+    transactions.push({
+      fromPlayerId: debtor.id,
+      fromPlayerName: debtor.name,
+      toPlayerId: creditor.id,
+      toPlayerName: creditor.name,
+      amount: Math.round(amountToTransfer * 100) / 100, // Round to 2 decimal places
+      completed: false, // Initially not completed
+    });
+
+    // Update balances
+    debtor.balance += amountToTransfer;
+    creditor.balance -= amountToTransfer;
+
+    // Remove settled players
+    if (Math.abs(debtor.balance) < epsilon) {
+      debtors.shift(); // Remove debtor if settled
+    }
+    if (Math.abs(creditor.balance) < epsilon) {
+      creditors.shift(); // Remove creditor if settled
+    }
+
+    // Re-sort if needed (optional, but can maintain order)
+    // debtors.sort((a, b) => a.balance - b.balance);
+    // creditors.sort((a, b) => b.balance - a.balance);
+  }
+
+   // Log any remaining balances (should be very close to zero due to epsilon)
+   // This helps debug potential floating point issues
+   const remainingBalance = debtors.reduce((sum, d) => sum + d.balance, 0) + creditors.reduce((sum, c) => sum + c.balance, 0);
+   if (Math.abs(remainingBalance) > epsilon * (debtors.length + creditors.length)) {
+       console.warn(`Potential settlement imbalance: ${remainingBalance.toFixed(2)}`);
+   }
+
+
+  return transactions;
 }
