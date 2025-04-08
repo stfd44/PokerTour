@@ -81,10 +81,15 @@ function SettleAccounts() {
         game.players.forEach(playerInGame => {
             const current = balances.get(playerInGame.id);
             if (current) {
-                current.balance -= tournament.buyin;
+                // Subtract buy-in AND cost of rebuys made by this player in this game
+                const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
+                const totalCostForGame = tournament.buyin + rebuyCost;
+                current.balance -= totalCostForGame;
             } else {
-                 // Player might have been unregistered after playing? Initialize with negative buy-in.
-                 balances.set(playerInGame.id, { name: playerInGame.name, balance: -tournament.buyin });
+                 // Player might have been unregistered after playing? Initialize with negative buy-in + rebuys.
+                 const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
+                 const initialBalance = -(tournament.buyin + rebuyCost);
+                 balances.set(playerInGame.id, { name: playerInGame.name, balance: initialBalance });
             }
         });
 

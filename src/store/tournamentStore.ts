@@ -66,6 +66,7 @@ export interface Player {
   nickname?: string;
   eliminated?: boolean;
   eliminationTime?: number | null; // Added for tracking elimination time
+  rebuysMade?: number; // ADDED: Track rebuys per player in a game
 }
 
 export interface Blinds {
@@ -1084,16 +1085,23 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
       // --- End Validation ---
 
       // --- Perform Rebuy ---
-      const updatedPlayers = game.players.map((player: Player) => // Add type Player
-        player.id === playerId
-          ? { ...player, eliminated: false, eliminationTime: null } // Reinstate player
-          : player
-      );
+      const updatedPlayers = game.players.map((player: Player) => { // Add type Player
+        if (player.id === playerId) {
+          // Reinstate player and increment their rebuy count
+          return {
+            ...player,
+            eliminated: false,
+            eliminationTime: null,
+            rebuysMade: (player.rebuysMade || 0) + 1 // Increment player's rebuy count
+          };
+        }
+        return player;
+      });
 
       const updatedGameData: Game = cleanGameForFirestore({
         ...game,
         players: updatedPlayers,
-        totalRebuys: (game.totalRebuys || 0) + 1, // Increment rebuy count
+        totalRebuys: (game.totalRebuys || 0) + 1, // Increment total game rebuy count
       });
 
       const updatedGames = [
@@ -1180,13 +1188,19 @@ export const useTournamentStore = create<TournamentStore>((set) => ({
                 game.players.forEach(playerInGame => {
                     const currentPlayerData = playerBalancesMap.get(playerInGame.id);
                     if (currentPlayerData) {
-                        console.log(`   - Subtracting buy-in ${tournament.buyin} for ${currentPlayerData.name} (ID: ${playerInGame.id}) for game ${game.id}. Old balance: ${currentPlayerData.balance}`);
-                        currentPlayerData.balance -= tournament.buyin;
+                        const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin); // Calculate cost of rebuys for this player in this game
+                        const totalCostForGame = tournament.buyin + rebuyCost; // Total cost = buyin + rebuys
+
+                        console.log(`   - Subtracting total cost ${totalCostForGame}€ (Buy-in: ${tournament.buyin}€, Rebuys: ${rebuyCost}€ [${playerInGame.rebuysMade || 0} x ${game.rebuyAmount || tournament.buyin}€]) for ${currentPlayerData.name} (ID: ${playerInGame.id}) for game ${game.id}. Old balance: ${currentPlayerData.balance}`);
+                        currentPlayerData.balance -= totalCostForGame;
                         console.log(`   - New balance for ${currentPlayerData.name}: ${currentPlayerData.balance}`);
+
                     } else {
-                        // If player played but wasn't registered (e.g., guest removed later?), initialize with negative buy-in
-                        console.warn(`   - Player ${playerInGame.name} (ID: ${playerInGame.id}) played game ${game.id} but not found in final registrations. Initializing balance with buy-in: ${-tournament.buyin}.`);
-                        playerBalancesMap.set(playerInGame.id, { name: playerInGame.name, balance: -tournament.buyin });
+                        // If player played but wasn't registered (e.g., guest removed later?), initialize with negative buy-in + rebuys
+                        const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
+                        const initialBalance = -(tournament.buyin + rebuyCost);
+                        console.warn(`   - Player ${playerInGame.name} (ID: ${playerInGame.id}) played game ${game.id} but not found in final registrations. Initializing balance with buy-in + rebuys: ${initialBalance}€.`);
+                        playerBalancesMap.set(playerInGame.id, { name: playerInGame.name, balance: initialBalance });
                     }
                 });
 

@@ -70,12 +70,25 @@ export function GameSummary({ game }: GameSummaryProps) {
                 <span className="text-lg font-bold text-yellow-600 mr-3 w-12 text-center">🏆 1er</span>
                 <span className="font-medium text-gray-800 flex-grow">{winner.nickname || winner.name}</span>
               </div>
-              {/* Display 1st place winnings */}
-              {game.winnings && game.winnings.first > 0 && (
-                 <span className="text-sm font-semibold text-green-600 bg-green-100 px-2 py-1 rounded">
-                   {game.winnings.first} €
-                 </span>
-              )}
+              {/* Display 1st place winnings with rebuy info */}
+              {game.winnings && game.winnings.first >= 0 && (() => { // Allow display even if base winnings are 0 but rebuys exist
+                const baseWinnings = game.winnings.first || 0;
+                const totalRebuyAmount = (game.totalRebuys || 0) * (game.rebuyAmount || 0);
+                const displayTotalWinnings = baseWinnings + totalRebuyAmount;
+
+                // Only display if there are base winnings or rebuys
+                if (displayTotalWinnings > 0) {
+                  return (
+                    <span className="text-sm font-semibold text-green-600 bg-green-100 px-2 py-1 rounded">
+                      {displayTotalWinnings} €
+                      {totalRebuyAmount > 0 && (
+                        <span className="text-xs text-gray-500 ml-1">(dont {totalRebuyAmount}€ de rebuy)</span>
+                      )}
+                    </span>
+                  );
+                }
+                return null; // Don't display anything if total is 0
+              })()}
             </div>
           )}
 
