@@ -9,20 +9,25 @@ interface PlayerStats {
   name: string;
   totalPoints: number;
   totalWinnings: number;
-  gamesPlayed: number; // Add games played count
+  totalWagers: number; // ADDED: Track total amount wagered (buyins + rebuys)
+  gamesPlayed: number;
 }
 
 // Define the structure for the memoized statistics object
 interface CalculatedStats {
-  tournamentsPlayedThisYear: number;
-  gamesPlayedThisYear: number;
+  // These represent totals for the selected scope (year/team), not user-specific yet
+  tournamentsInScope: number;
+  gamesInScope: number;
+  // User specific counts
+  userTournamentsParticipated: number;
+  userGamesParticipated: number;
   playerStats: PlayerStats[];
   mostProfitableTournament: { name: string; organizer: string; totalPrize: number } | null;
-  endedTournamentsCount: number; // Add count of ended tournaments for conditional rendering
+  endedTournamentsCount: number;
 }
 
 const Stats: React.FC = () => {
-  const { user } = useAuthStore();
+  const { user } = useAuthStore(); // Get the logged-in user
   const { teams, fetchTeams } = useTeamStore(); // Get teams and fetchTeams
   const { tournaments, fetchTournaments } = useTournamentStore();
   const [isLoading, setIsLoading] = useState(true);
@@ -88,89 +93,136 @@ const Stats: React.FC = () => {
 
     console.log(`[Stats Calculation] Selected Team: ${selectedTeamId}, Raw tournaments: ${tournaments.length}, Filtered tournaments: ${filteredTournaments.length}`);
 
-    if (!filteredTournaments || filteredTournaments.length === 0) {
-      console.log("[Stats Calculation] No relevant tournaments found after filtering.");
+    if (!filteredTournaments || filteredTournaments.length === 0 || !user) { // Ensure user exists
+      console.log("[Stats Calculation] No relevant tournaments found or user not logged in.");
       return {
-        tournamentsPlayedThisYear: 0,
-        gamesPlayedThisYear: 0,
+        tournamentsInScope: 0,
+        gamesInScope: 0,
+        userTournamentsParticipated: 0,
+        userGamesParticipated: 0,
         playerStats: [],
         mostProfitableTournament: null,
-        endedTournamentsCount: 0, // Initialize count
+        endedTournamentsCount: 0,
       };
     }
 
-    // Use the already filtered list for further processing
-    const relevantTournaments = filteredTournaments.filter(t => t.status === 'ended' || t.status === 'in_progress');
-
-    // --- Selected Year Stats ---
-    const tournamentsThisYear = relevantTournaments.filter(t => {
-        try {
-            // Filter by selectedYear now
-            return new Date(t.date).getFullYear() === selectedYear;
-        } catch (e) {
-            console.error("Error parsing tournament date:", t.date, e);
-            return false; // Skip if date is invalid
-        }
+    // Filter by selected year *first*
+    const tournamentsInYear = filteredTournaments.filter(t => {
+      try {
+        return new Date(t.date).getFullYear() === selectedYear;
+      } catch (e) {
+        console.error("Error parsing tournament date:", t.date, e);
+        return false;
+      }
     });
-    const tournamentsPlayedThisYear = tournamentsThisYear.length;
-    const gamesPlayedThisYear = tournamentsThisYear.reduce((sum, t) => sum + (t.games?.length || 0), 0);
 
-    // --- Player Rankings (Points & Winnings) ---
+    const tournamentsInScope = tournamentsInYear.length;
+    const gamesInScope = tournamentsInYear.reduce((sum, t) => sum + (t.games?.length || 0), 0);
+
+    // --- Player Aggregates (Points, Winnings, Wagers, Games Played) ---
     const playerAggregates: Record<string, PlayerStats> = {};
+    const userParticipatedTournamentIds = new Set<string>();
+    let userGamesParticipatedCount = 0;
 
-    // Calculate endedTournaments from the filtered list
-    const endedTournaments = filteredTournaments.filter(t => t.status === 'ended');
-    const endedTournamentsCount = endedTournaments.length;
-    console.log("[Stats Calculation] Filtered endedTournaments (for selected team):", endedTournaments);
-
-    endedTournaments.forEach(tournament => {
-      console.log(`[Stats Calculation] Processing tournament: ${tournament.name} (${tournament.id})`); // Log tournament being processed
+    // Iterate through tournaments in the selected year and team scope
+    tournamentsInYear.forEach(tournament => {
+      console.log(`[Stats Calculation] Processing tournament: ${tournament.name} (${tournament.id})`);
       (tournament.games || []).forEach((game: Game) => {
-        console.log(`[Stats Calculation]   Processing game: ${game.id}, Status: ${game.status}, Has Results: ${!!game.results}`); // Log game details
+        console.log(`[Stats Calculation]   Processing game: ${game.id}, Status: ${game.status}`);
+
+        // Iterate through players *in this game* to calculate wagers and participation
+        game.players.forEach(playerInGame => {
+          const playerId = playerInGame.id;
+
+          // Initialize aggregate if player not seen before
+          if (!playerAggregates[playerId]) {
+            playerAggregates[playerId] = {
+              id: playerId,
+              name: playerInGame.nickname || playerInGame.name, // Use nickname first
+              totalPoints: 0,
+              totalWinnings: 0,
+              totalWagers: 0,
+              gamesPlayed: 0,
+            };
+          }
+
+          // Calculate wager for this game (buy-in + rebuys for this player)
+          const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
+          const wagerForGame = tournament.buyin + rebuyCost;
+          playerAggregates[playerId].totalWagers += wagerForGame;
+          playerAggregates[playerId].gamesPlayed += 1; // Increment games played for this player
+
+          // Update name if a nickname appears later (simple approach)
+          if (playerInGame.nickname && playerAggregates[playerId].name !== playerInGame.nickname) {
+              playerAggregates[playerId].name = playerInGame.nickname;
+          }
+
+          // Track participation for the logged-in user
+          if (playerId === user.uid) {
+            userGamesParticipatedCount += 1;
+            userParticipatedTournamentIds.add(tournament.id);
+          }
+        });
+
+        // Add points and winnings from game results (only for ended games)
         if (game.status === 'ended' && game.results) {
-          console.log(`[Stats Calculation]     Found ended game with results:`, game.results); // Log results if found
+          console.log(`[Stats Calculation]     Adding results for ended game:`, game.results);
           game.results.forEach((result: PlayerResult) => {
-            if (!playerAggregates[result.playerId]) {
-              playerAggregates[result.playerId] = {
-                id: result.playerId,
-                name: result.name, // Use name stored in result
-                totalPoints: 0,
-                totalWinnings: 0,
-                gamesPlayed: 0,
-              };
+            if (playerAggregates[result.playerId]) {
+              playerAggregates[result.playerId].totalPoints += result.points || 0;
+              playerAggregates[result.playerId].totalWinnings += result.winnings || 0;
+              // Ensure name consistency if result name is different (e.g., nickname added later)
+              if (playerAggregates[result.playerId].name !== result.name) {
+                  // Maybe prioritize nickname from Player object if available?
+                  // For now, let's stick with the name from the result as it's from game end.
+                  // playerAggregates[result.playerId].name = result.name;
+              }
+            } else {
+              // This case (player in results but not in game.players) should be rare/impossible if data is consistent
+              console.warn(`[Stats Calculation] Player ${result.playerId} found in results but not in game.players for game ${game.id}`);
             }
-            playerAggregates[result.playerId].totalPoints += result.points || 0;
-            playerAggregates[result.playerId].totalWinnings += result.winnings || 0;
-            playerAggregates[result.playerId].gamesPlayed += 1;
           });
         }
       });
     });
 
     const playerStats = Object.values(playerAggregates);
-    console.log("[Stats Calculation] Aggregated player stats:", playerStats); // Log aggregated stats
+    const userTournamentsParticipated = userParticipatedTournamentIds.size;
+    console.log("[Stats Calculation] Aggregated player stats:", playerStats);
+    console.log("[Stats Calculation] User participation:", { userTournamentsParticipated, userGamesParticipated: userGamesParticipatedCount });
 
-    // --- Most Profitable Tournament ---
+    // --- Most Profitable Tournament (Based on ended tournaments in scope) ---
+    const endedTournamentsInYear = tournamentsInYear.filter(t => t.status === 'ended');
+    const endedTournamentsCount = endedTournamentsInYear.length; // Count based on year/team filter
     let mostProfitableTournament: { name: string; organizer: string; totalPrize: number } | null = null;
     let maxPrize = -1;
 
-    endedTournaments.forEach(tournament => {
-      const totalPrize = (tournament.games || []).reduce((sum, game) => sum + (game.prizePool || 0), 0);
-      // Only consider tournaments with a positive prize pool
+    endedTournamentsInYear.forEach(tournament => {
+      // Calculate total prize pool based on game prize pools *or* sum of winnings if prize pool isn't stored reliably
+      // Let's assume game.winnings accurately reflects distributed prizes for ended games
+       const totalPrize = (tournament.games || []).reduce((sum, game) => {
+           if (game.status === 'ended' && game.winnings) {
+               return sum + (game.winnings.first || 0) + (game.winnings.second || 0) + (game.winnings.third || 0);
+           }
+           return sum;
+       }, 0);
+
       if (totalPrize > 0 && totalPrize > maxPrize) {
         maxPrize = totalPrize;
         mostProfitableTournament = {
           name: tournament.name,
-          organizer: tournament.creatorNickname || tournament.creatorId, // Use nickname if available
+          organizer: tournament.creatorNickname || `ID: ${tournament.creatorId.substring(0, 6)}`, // Fallback
           totalPrize: totalPrize,
         };
       }
     });
-    console.log("[Stats Calculation] Most profitable tournament found:", mostProfitableTournament); // Log most profitable
+    console.log("[Stats Calculation] Most profitable tournament found:", mostProfitableTournament);
 
     const finalStats = {
-      tournamentsPlayedThisYear,
-      gamesPlayedThisYear,
+      tournamentsInScope,
+      gamesInScope,
+      userTournamentsParticipated,
+      userGamesParticipated: userGamesParticipatedCount, // Use the calculated count
       playerStats,
       mostProfitableTournament,
       endedTournamentsCount, // Return the count
@@ -190,11 +242,29 @@ const Stats: React.FC = () => {
   // Sort players for display
   const sortedByPoints = [...statistics.playerStats].sort((a, b) => b.totalPoints - a.totalPoints);
   const sortedByWinnings = [...statistics.playerStats].sort((a, b) => b.totalWinnings - a.totalWinnings);
+  const currentUserStats = statistics.playerStats.find(p => p.id === user?.uid);
 
   return (
     <div className="space-y-8">
+      {/* Personal Balance Summary */}
+      {currentUserStats && (
+        <div className="bg-white p-6 rounded-lg shadow border border-gray-200 text-center">
+          <h2 className="text-xl font-semibold text-poker-black mb-2">Votre Bilan Personnel ({selectedYear})</h2>
+          <p className="text-4xl font-bold text-green-600">
+            {(currentUserStats.totalWinnings - currentUserStats.totalWagers).toFixed(2)} €
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            (Total Gains: {currentUserStats.totalWinnings.toFixed(2)} € - Total Mises: {currentUserStats.totalWagers.toFixed(2)} €)
+          </p>
+           <div className="mt-3 text-sm text-gray-600">
+             Tournois Joués: {statistics.userTournamentsParticipated} | Parties Jouées: {statistics.userGamesParticipated}
+           </div>
+        </div>
+      )}
+
+      {/* Filters and Title */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h1 className="text-3xl font-bold text-poker-black">Statistiques ({selectedYear})</h1>
+        <h1 className="text-3xl font-bold text-poker-black">Statistiques Globales ({selectedYear})</h1>
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
           {/* Year Selector */}
           {availableYears.length > 0 && (
@@ -241,17 +311,7 @@ const Stats: React.FC = () => {
       </div>
 
 
-      {/* Selected Year Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <div className="bg-white p-4 rounded-lg shadow border border-gray-200 text-center">
-          <p className="text-sm font-medium text-gray-500">Tournois Joués ({selectedYear})</p>
-          <p className="text-3xl font-bold text-poker-blue">{statistics.tournamentsPlayedThisYear}</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border border-gray-200 text-center">
-          <p className="text-sm font-medium text-gray-500">Parties Jouées ({selectedYear})</p>
-          <p className="text-3xl font-bold text-poker-blue">{statistics.gamesPlayedThisYear}</p>
-        </div>
-      </div>
+      {/* Removed the old summary boxes as info is now in the personal balance section */}
 
       {/* Player Rankings */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
