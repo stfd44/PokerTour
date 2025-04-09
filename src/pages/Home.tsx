@@ -1,7 +1,8 @@
 // src/pages/Home.tsx
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTournamentStore, Tournament } from '../store/tournamentStore';
+import { useTournamentStore } from '../store/tournamentStore';
+import type { Tournament, Player } from '../store/types/tournamentTypes'; // Corrected import path and added Player
 import { Calendar, Users, MapPin, PlayCircle, Trophy, Plus, Trash2 } from 'lucide-react';
 import { useTeamStore } from '../store/useTeamStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -26,7 +27,7 @@ const Home: React.FC = () => {
 
     // Filter the user's tournament
     const userTournaments = tournaments.filter((tournament: Tournament) => {
-        const isUserRegistered = tournament.registrations.some((p) => p.id === user?.uid);
+        const isUserRegistered = tournament.registrations.some((p: Player) => p.id === user?.uid); // Added Player type
         const isUserInTeam = teams.some(team => team.id === tournament.teamId);
         return isUserRegistered && isUserInTeam;
     });
@@ -48,29 +49,30 @@ const Home: React.FC = () => {
     };
 
     const TournamentCard = ({ tournament }: { tournament: Tournament }) => (
-        <div key={tournament.id} className="bg-white rounded-lg shadow-md p-4 flex justify-between items-center">
-            <div>
+        // Responsive Card Layout: stack vertically below sm, row sm and up
+        <div key={tournament.id} className="bg-white rounded-lg shadow-md p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            {/* Details Section */}
+            <div className="min-w-0"> {/* Allow shrinking */}
                 <h3 className="font-semibold text-lg">{tournament.name}</h3>
-                <div className="flex items-center space-x-2 text-gray-600">
-                    <Calendar className="w-4 h-4" />
-                    <span>{new Date(tournament.date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</span>
-                    <MapPin className="w-4 h-4" />
-                    <span>{tournament.location}</span>
-                    <Users className="w-4 h-4" />
-                    <span>{tournament.registrations.length} / {tournament.maxPlayers}</span>
+                {/* Responsive Details Row: wrap items */}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-gray-600 text-sm"> {/* Use text-sm for smaller text */}
+                    <span className="flex items-center shrink-0"><Calendar className="w-4 h-4 mr-1" /> {new Date(tournament.date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                    <span className="flex items-center shrink-0"><MapPin className="w-4 h-4 mr-1" /> {tournament.location}</span>
+                    <span className="flex items-center shrink-0"><Users className="w-4 h-4 mr-1" /> {tournament.registrations.length} / {tournament.maxPlayers}</span>
                 </div>
             </div>
-            <div className='flex items-center'>
+            {/* Button Section: stack vertically, align end on sm+ */}
+            <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 w-full sm:w-auto'>
                 <button
-                    onClick={() => navigate('/tournaments')}
-                    className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors mr-2"
+                    onClick={() => navigate('/tournaments')} // Should likely navigate to the specific tournament? Or just the list? Keeping list for now.
+                    className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center justify-center sm:justify-start w-full sm:w-auto" // Full width below sm
                 >
                     <PlayCircle className='w-4 h-4 mr-2' /> Rejoindre
                 </button>
                 {user?.uid === tournament.creatorId && (
                     <button
                         onClick={() => handleDeleteTournament(tournament.id)}
-                        className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded flex items-center"
+                        className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-2 rounded flex items-center justify-center sm:justify-start w-full sm:w-auto" // Adjusted padding, full width below sm
                     >
                         <Trash2 className="h-4 w-4" />
                     </button>

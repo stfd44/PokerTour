@@ -62,19 +62,20 @@ const Profile: React.FC = () => {
       {/* Nickname Section */}
       <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
         <h2 className="text-xl font-semibold text-poker-black mb-4">Changer de Surnom</h2>
-        <div className="flex items-center space-x-4">
+        {/* Responsive Nickname Input/Button */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4"> {/* Use gap instead of space-x */}
           <input
             type="text"
             value={nicknameInput}
             onChange={(e) => setNicknameInput(e.target.value)}
             placeholder="Entrez votre nouveau surnom"
-            className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-blue focus:border-poker-blue"
+            className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-blue focus:border-poker-blue" // Removed space-x related classes if any
             disabled={isSavingNickname}
           />
           <button
             onClick={handleSaveNickname}
             disabled={isSavingNickname || !nicknameInput.trim() || nicknameInput.trim() === user.nickname}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed" // Applied styles similar to Teams.tsx buttons
+            className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center sm:justify-start" // Added w-full sm:w-auto, justify-center
           >
             {isSavingNickname ? 'Sauvegarde...' : 'Sauvegarder'}
           </button>
