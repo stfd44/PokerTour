@@ -5,7 +5,7 @@ import { GameForm } from './GameForm';
 import { GameView } from './GameView';
 import { GameList } from './GameList';
 import { useAuthStore } from '../../store/useAuthStore';
-import type { Game } from '../../store/tournamentStore'; // Keep for GameForm prop type
+import type { Game } from '../../store/types/tournamentTypes'; // Correct import path for Game type
 import { FlagOff } from 'lucide-react'; // Import icon for end tournament button
 
 export function TournamentGames() {
@@ -90,11 +90,13 @@ export function TournamentGames() {
       ) : (
         // Otherwise, show the list and potentially the creation form
         <>
-          <div className="flex justify-between items-center mb-8">
+          {/* Responsive header: stacks on small screens */}
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 space-y-4 sm:space-y-0">
             <h1 className="text-3xl font-bold text-poker-black">
               {tournament.name} - Parties
             </h1>
-            <div className="flex space-x-2"> {/* Container for buttons */}
+            {/* Responsive button container: wraps buttons and adds gap */}
+            <div className="flex flex-wrap gap-2 justify-end"> {/* Container for buttons */}
               {/* Show create button only if not already creating/editing and tournament is not ended */}
               {!isCreating && tournament.status !== 'ended' && (
                 <button

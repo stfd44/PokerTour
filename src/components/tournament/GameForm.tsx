@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Added useMemo, useCallback
 import { useTournamentStore } from '../../store/tournamentStore';
 import { UserCheck, X, Minus, Plus } from 'lucide-react'; // Added Minus, Plus icons (Removed Percent)
-import type { Game, Player, Tournament } from '../../store/tournamentStore';
+import type { Game, Player, Tournament } from '../../store/types/tournamentTypes'; // Corrected import path for types
 import { calculatePrizePool, calculateWinnings } from '../../lib/utils'; // Import calculation functions
 
 interface GameFormProps {
   tournament: Tournament;
-  // setIsCreating: (isCreating: boolean) => void; // Removed, handled by onClose
   editingGame: Game | null;
-  // setEditingGame: (game: Game | null) => void; // Removed, handled by onClose
   tournamentId: string;
   onClose: () => void; // Added onClose prop
 }
@@ -26,9 +24,7 @@ interface GameFormType {
     big: number;
   };
   blindLevels: number;
-  players: Player[];
-  // Add prize distribution to the form state if needed for persistence,
-  // but for now, we'll manage percentages separately and calculate winnings on submit.
+  players: Player[]; // Use Player type
 }
 
 const initialGameForm: GameFormType = {
@@ -47,7 +43,6 @@ const initialPercentages: DistributionPercentages = {
   third: 15,
 };
 
-// Removed setIsCreating, setEditingGame from props destructuring, added onClose
 export function GameForm({ tournament, editingGame, tournamentId, onClose }: GameFormProps) {
   const addGame = useTournamentStore(state => state.addGame);
   const updateGame = useTournamentStore(state => state.updateGame);
@@ -63,26 +58,22 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
         blinds: { ...editingGame.blinds },
         blindLevels: editingGame.blindLevels,
         players: [...editingGame.players],
-        // distributionPercentages: editingGame.distributionPercentages || initialPercentages,
       });
-      setSelectedPlayers(new Set(editingGame.players.map(p => p.id)));
-      // Load percentages and rebuy level if they exist on the game being edited
+      setSelectedPlayers(new Set(editingGame.players.map((p: Player) => p.id))); // Added Player type
       setDistributionPercentages(editingGame.distributionPercentages || initialPercentages);
-      setRebuyLevel(editingGame.rebuyAllowedUntilLevel ?? 2); // Load existing rebuy level or default to 2
+      setRebuyLevel(editingGame.rebuyAllowedUntilLevel ?? 2);
     } else {
       setGameForm(initialGameForm);
       setSelectedPlayers(new Set());
-      setDistributionPercentages(initialPercentages); // Reset percentages for new game
-      setRebuyLevel(2); // Reset rebuy level for new game
+      setDistributionPercentages(initialPercentages);
+      setRebuyLevel(2);
     }
   }, [editingGame]);
-
-  // Removed unused resetForm function
 
   const handleCreateGame = (e: React.FormEvent) => {
     e.preventDefault();
     const selectedPlayersList = tournament!.registrations.filter(
-      player => selectedPlayers.has(player.id)
+      (player: Player) => selectedPlayers.has(player.id) // Added Player type
     );
 
     const prizePool = calculatePrizePool(tournament.buyin, selectedPlayersList.length);
@@ -91,23 +82,18 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
     const gameData = {
       ...gameForm,
       players: selectedPlayersList,
-      tournamentId: tournamentId!, // Include tournamentId
-      prizePool: prizePool, // Add calculated prize pool
-      distributionPercentages: distributionPercentages, // Add percentages
-      winnings: winnings, // Add calculated winnings
-      // Include rebuy level in the data for updateGame
+      tournamentId: tournamentId!,
+      prizePool: prizePool,
+      distributionPercentages: distributionPercentages,
+      winnings: winnings,
       rebuyAllowedUntilLevel: rebuyLevel,
     };
 
     if (editingGame) {
-      // Pass the full gameData including rebuy level to updateGame
       updateGame(tournamentId!, editingGame.id, gameData);
     } else {
-      // Pass gameData and rebuyLevel separately to addGame
       addGame(tournamentId!, gameData, rebuyLevel);
     }
-
-    // Call onClose instead of manipulating state directly
     onClose();
   };
 
@@ -123,66 +109,57 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
     });
   };
 
-  // Calculate prize pool and winnings dynamically
   const prizePool = useMemo(() => {
     return calculatePrizePool(tournament.buyin, selectedPlayers.size);
   }, [tournament.buyin, selectedPlayers.size]);
 
   const estimatedWinnings = useMemo(() => {
-    // Only calculate if there are enough players for payouts (at least 3)
     if (selectedPlayers.size < 3) {
         return { first: 0, second: 0, third: 0 };
     }
     return calculateWinnings(prizePool, distributionPercentages);
   }, [prizePool, distributionPercentages, selectedPlayers.size]);
 
-
-  // Handlers for adjusting percentages
   const adjustPercentage = useCallback((place: keyof DistributionPercentages, adjustment: number) => {
     setDistributionPercentages(prev => {
         const currentPercentages = { ...prev };
         const currentValue = currentPercentages[place];
         const newValue = currentValue + adjustment;
 
-        // Ensure value stays within 0-100
         if (newValue < 0 || newValue > 100) return currentPercentages;
 
-        // Determine which other place(s) to adjust
         let adjustmentApplied = false;
-        if (adjustment > 0) { // Increasing place, decrease others
+        if (adjustment > 0) {
             if (place === 'first') {
                 if (currentPercentages.second >= adjustment) { currentPercentages.second -= adjustment; adjustmentApplied = true; }
                 else if (currentPercentages.third >= adjustment) { currentPercentages.third -= adjustment; adjustmentApplied = true; }
             } else if (place === 'second') {
                 if (currentPercentages.third >= adjustment) { currentPercentages.third -= adjustment; adjustmentApplied = true; }
                 else if (currentPercentages.first >= adjustment) { currentPercentages.first -= adjustment; adjustmentApplied = true; }
-            } else { // place === 'third'
+            } else {
                 if (currentPercentages.first >= adjustment) { currentPercentages.first -= adjustment; adjustmentApplied = true; }
                 else if (currentPercentages.second >= adjustment) { currentPercentages.second -= adjustment; adjustmentApplied = true; }
             }
-        } else { // Decreasing place, increase others (adjustment is negative)
+        } else {
              const increase = -adjustment;
              if (place === 'first') {
-                 currentPercentages.second += increase; adjustmentApplied = true; // Prioritize increasing second
+                 currentPercentages.second += increase; adjustmentApplied = true;
              } else if (place === 'second') {
-                 currentPercentages.third += increase; adjustmentApplied = true; // Prioritize increasing third
-             } else { // place === 'third'
-                 currentPercentages.first += increase; adjustmentApplied = true; // Prioritize increasing first
+                 currentPercentages.third += increase; adjustmentApplied = true;
+             } else {
+                 currentPercentages.first += increase; adjustmentApplied = true;
              }
         }
 
-        // If adjustment was possible, update the target place
         if (adjustmentApplied) {
             currentPercentages[place] = newValue;
-            // Final check to ensure sum is 100 (due to potential rounding issues if logic gets complex)
             const sum = currentPercentages.first + currentPercentages.second + currentPercentages.third;
             if (sum !== 100) {
-                // Simple correction: adjust the last modified place's counterparty
-                 if (adjustment > 0) { // Increasing place, decreased others
+                 if (adjustment > 0) {
                     if (place === 'first') currentPercentages.second += (100 - sum);
                     else if (place === 'second') currentPercentages.third += (100 - sum);
                     else currentPercentages.first += (100 - sum);
-                 } else { // Decreasing place, increased others
+                 } else {
                     if (place === 'first') currentPercentages.second += (100 - sum);
                     else if (place === 'second') currentPercentages.third += (100 - sum);
                     else currentPercentages.first += (100 - sum);
@@ -190,26 +167,21 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
             }
             return currentPercentages;
         }
-
-        return prev; // No change if adjustment wasn't possible
+        return prev;
     });
   }, []);
 
-
   return (
-    // Added overflow-y-auto and max-h-[80vh] for potentially long forms
     <div className="bg-white rounded-lg shadow-md p-6 mb-6 max-h-[80vh] overflow-y-auto">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold text-poker-black">
           {editingGame ? 'Modifier la partie' : 'Créer une nouvelle partie'}
         </h2>
-        {/* Close button */}
         <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
             <X size={24} />
         </button>
       </div>
       <form onSubmit={handleCreateGame} className="space-y-6">
-        {/* --- Existing Form Fields --- */}
         <div>
           <label htmlFor="startingStack" className="block text-sm font-medium text-gray-700 mb-1">
             Stack de départ
@@ -294,7 +266,6 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
           />
         </div>
 
-        {/* --- Rebuy Level Input --- */}
         <div>
           <label htmlFor="rebuyLevel" className="block text-sm font-medium text-gray-700 mb-1">
             Rebuy autorisé jusqu'au niveau (inclus)
@@ -303,24 +274,21 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
             type="number"
             id="rebuyLevel"
             value={rebuyLevel}
-            onChange={(e) => setRebuyLevel(Math.max(0, parseInt(e.target.value)))} // Ensure non-negative
+            onChange={(e) => setRebuyLevel(Math.max(0, parseInt(e.target.value)))}
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
-            min="0" // Level 0 means no rebuys after start
+            min="0"
             step="1"
             required
           />
            <p className="text-xs text-gray-500 mt-1">Niveau 0 = pas de rebuy après le début. Niveau 2 (défaut) = rebuy possible pendant niveaux 1 et 2.</p>
         </div>
 
-
-        {/* --- Player Selection --- */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Joueurs à la table ({selectedPlayers.size} / {tournament.registrations.length})
           </label>
-          {/* Added max-h-48 overflow-y-auto for player list */}
           <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
-            {tournament.registrations.map((player) => (
+            {tournament.registrations.map((player: Player) => ( // Added Player type
               <label
                 key={player.id}
                 className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${
@@ -344,22 +312,18 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
           </div>
         </div>
 
-        {/* --- Prize Pool and Distribution --- */}
         <div className="border-t pt-6 space-y-4">
             <h3 className="text-lg font-semibold text-poker-black">Prize Pool & Répartition</h3>
-            {/* Display Prize Pool */}
             <div className="flex justify-between items-center bg-gray-100 p-3 rounded-md">
                 <span className="font-medium text-gray-800">Prize Pool Total:</span>
                 <span className="font-bold text-xl text-poker-red">{prizePool} €</span>
             </div>
 
-             {/* Distribution Percentages */}
              {selectedPlayers.size >= 3 ? (
                 <div className="space-y-3">
                     <p className="text-sm text-gray-600">Ajuster la répartition (total doit faire 100%):</p>
-                    {/* 1st Place */}
-                    <div className="flex items-center justify-between">
-                        <span className="w-16">1ère Place:</span>
+                    <div className="flex flex-wrap items-center justify-between gap-y-1">
+                        <span className="w-16 shrink-0">1ère Place:</span>
                         <div className="flex items-center space-x-2">
                             <button type="button" onClick={() => adjustPercentage('first', -5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.first <= 0}><Minus size={16} /></button>
                             <span className="font-semibold w-10 text-center">{distributionPercentages.first}%</span>
@@ -367,9 +331,8 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                         </div>
                         <span className="text-gray-700 w-20 text-right">{estimatedWinnings.first} €</span>
                     </div>
-                    {/* 2nd Place */}
-                    <div className="flex items-center justify-between">
-                        <span className="w-16">2ème Place:</span>
+                    <div className="flex flex-wrap items-center justify-between gap-y-1">
+                        <span className="w-16 shrink-0">2ème Place:</span>
                          <div className="flex items-center space-x-2">
                             <button type="button" onClick={() => adjustPercentage('second', -5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.second <= 0}><Minus size={16} /></button>
                             <span className="font-semibold w-10 text-center">{distributionPercentages.second}%</span>
@@ -377,9 +340,8 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                         </div>
                         <span className="text-gray-700 w-20 text-right">{estimatedWinnings.second} €</span>
                     </div>
-                    {/* 3rd Place */}
-                    <div className="flex items-center justify-between">
-                        <span className="w-16">3ème Place:</span>
+                    <div className="flex flex-wrap items-center justify-between gap-y-1">
+                        <span className="w-16 shrink-0">3ème Place:</span>
                          <div className="flex items-center space-x-2">
                             <button type="button" onClick={() => adjustPercentage('third', -5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.third <= 0}><Minus size={16} /></button>
                             <span className="font-semibold w-10 text-center">{distributionPercentages.third}%</span>
@@ -393,22 +355,19 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
              )}
         </div>
 
-
-        {/* --- Form Actions --- */}
-        <div className="flex justify-end space-x-4 pt-4 border-t">
-          {/* Cancel button */}
+        {/* Responsive Form Actions */}
+        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
           <button
-            type="button" // Ensure it's not submitting the form
-            onClick={onClose} // Use the passed onClose handler
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-poker-red"
+            type="button"
+            onClick={onClose}
+            className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-poker-red"
           >
              Annuler
           </button>
           <button
             type="submit"
-            // Disable button if fewer than 2 players are selected
             disabled={selectedPlayers.size < 2}
-            className="bg-poker-red text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto bg-poker-red text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {editingGame ? 'Mettre à jour' : 'Créer la partie'}
           </button>

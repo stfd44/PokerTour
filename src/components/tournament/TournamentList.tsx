@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom'; // Import Link
-import { useTournamentStore, Tournament } from '../../store/tournamentStore'; // Import Tournament type
+import { useTournamentStore } from '../../store/tournamentStore';
+import type { Tournament } from '../../store/types/tournamentTypes'; // Correct import path for Tournament type
 import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2, Edit, User, Info, Calculator } from 'lucide-react'; // Added Edit, User, Info, Calculator icons
 import { useAuthStore } from '../../store/useAuthStore';
 
@@ -188,8 +189,10 @@ export function TournamentList() {
               )}
             </div>
             
-            <div className="mt-4 flex justify-between items-center">
-              <div className="flex space-x-2"> {/* Wrap buttons in a div for spacing */}
+            {/* Responsive button container */}
+            <div className="mt-4 flex flex-col sm:flex-row justify-between items-stretch sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+              {/* Left button group - allow wrapping */}
+              <div className="flex flex-wrap gap-2"> {/* Wrap buttons in a div for spacing */}
                 {/* Show "Accéder/Voir Résumé" button if started OR ended */}
                 {(isStarted || isEnded) ? (
                   <button
@@ -222,10 +225,11 @@ export function TournamentList() {
                  )}
               </div>
               
-              <div className="flex items-center space-x-4">
+              {/* Right button group - allow wrapping and align end on larger screens */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 justify-end">
                 {/* Only show registration buttons if tournament is scheduled */}
                 {tournament.status === 'scheduled' && (
-                  <>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2"> {/* Inner wrap for registration buttons */}
                     {isRegistered ? (
                       <>
                         <span className="flex items-center text-green-600">
@@ -262,8 +266,9 @@ export function TournamentList() {
                         {isFull ? 'Complet' : 'Rejoindre'}
                       </button>
                     )}
-                  </>
+                  </div>
                 )}
+                {/* Action buttons (Delete/Edit) - Grouped separately for clarity */}
                 {/* Delete button: Show only if creator and scheduled */}
                 {isCreator && tournament.status === 'scheduled' && (
                   <button

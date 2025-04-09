@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useTournamentStore, Tournament } from '../../store/tournamentStore';
+import { useTournamentStore } from '../../store/tournamentStore';
+import type { Tournament } from '../../store/types/tournamentTypes'; // Correct import path for Tournament type
 import { useAuthStore } from '../../store/useAuthStore';
 import { X, UserPlus } from 'lucide-react'; // Import icons
 
@@ -264,7 +265,8 @@ export function EditTournament() {
                 <label htmlFor="guestName" className="block text-sm font-medium text-gray-700 mb-1">
                     Ajouter un invité
                 </label>
-                <div className="flex items-center space-x-2 mb-4">
+                {/* Responsive guest input/button */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 mb-4">
                     <input
                         type="text"
                         id="guestName"
@@ -273,17 +275,18 @@ export function EditTournament() {
                         className="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-blue focus:border-transparent sm:text-sm"
                         placeholder="Nom de l'invité"
                     />
-                    {/* Correctly wrap only the button */}
-                    <div>
+                    {/* Button container */}
+                    <div className="self-stretch sm:self-center">
                         <button
                             type="button"
                             onClick={handleAddGuest}
-                            // Re-applying consistent button styling, keeping padding, loading/disabled states
-                            className={`inline-flex items-center justify-center py-2 px-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded transition-colors disabled:opacity-50 ${isGuestLoading ? 'animate-pulse' : ''}`}
+                            // Apply consistent button styling and full width on small screens
+                            className={`w-full sm:w-auto inline-flex items-center justify-center py-2 px-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded transition-colors disabled:opacity-50 ${isGuestLoading ? 'animate-pulse' : ''}`}
                             aria-label="Ajouter l'invité"
                             disabled={!currentGuest.trim() || isGuestLoading} // Disable while loading
                         >
                             {isGuestLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <UserPlus className="w-5 h-5" />}
+                            <span className="sm:hidden ml-2">Ajouter</span> {/* Text visible only on small screens */}
                         </button>
                     </div>
                 </div>
@@ -313,12 +316,13 @@ export function EditTournament() {
         )}
         {/* End Guest Management Section */}
 
-
-        <div className="flex justify-end space-x-3 pt-4">
+        {/* Responsive Action Buttons */}
+        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
           <button
             type="button"
             onClick={() => navigate('/tournaments')}
-            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-poker-gold"
+            // Make buttons full width on small screens
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-poker-gold"
           >
             Annuler
           </button>
@@ -327,7 +331,8 @@ export function EditTournament() {
           {tournaments.find(t => t.id === tournamentId)?.status === 'scheduled' && (
             <button
               type="submit"
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-poker-gold hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-poker-gold"
+              // Make buttons full width on small screens
+              className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-poker-gold hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-poker-gold"
             >
               Enregistrer les modifications
             </button>

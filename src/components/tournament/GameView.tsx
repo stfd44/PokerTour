@@ -118,9 +118,11 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
   // Render active game view if status is 'in_progress' or 'pending' (though pending shouldn't really be viewable here)
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex justify-between items-center mb-6">
+      {/* Responsive Header */}
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 space-y-4 sm:space-y-0">
         <h2 className="text-2xl font-bold text-poker-black">Table en cours</h2>
-        <div className="flex items-center space-x-4">
+        {/* Responsive Button Group */}
+        <div className="flex flex-wrap items-center gap-2 justify-end">
           {/* Show Stop button only if game is in progress */}
           {game.status === 'in_progress' && (
             <button
@@ -184,7 +186,8 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
                   {player.nickname || player.name}
                 </span>
               </div>
-              <div className="flex items-center space-x-2">
+              {/* Responsive Player Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2 justify-end">
                 {/* Rebuy Button - Show only if player eliminated and rebuys allowed */}
                 {canRebuy && (
                   <button

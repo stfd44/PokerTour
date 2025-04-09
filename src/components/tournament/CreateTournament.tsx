@@ -63,7 +63,7 @@ export function CreateTournament() {
                 fetchTournaments(user.uid); // Fetch tournaments for the specific user might be incorrect if based on teams? Check fetchTournaments logic. Assuming it fetches based on teams now.
                 navigate('/tournaments'); // Navigate back to the list
             });
-          }    
+          }
       };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -176,6 +176,7 @@ export function CreateTournament() {
                             id="teamId"
                             value={formData.teamId}
                             onChange={handleChange}
+                            required // Make team selection required
                             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
                         >
                             <option value="">Sélectionner une équipe</option>
@@ -192,26 +193,27 @@ export function CreateTournament() {
                         <label htmlFor="guestName" className="block text-sm font-medium text-gray-700 mb-1">
                             Ajouter un invité (optionnel)
                         </label>
-                        {/* Correctly wrap input and button */}
-                        <div className="flex items-center space-x-2">
-                                <input
-                                    type="text"
-                                    id="guestName"
+                        {/* Responsive input and button: stack on small screens */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
+                            <input
+                                type="text"
+                                id="guestName"
                                 value={currentGuest}
                                 onChange={(e) => setCurrentGuest(e.target.value)}
                                 className="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
                                 placeholder="Nom de l'invité"
                             />
-                            {/* Correctly wrap only the button */}
-                            <div>
+                            {/* Button container */}
+                            <div className="self-stretch sm:self-center"> {/* Ensure button stretches or centers */}
                                 <button
                                     type="button"
                                     onClick={handleAddGuest}
-                                    // Apply consistent button styling
-                                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-2 rounded transition-colors flex items-center" // Adjusted padding for icon-only button
+                                    // Apply consistent button styling and full width on small screens
+                                    className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-2 rounded transition-colors flex items-center justify-center sm:justify-start" // Adjusted padding and added justify-center for small screens
                                     aria-label="Ajouter l'invité"
                                 >
                                     <UserPlus className="h-5 w-5" /> {/* Slightly larger icon */}
+                                    <span className="sm:hidden ml-2">Ajouter</span> {/* Text visible only on small screens */}
                                 </button>
                             </div>
                         </div>
