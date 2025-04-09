@@ -146,17 +146,18 @@ const Teams: React.FC = () => {
       {/* Create Team Section */}
       <div className="mb-8 p-6 bg-white rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Créer une nouvelle équipe</h2>
-        <div className="flex items-center">
+        {/* Responsive Create Team Input/Button */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <input
             type="text"
             placeholder="Nom de l'équipe"
+            className="border border-gray-300 px-3 py-2 rounded-md flex-grow focus:ring-2 focus:ring-blue-500 focus:border-transparent" // Removed mr-2
             value={newTeamName}
             onChange={(e) => setNewTeamName(e.target.value)}
-            className="border border-gray-300 px-3 py-2 rounded-md mr-2 flex-grow focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <button
             onClick={handleCreateTeam}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors flex items-center"
+            className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors flex items-center justify-center sm:justify-start" // Added w-full sm:w-auto, justify-center
           >
             <UserPlus className="w-4 h-4 mr-2" />
             Créer
@@ -173,17 +174,18 @@ const Teams: React.FC = () => {
       {/* Join Team by Tag Section */}
       <div className="mb-8 p-6 bg-white rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Rejoindre une équipe par Tag</h2>
-        <div className="flex items-center mb-2">
+        {/* Responsive Join Team Input/Button */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-2">
           <input
             type="text"
             placeholder="Tag de l'équipe (ex: nom_equipe_1234)"
+            className="border border-gray-300 px-3 py-2 rounded-md flex-grow focus:ring-2 focus:ring-green-500 focus:border-transparent" // Removed mr-2
             value={joinTag}
             onChange={(e) => setJoinTag(e.target.value)}
-            className="border border-gray-300 px-3 py-2 rounded-md mr-2 flex-grow focus:ring-2 focus:ring-green-500 focus:border-transparent"
           />
           <button
             onClick={handleJoinByTag}
-            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition-colors flex items-center"
+            className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition-colors flex items-center justify-center sm:justify-start" // Added w-full sm:w-auto, justify-center
           >
             <LogIn className="w-4 h-4 mr-2" />
             Rejoindre
@@ -204,13 +206,16 @@ const Teams: React.FC = () => {
         <ul className="space-y-4">
           {teams.map((team: Team) => (
             <li key={team.id} className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+              {/* Responsive Team Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-2"> {/* Added gap */}
+                {/* Team Info */}
                 <div className="mb-2 sm:mb-0">
                   <span className="font-semibold text-lg">{team.name}</span>
                   <span className="text-sm text-gray-500 ml-2 bg-gray-100 px-2 py-0.5 rounded">#{team.tag}</span>
                   <p className="text-xs text-gray-500">Créée le: {team.createdAt.toLocaleDateString()}</p>
                 </div>
-                <div className='flex items-center space-x-2 flex-shrink-0'>
+                {/* Team Action Buttons - Allow wrapping */}
+                <div className='flex flex-wrap items-center gap-2 flex-shrink-0 justify-start sm:justify-end'> {/* Added flex-wrap, gap, justify */}
                   {user && team.creatorId === user.uid && (
                     <button
                       onClick={() => handleDeleteTeam(team.id)}

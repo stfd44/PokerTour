@@ -36,7 +36,7 @@ export function TournamentList() {
   const handleRegistration = async (tournamentId: string) => {
       if (user) {
           const isAlreadyRegistered = tournaments.find(t => t.id === tournamentId)?.registrations.some(p => p.id === user.uid);
-          
+
           if(isAlreadyRegistered){
               setRegistrationStates(prev => {
                 const updatedStates = { ...prev };
@@ -47,7 +47,7 @@ export function TournamentList() {
              setRegistrationStates(prev => ({ ...prev, [tournamentId]: 'pending' }));
             await new Promise(resolve => setTimeout(resolve, 1000));
             registerToTournament(tournamentId, user.uid, { id: user.uid, name: user.displayName ?? "User" });
-            setRegistrationStates(prev => ({ ...prev, [tournamentId]: 'confirmed' })); 
+            setRegistrationStates(prev => ({ ...prev, [tournamentId]: 'confirmed' }));
           }
       }
   };
@@ -62,7 +62,6 @@ export function TournamentList() {
   const handleStartTournament = (tournamentId: string) => {
     if (user) {
         startTournament(tournamentId, user.uid);
-        // Corrected path: remove '/app' prefix
         navigate(`/tournament/${tournamentId}`);
     }
   };
@@ -107,189 +106,162 @@ export function TournamentList() {
         const isExpanded = expandedTournaments.has(tournament.id);
         const canStart = tournament.status === 'scheduled' && tournament.registrations.length >= 2;
         const isStarted = tournament.status === 'in_progress';
-        const isEnded = tournament.status === 'ended'; // Added isEnded
+        const isEnded = tournament.status === 'ended';
         const isCreator = user?.uid === tournament.creatorId;
-        const statusInfo = getStatusInfo(tournament.status); // Get status info
+        const statusInfo = getStatusInfo(tournament.status);
 
         return (
           <div key={tournament.id} className="bg-white rounded-lg shadow-md p-6">
+            {/* Top Header Section */}
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-xl font-bold text-poker-black mb-1">{tournament.name}</h3>
-                {/* Status Badge */}
                 <span className={`inline-flex items-center text-white px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
                   {statusInfo.icon}
                   {statusInfo.text}
                 </span>
               </div>
-              <span className="bg-poker-red text-white px-3 py-1 rounded-full text-sm">
+              <span className="bg-poker-red text-white px-3 py-1 rounded-full text-sm shrink-0"> {/* Added shrink-0 */}
                 {tournament.buyin}€
               </span>
             </div>
-            
-            <div className="space-y-2 text-gray-600">
-              <div className="flex items-center">
-                <Calendar className="w-5 h-5 mr-2 text-poker-gold" />
-                <span>{new Date(tournament.date).toLocaleString('fr-FR', {
-                  dateStyle: 'long',
-                  timeStyle: 'short'
-                })}</span>
-              </div>
-              
-              <div 
-                className="flex items-center cursor-pointer hover:text-poker-gold transition-colors"
-                onClick={() => toggleTournamentExpansion(tournament.id)}
-              >
-                {isExpanded ? (
-                  <ChevronUp className="w-5 h-5 mr-2 text-poker-gold" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 mr-2 text-poker-gold" />
-                )}
-                <Users className="w-5 h-5 mr-2 text-poker-gold" />
-                <span>{tournament.registrations.length} / {tournament.maxPlayers} joueurs</span>
-              </div>
-              
-              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                isExpanded ? 'max-h-48' : 'max-h-0'
-              }`}>
-                <div className="pl-9 pt-2 space-y-1">
-                  {tournament.registrations.length > 0 ? (
-                    tournament.registrations.map((player, index) => (
-                      <div 
-                        key={player.id}
-                        className="flex items-center text-sm py-1"
-                      >
-                        <span className="w-6 text-poker-gold">{index + 1}.</span>
-                <span>{player.nickname || player.name}</span>
-                        {user && player.id === user.uid && (
-                          <span className="ml-2 text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">
-                            Vous
-                          </span>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500 italic">
-                      Aucun joueur inscrit
-                    </p>
-                  )}
+
+            {/* Main Content: Details + Buttons (Responsive Layout) */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4 mt-4"> {/* Added mt-4 */}
+
+              {/* Details Section */}
+              <div className="space-y-2 text-gray-600">
+                <div className="flex items-center">
+                  <Calendar className="w-5 h-5 mr-2 text-poker-gold" />
+                  <span>{new Date(tournament.date).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}</span>
                 </div>
-              </div>
-              
-              <div className="flex items-center">
-                <MapPin className="w-5 h-5 mr-2 text-poker-gold" />
-                <span>{tournament.location}</span>
-              </div>
-              {/* Display Organizer Nickname */}
-              {tournament.creatorNickname && (
-                <div className="flex items-center text-sm text-gray-500 mt-1">
-                  <User className="w-4 h-4 mr-2 text-poker-gold" />
-                  <span>Organisé par : {tournament.creatorNickname}</span>
+                <div
+                  className="flex items-center cursor-pointer hover:text-poker-gold transition-colors"
+                  onClick={() => toggleTournamentExpansion(tournament.id)}
+                >
+                  {isExpanded ? <ChevronUp className="w-5 h-5 mr-2 text-poker-gold" /> : <ChevronDown className="w-5 h-5 mr-2 text-poker-gold" />}
+                  <Users className="w-5 h-5 mr-2 text-poker-gold" />
+                  <span>{tournament.registrations.length} / {tournament.maxPlayers} joueurs</span>
                 </div>
-              )}
-            </div>
-            
-            {/* Responsive button container */}
-            <div className="mt-4 flex flex-col sm:flex-row justify-between items-stretch sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
-              {/* Left button group - allow wrapping */}
-              <div className="flex flex-wrap gap-2"> {/* Wrap buttons in a div for spacing */}
-                {/* Show "Accéder/Voir Résumé" button if started OR ended */}
-                {(isStarted || isEnded) ? (
-                  <button
-                    onClick={() => navigate(`/tournament/${tournament.id}`)}
-                    className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
-                  >
-                    <PlayCircle className="w-5 h-5 mr-2" />
-                    {isEnded ? 'Voir le résumé' : 'Accéder au tournoi'}
-                  </button>
-                ) : null}
-                {/* Show "Faire les comptes" button only if ended */}
-                {isEnded && (
-                  <Link
-                    to={`/tournament/${tournament.id}/settle`}
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors flex items-center"
-                  >
-                    <Calculator className="w-5 h-5 mr-2" />
-                    Faire les comptes
-                  </Link>
-                )}
-                 {/* Show "Débuter" button only if creator and canStart and NOT started/ended */}
-                 {!isStarted && !isEnded && isCreator && canStart && (
-                  <button
-                    onClick={() => handleStartTournament(tournament.id)}
-                    className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
-                  >
-                    <PlayCircle className="w-5 h-5 mr-2" />
-                    Débuter le tournoi
-                  </button>
-                 )}
-              </div>
-              
-              {/* Right button group - allow wrapping and align end on larger screens */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 justify-end">
-                {/* Only show registration buttons if tournament is scheduled */}
-                {tournament.status === 'scheduled' && (
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2"> {/* Inner wrap for registration buttons */}
-                    {isRegistered ? (
-                      <>
-                        <span className="flex items-center text-green-600">
-                          <Check className="w-5 h-5 mr-1" />
-                          Inscrit
-                        </span>
-                        {/* Hide unregister button if user is the creator */}
-                        {!isCreator && (
-                          <button
-                            onClick={() => handleUnregistration(tournament.id)}
-                            className="flex items-center text-red-600 hover:text-red-700"
-                          >
-                            <X className="w-5 h-5 mr-1" />
-                            Se désinscrire
-                          </button>
-                        )}
-                      </>
-                    ) : registrationState === 'pending' ? (
-                      <div className="flex items-center">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-poker-gold mr-2"></div>
-                        Inscription en cours...
-                      </div>
+                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-48' : 'max-h-0'}`}>
+                  <div className="pl-9 pt-2 space-y-1">
+                    {tournament.registrations.length > 0 ? (
+                      tournament.registrations.map((player, index) => (
+                        <div key={player.id} className="flex items-center text-sm py-1">
+                          <span className="w-6 text-poker-gold">{index + 1}.</span>
+                          <span>{player.nickname || player.name}</span>
+                          {user && player.id === user.uid && (
+                            <span className="ml-2 text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">Vous</span>
+                          )}
+                        </div>
+                      ))
                     ) : (
-                      <button
-                        onClick={() => handleRegistration(tournament.id)}
-                        // Disable only if full (status check is handled by outer condition)
-                        disabled={isFull}
-                        className={`bg-poker-gold text-white px-4 py-2 rounded transition-colors ${
-                          isFull
-                            ? 'opacity-50 cursor-not-allowed' 
-                            : 'hover:bg-yellow-600'
-                        }`}
-                      >
-                        {isFull ? 'Complet' : 'Rejoindre'}
-                      </button>
+                      <p className="text-sm text-gray-500 italic">Aucun joueur inscrit</p>
                     )}
                   </div>
+                </div>
+                <div className="flex items-center">
+                  <MapPin className="w-5 h-5 mr-2 text-poker-gold" />
+                  <span>{tournament.location}</span>
+                </div>
+                {tournament.creatorNickname && (
+                  <div className="flex items-center text-sm text-gray-500 mt-1">
+                    <User className="w-4 h-4 mr-2 text-poker-gold" />
+                    <span>Organisé par : {tournament.creatorNickname}</span>
+                  </div>
                 )}
-                {/* Action buttons (Delete/Edit) - Grouped separately for clarity */}
-                {/* Delete button: Show only if creator and scheduled */}
-                {isCreator && tournament.status === 'scheduled' && (
-                  <button
-                    onClick={() => handleDeleteTournament(tournament.id)}
-                    className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-2 rounded flex items-center" // Adjusted padding
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
-                {/* Edit Button - Show if creator and status is scheduled OR in_progress */}
-                {isCreator && (tournament.status === 'scheduled' || tournament.status === 'in_progress') && (
-                  <button
-                    onClick={() => navigate(`/tournament/${tournament.id}/edit`)}
-                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-2 rounded flex items-center"
-                    title="Modifier le tournoi / Gérer les invités" // Add title for clarity
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            </div>
+              </div> {/* End Details Section */}
+
+              {/* Button Container Section */}
+              <div className="flex flex-col sm:items-end space-y-4 shrink-0"> {/* Stack buttons vertically, align end on larger screens */}
+                {/* Top Row Buttons (Access/Settle/Start) */}
+                <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
+                  {(isStarted || isEnded) && (
+                    <button
+                      onClick={() => navigate(`/tournament/${tournament.id}`)}
+                      className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
+                    >
+                      <PlayCircle className="w-5 h-5 mr-2" />
+                      {isEnded ? 'Voir le résumé' : 'Accéder au tournoi'}
+                    </button>
+                  )}
+                  {isEnded && (
+                    <Link
+                      to={`/tournament/${tournament.id}/settle`}
+                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors flex items-center"
+                    >
+                      <Calculator className="w-5 h-5 mr-2" />
+                      Faire les comptes
+                    </Link>
+                  )}
+                  {!isStarted && !isEnded && isCreator && canStart && (
+                    <button
+                      onClick={() => handleStartTournament(tournament.id)}
+                      className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
+                    >
+                      <PlayCircle className="w-5 h-5 mr-2" />
+                      Débuter le tournoi
+                    </button>
+                  )}
+                </div>
+
+                {/* Bottom Row Buttons (Register/Admin) */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 justify-start sm:justify-end">
+                  {tournament.status === 'scheduled' && (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                      {isRegistered ? (
+                        <>
+                          <span className="flex items-center text-green-600">
+                            <Check className="w-5 h-5 mr-1" />
+                            Inscrit
+                          </span>
+                          {!isCreator && (
+                            <button
+                              onClick={() => handleUnregistration(tournament.id)}
+                              className="flex items-center text-red-600 hover:text-red-700"
+                            >
+                              <X className="w-5 h-5 mr-1" />
+                              Se désinscrire
+                            </button>
+                          )}
+                        </>
+                      ) : registrationState === 'pending' ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-poker-gold mr-2"></div>
+                          Inscription en cours...
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleRegistration(tournament.id)}
+                          disabled={isFull}
+                          className={`bg-poker-gold text-white px-4 py-2 rounded transition-colors ${isFull ? 'opacity-50 cursor-not-allowed' : 'hover:bg-yellow-600'}`}
+                        >
+                          {isFull ? 'Complet' : 'Rejoindre'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {isCreator && tournament.status === 'scheduled' && (
+                    <button
+                      onClick={() => handleDeleteTournament(tournament.id)}
+                      className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-2 rounded flex items-center"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  {isCreator && (tournament.status === 'scheduled' || tournament.status === 'in_progress') && (
+                    <button
+                      onClick={() => navigate(`/tournament/${tournament.id}/edit`)}
+                      className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-2 rounded flex items-center"
+                      title="Modifier le tournoi / Gérer les invités"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div> {/* End Button Container Section */}
+
+            </div> {/* End Main Content */}
           </div>
         );
       })}
