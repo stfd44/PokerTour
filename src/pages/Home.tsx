@@ -64,7 +64,7 @@ const Home: React.FC = () => {
             {/* Button Section: stack vertically, align end on sm+ */}
             <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 w-full sm:w-auto'>
                 <button
-                    onClick={() => navigate(`/tournament/${tournament.id}`)} // Navigate to the specific tournament page
+                    onClick={() => navigate('/tournaments')} // Should likely navigate to the specific tournament? Or just the list? Keeping list for now.
                     className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center justify-center sm:justify-start w-full sm:w-auto" // Full width below sm
                 >
                     <PlayCircle className='w-4 h-4 mr-2' /> Rejoindre
