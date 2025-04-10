@@ -1,7 +1,7 @@
-import React, { useState } from 'react'; // Added useState for handling loading/errors on rebuy
+import React, { useState, useEffect, useRef } from 'react'; // Added useEffect, useRef
+import Confetti from 'react-confetti'; // Import Confetti
 import { useTournamentStore } from '../../store/tournamentStore';
 import { StopCircle, UserCheck, UserX, UserMinus, RefreshCcw } from 'lucide-react'; // Added RefreshCcw for rebuy icon
-// Removed unused Game type import
 import { GameTimer } from './GameTimer';
 import { GameSummary } from './GameSummary'; // Import GameSummary
 
@@ -24,6 +24,26 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
   const endGame = useTournamentStore(state => state.endGame);
   const [rebuyLoading, setRebuyLoading] = useState<string | null>(null); // Track loading state per player for rebuy
   const [rebuyError, setRebuyError] = useState<string | null>(null); // Track error state for rebuy
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [winnerName, setWinnerName] = useState<string | null>(null);
+  const [confettiDimensions, setConfettiDimensions] = useState<{ width: number; height: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null); // Ref for the container
+
+  // Effect to get container dimensions for confetti
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        setConfettiDimensions({
+          width: containerRef.current.offsetWidth,
+          height: containerRef.current.offsetHeight,
+        });
+      }
+    };
+    updateDimensions(); // Initial dimensions
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
+
 
   const handlePlayerElimination = async (playerId: string, isCurrentlyEliminated: boolean | undefined) => {
     // Ensure game exists before proceeding
@@ -41,12 +61,20 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
         if (updatedGameFromStore) {
             const activePlayers = updatedGameFromStore.players.filter(p => !p.eliminated);
             if (activePlayers.length === 1) {
-                // Call handleEndGame only if the game hasn't already been marked as ended
-                // (to prevent multiple calls if clicks are rapid)
-                if (updatedGameFromStore.status !== 'ended') { // Corrected variable name
-                   handleEndGame(`${activePlayers[0].name} remporte la partie !`);
-                }
-            }
+                 // Trigger winner animation only if the game hasn't already been marked as ended
+                 if (updatedGameFromStore.status !== 'ended') {
+                    const winner = activePlayers[0];
+                    setWinnerName(winner.nickname || winner.name); // Set winner name for display
+                    setShowConfetti(true); // Trigger confetti
+                    endGame(tournamentId, gameId); // End the game in the store (no alert needed)
+
+                    // Hide confetti and winner name after 3 seconds
+                    setTimeout(() => {
+                      setShowConfetti(false);
+                      setWinnerName(null);
+                    }, 3000);
+                 }
+             }
              // Trigger a re-render manually if needed, although Zustand should handle this.
              // Forcing a state update on the parent might be necessary if direct prop update isn't working.
              // Example (if setViewingGame could accept the updated game): setViewingGame({...updatedGame});
@@ -75,18 +103,19 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
       }
     } finally {
       setRebuyLoading(null); // Clear loading state regardless of success/failure
-    }
-  };
+     }
+   };
 
-  const handleEndGame = (message?: string) => {
-    // Ensure game exists before proceeding
-    if (!game) return;
-    endGame(tournamentId, gameId); // Use gameId
-    // Don't call onClose here, let the user click the button
-    if (message) {
-      alert(message); // Consider a less intrusive notification
-    }
-  };
+   // Removed message parameter and alert
+   const handleEndGame = () => {
+     // Ensure game exists before proceeding
+     if (!game) return;
+     // Only end the game if it's not already ended (prevent multiple calls)
+     if (game.status !== 'ended') {
+        endGame(tournamentId, gameId); // Use gameId
+     }
+     // Don't call onClose here, let the user click the button
+   };
 
   // Handle case where game data is not found (e.g., loading or invalid ID)
   if (!game) {
@@ -108,11 +137,28 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
     );
   }
 
-  // Render active game view if status is 'in_progress' or 'pending' (though pending shouldn't really be viewable here)
-  return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      {/* Responsive Header */}
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 space-y-4 sm:space-y-0">
+   // Render active game view if status is 'in_progress' or 'pending'
+   return (
+     // Add ref and relative positioning for confetti overlay
+     <div ref={containerRef} className="bg-white rounded-lg shadow-md p-6 relative">
+        {/* Confetti and Winner Overlay */}
+        {showConfetti && confettiDimensions && (
+            <Confetti
+                width={confettiDimensions.width}
+                height={confettiDimensions.height}
+                recycle={false}
+                numberOfPieces={200}
+            />
+        )}
+        {winnerName && (
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col items-center justify-center z-10 rounded-lg transition-opacity duration-300">
+                <p className="text-white text-sm mb-2">Vainqueur !</p>
+                <p className="text-yellow-300 text-4xl font-bold animate-pulse">{winnerName}</p>
+            </div>
+        )}
+
+       {/* Responsive Header */}
+       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 space-y-4 sm:space-y-0">
         <h2 className="text-2xl font-bold text-poker-black">Table en cours</h2>
         {/* Responsive Button Group */}
         <div className="flex flex-wrap items-center gap-2 justify-end">
