@@ -102,14 +102,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
   if (game.status === 'ended') {
     return (
       <div>
-        <div className="flex justify-end mb-4">
-           <button
-             onClick={onClose} // Use onClose prop
-             className="text-gray-600 hover:text-gray-800 px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
-           >
-             Retour aux parties
-           </button>
-         </div>
+        {/* Removed the "Retour aux parties" button from here */}
         <GameSummary game={game} /> {/* Pass the fetched game object */}
       </div>
     );
@@ -133,12 +126,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
               Arrêter la partie
             </button>
           )}
-          <button
-            onClick={onClose} // Use onClose prop
-            className="text-gray-600 hover:text-gray-800"
-          >
-            Retour aux parties
-          </button>
+          {/* Removed the second "Retour aux parties" button from here */}
         </div>
       </div>
 

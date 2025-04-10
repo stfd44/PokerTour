@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom'; // Import Link
 import { useTournamentStore } from '../../store/tournamentStore';
+import { useTeamStore } from '../../store/useTeamStore'; // Import useTeamStore
 import type { Tournament } from '../../store/types/tournamentTypes'; // Correct import path for Tournament type
 import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2, Edit, User, Info, Calculator } from 'lucide-react'; // Added Edit, User, Info, Calculator icons
 import { useAuthStore } from '../../store/useAuthStore';
@@ -24,14 +25,19 @@ export function TournamentList() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const { tournaments, registerToTournament, unregisterFromTournament, startTournament, fetchTournaments, deleteTournament } = useTournamentStore();
+  const { teams } = useTeamStore(); // Get teams state
   const [registrationStates, setRegistrationStates] = useState<{[key: string]: 'pending' | 'confirmed' | 'none'}>({});
   const [expandedTournaments, setExpandedTournaments] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    // Fetch tournaments if user is logged in.
+    // The fetchTournaments action internally checks the team state.
+    // Depending on 'teams' ensures this runs again if the user's teams change.
+    // Pass user.uid to satisfy the type checker, even if the implementation might ignore it.
     if (user) {
-        fetchTournaments(user.uid); // Pass userId to fetchTournaments
+        fetchTournaments(user.uid);
     }
-}, [fetchTournaments, user]);
+  }, [fetchTournaments, user, teams]); // Depend on user and teams
 
   const handleRegistration = async (tournamentId: string) => {
       if (user) {

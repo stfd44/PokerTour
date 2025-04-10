@@ -1,6 +1,7 @@
 // src/pages/MainLayout.tsx
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { Breadcrumbs } from '../components/layout/Breadcrumbs'; // Import Breadcrumbs
 import { CreateTournament } from '../components/tournament/CreateTournament';
 import { TournamentList } from '../components/tournament/TournamentList';
 import { TournamentGames } from '../components/tournament/TournamentGames';
@@ -16,6 +17,7 @@ export function MainLayout() {
   return (
     <div className="min-h-screen container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
+        <Breadcrumbs /> {/* Add Breadcrumbs component here */}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/app/create-tournament" element={<CreateTournament />} />
