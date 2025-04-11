@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react'; // Import useEffect
+import { useParams, useLocation, useNavigate } from 'react-router-dom'; // Import useLocation and useNavigate
 import { useTournamentStore } from '../../store/tournamentStore';
 import { GameForm } from './GameForm';
 import { GameView } from './GameView';
@@ -19,6 +19,22 @@ export function TournamentGames() {
   const [isCreating, setIsCreating] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null); // Keep editingGame as object for form population
   const [viewingGameId, setViewingGameId] = useState<string | null>(null); // Store only the ID
+  const location = useLocation(); // Get location object
+  const navigate = useNavigate(); // Get navigate function
+
+  // Effect to reset view state when navigating back via breadcrumb with state
+  useEffect(() => {
+    // Check if navigation state contains the resetView flag
+    if (location.state?.resetView) {
+      console.log("Resetting view state due to navigation state..."); // Debug log
+      setViewingGameId(null);
+      setIsCreating(false);
+      setEditingGame(null);
+      // Clear the state from history to prevent reset on refresh/re-render
+      navigate('.', { replace: true, state: {} });
+    }
+    // Dependency array includes location.state
+  }, [location.state, navigate]); // Add navigate to dependency array
 
   const handleCreateGameClick = () => {
     setIsCreating(true);

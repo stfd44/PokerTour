@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'; // Import useMemo
-import { Link, useLocation } from 'react-router-dom'; // Ensure useParams is removed
+import { Link, useLocation, useNavigate } from 'react-router-dom'; // Added useNavigate
 import { HomeIcon } from 'lucide-react'; // Using lucide-react as it's already a dependency
 import { useTournamentStore } from '../../store/tournamentStore'; // Import store
 import type { Tournament } from '../../store/types/tournamentTypes'; // Import Tournament type
@@ -97,6 +97,7 @@ const generateBreadcrumbs = (pathname: string, tournaments: Tournament[]): Bread
 
 export const Breadcrumbs: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate(); // Get navigate function
   const { tournaments } = useTournamentStore(); // Get tournaments from store
 
   // Use useMemo to recalculate only when pathname or tournaments change
@@ -116,18 +117,50 @@ export const Breadcrumbs: React.FC = () => {
         {breadcrumbs.map((crumb, index) => (
           <li key={crumb.path} className="flex items-center">
             {index > 0 && <span className="mx-2">/</span>}
-            {index === breadcrumbs.length - 1 ? (
-              <span className="font-semibold text-poker-dark" aria-current="page">
-                {crumb.isIcon ? <HomeIcon className="h-4 w-4" /> : crumb.name}
-              </span>
-            ) : (
-              <Link
-                to={crumb.path}
-                className="hover:text-poker-accent hover:underline flex items-center"
-              >
-                {crumb.isIcon ? <HomeIcon className="h-4 w-4" /> : crumb.name}
-              </Link>
-            )}
+            {/* Render as text only if it's the last crumb, path matches, AND it's a specific endpoint URL */}
+            {(() => {
+              const isLastCrumb = index === breadcrumbs.length - 1;
+              const pathMatches = crumb.path === location.pathname;
+              // Determine if the current URL represents a specific final view/endpoint
+              const isSpecificEndpoint = location.pathname.endsWith('/edit') ||
+                                         location.pathname.endsWith('/settle') ||
+                                         location.pathname === '/tournaments' ||
+                                         location.pathname === '/teams' ||
+                                         location.pathname === '/stats' ||
+                                         location.pathname === '/profile' ||
+                                         location.pathname === '/app/create-tournament';
+              const renderAsText = isLastCrumb && pathMatches && isSpecificEndpoint;
+
+              return renderAsText ? (
+                <span className="font-semibold text-poker-dark" aria-current="page">
+                  {crumb.isIcon ? <HomeIcon className="h-4 w-4" /> : crumb.name}
+                </span>
+              ) : (
+                // Check if it's a tournament path link
+                crumb.path.startsWith('/tournament/') && crumb.path.split('/').length === 3 ? (
+                  // Use navigate for tournament links to force state reset if needed
+                  <a
+                    href={crumb.path} // Provide href for semantics and right-click behavior
+                    onClick={(e) => {
+                      e.preventDefault(); // Prevent default anchor navigation
+                      // Navigate with state to signal a view reset
+                      navigate(crumb.path, { state: { resetView: true } });
+                    }}
+                    className="hover:text-poker-accent hover:underline flex items-center cursor-pointer"
+                  >
+                    {crumb.isIcon ? <HomeIcon className="h-4 w-4" /> : crumb.name}
+                  </a>
+                ) : (
+                  // Use standard Link for other links
+                  <Link
+                    to={crumb.path}
+                    className="hover:text-poker-accent hover:underline flex items-center"
+                  >
+                    {crumb.isIcon ? <HomeIcon className="h-4 w-4" /> : crumb.name}
+                  </Link>
+                )
+              );
+            })()}
           </li>
         ))}
       </ol>
