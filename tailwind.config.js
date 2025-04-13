@@ -18,6 +18,7 @@ export default {
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
         'slide-in': 'slideIn 0.5s ease-out',
+        'wiggle': 'wiggle 1s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -27,6 +28,10 @@ export default {
         slideIn: {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(0)' },
+        },
+        wiggle: {
+          '0%, 100%': { transform: 'rotate(-3deg) scale(1.05)' },
+          '50%': { transform: 'rotate(3deg) scale(1.15)' },
         },
       },
     },

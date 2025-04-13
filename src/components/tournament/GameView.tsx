@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react'; // Added useEffect, useRef
-import Confetti from 'react-confetti'; // Import Confetti
+import React, { useState, useEffect, useRef } from 'react';
+import Confetti from 'react-confetti';
 import { useTournamentStore } from '../../store/tournamentStore';
-import { StopCircle, UserCheck, UserX, UserMinus, RefreshCcw } from 'lucide-react'; // Added RefreshCcw for rebuy icon
+import { StopCircle, UserCheck, UserX, UserMinus, RefreshCcw } from 'lucide-react';
 import { GameTimer } from './GameTimer';
-import { GameSummary } from './GameSummary'; // Import GameSummary
+import { GameSummary } from './GameSummary';
 
 interface GameViewProps {
-  gameId: string; // Changed from game object to ID
+  gameId: string;
   tournamentId: string;
-  onClose: () => void; // Changed from setViewingGame
+  onClose: () => void;
 }
 
 export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
@@ -17,107 +17,133 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
     state.tournaments.find(t => t.id === tournamentId)?.games.find(g => g.id === gameId)
   );
 
-  // Use new store actions
+  // Use store actions
   const eliminatePlayer = useTournamentStore(state => state.eliminatePlayer);
   const reinstatePlayer = useTournamentStore(state => state.reinstatePlayer);
-  const rebuyPlayer = useTournamentStore(state => state.rebuyPlayer); // Add rebuyPlayer action
+  const rebuyPlayer = useTournamentStore(state => state.rebuyPlayer);
   const endGame = useTournamentStore(state => state.endGame);
-  const [rebuyLoading, setRebuyLoading] = useState<string | null>(null); // Track loading state per player for rebuy
-  const [rebuyError, setRebuyError] = useState<string | null>(null); // Track error state for rebuy
-  const [showConfetti, setShowConfetti] = useState(false);
+  
+  // Local state
+  const [rebuyLoading, setRebuyLoading] = useState<string | null>(null);
+  const [rebuyError, setRebuyError] = useState<string | null>(null);
   const [winnerName, setWinnerName] = useState<string | null>(null);
-  const [confettiDimensions, setConfettiDimensions] = useState<{ width: number; height: number } | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null); // Ref for the container
+  const [animationEndTime, setAnimationEndTime] = useState<number | null>(null);
+  const [isFadingOut, setIsFadingOut] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   // Effect to get container dimensions for confetti
   useEffect(() => {
-    const updateDimensions = () => {
+    if (containerRef.current) {
+      setDimensions({
+        width: containerRef.current.offsetWidth,
+        height: containerRef.current.offsetHeight
+      });
+    }
+
+    const handleResize = () => {
       if (containerRef.current) {
-        setConfettiDimensions({
+        setDimensions({
           width: containerRef.current.offsetWidth,
-          height: containerRef.current.offsetHeight,
+          height: containerRef.current.offsetHeight
         });
       }
     };
-    updateDimensions(); // Initial dimensions
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Effect to check if animation should end
+  useEffect(() => {
+    if (!animationEndTime) return;
+
+    // Set a timer to start fading out 500ms before the end
+    const fadeOutTimer = setTimeout(() => {
+      setIsFadingOut(true);
+    }, 4500); // 5000ms - 500ms = 4500ms
+
+    // Set a timer to completely remove the animation
+    const endTimer = setTimeout(() => {
+      setWinnerName(null);
+      setAnimationEndTime(null);
+      setIsFadingOut(false);
+    }, 5000);
+
+    return () => {
+      clearTimeout(fadeOutTimer);
+      clearTimeout(endTimer);
+    };
+  }, [animationEndTime]);
+
+  const startVictoryAnimation = (winner: string) => {
+    // Set winner name
+    setWinnerName(winner);
+    // Set animation end time to 5 seconds from now
+    setAnimationEndTime(Date.now() + 5000);
+  };
 
   const handlePlayerElimination = async (playerId: string, isCurrentlyEliminated: boolean | undefined) => {
-    // Ensure game exists before proceeding
     if (!game) return;
+    
     try {
       if (isCurrentlyEliminated) {
         await reinstatePlayer(tournamentId, gameId, playerId);
       } else {
         await eliminatePlayer(tournamentId, gameId, playerId);
-        // Check if game should end *after* elimination is processed
-        // The component will re-render with the updated game state from the store selector
-        // We can check the updated state directly here after await
-        const updatedGameFromStore = useTournamentStore.getState().tournaments.find(t => t.id === tournamentId)?.games.find(g => g.id === gameId);
-
-        if (updatedGameFromStore) {
-            const activePlayers = updatedGameFromStore.players.filter(p => !p.eliminated);
-            if (activePlayers.length === 1) {
-                 // Trigger winner animation only if the game hasn't already been marked as ended
-                 if (updatedGameFromStore.status !== 'ended') {
-                    const winner = activePlayers[0];
-                    setWinnerName(winner.nickname || winner.name); // Set winner name for display
-                    setShowConfetti(true); // Trigger confetti
-                    endGame(tournamentId, gameId); // End the game in the store (no alert needed)
-
-                    // Hide confetti and winner name after 3 seconds
-                    setTimeout(() => {
-                      setShowConfetti(false);
-                      setWinnerName(null);
-                    }, 3000);
-                 }
-             }
-             // Trigger a re-render manually if needed, although Zustand should handle this.
-             // Forcing a state update on the parent might be necessary if direct prop update isn't working.
-             // Example (if setViewingGame could accept the updated game): setViewingGame({...updatedGame});
+        
+        // Check if game should end after elimination
+        const updatedGame = useTournamentStore.getState()
+          .tournaments.find(t => t.id === tournamentId)
+          ?.games.find(g => g.id === gameId);
+        
+        if (updatedGame) {
+          const activePlayers = updatedGame.players.filter(p => !p.eliminated);
+          
+          if (activePlayers.length === 1 && updatedGame.status !== 'ended') {
+            const winner = activePlayers[0];
+            const winnerDisplayName = winner.nickname || winner.name;
+            
+            // Start victory animation
+            startVictoryAnimation(winnerDisplayName);
+            
+            // End the game in the store
+            endGame(tournamentId, gameId);
+          }
         }
       }
-      // No need for setViewingGame here if Zustand handles re-render correctly
     } catch (error) {
-        console.error("Error handling player elimination/reinstatement:", error);
-        // Handle error display if needed
+      console.error("Error handling player elimination/reinstatement:", error);
     }
   };
 
   const handleRebuy = async (playerId: string) => {
     if (!game) return;
-    setRebuyLoading(playerId); // Set loading for this specific player
-    setRebuyError(null); // Clear previous errors
+    
+    setRebuyLoading(playerId);
+    setRebuyError(null);
+    
     try {
       await rebuyPlayer(tournamentId, gameId, playerId);
-    } catch (error: unknown) { // Type error as unknown
+    } catch (error: unknown) {
       console.error("Error handling rebuy:", error);
-      // Check if error is an instance of Error before accessing message
+      
       if (error instanceof Error) {
         setRebuyError(error.message);
       } else {
         setRebuyError("Une erreur inconnue est survenue lors du rebuy.");
       }
     } finally {
-      setRebuyLoading(null); // Clear loading state regardless of success/failure
-     }
-   };
+      setRebuyLoading(null);
+    }
+  };
 
-   // Removed message parameter and alert
-   const handleEndGame = () => {
-     // Ensure game exists before proceeding
-     if (!game) return;
-     // Only end the game if it's not already ended (prevent multiple calls)
-     if (game.status !== 'ended') {
-        endGame(tournamentId, gameId); // Use gameId
-     }
-     // Don't call onClose here, let the user click the button
-   };
+  const handleEndGame = () => {
+    if (!game || game.status === 'ended') return;
+    endGame(tournamentId, gameId);
+  };
 
-  // Handle case where game data is not found (e.g., loading or invalid ID)
+  // Handle loading state
   if (!game) {
     return (
       <div className="text-center py-12">
@@ -127,137 +153,149 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
     );
   }
 
-  // Conditional Rendering based on game status
-  if (game.status === 'ended') {
+  // Show game summary if game is ended
+  if (game.status === 'ended' && !winnerName) {
     return (
       <div>
-        {/* Removed the "Retour aux parties" button from here */}
-        <GameSummary game={game} /> {/* Pass the fetched game object */}
+        <GameSummary game={game} />
       </div>
     );
   }
 
-   // Render active game view if status is 'in_progress' or 'pending'
-   return (
-     // Add ref and relative positioning for confetti overlay
-     <div ref={containerRef} className="bg-white rounded-lg shadow-md p-6 relative">
-        {/* Confetti and Winner Overlay */}
-        {showConfetti && confettiDimensions && (
-            <Confetti
-                width={confettiDimensions.width}
-                height={confettiDimensions.height}
-                recycle={false}
-                numberOfPieces={200}
-            />
-        )}
-        {winnerName && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col items-center justify-center z-10 rounded-lg transition-opacity duration-300">
-                <p className="text-white text-sm mb-2">Vainqueur !</p>
-                <p className="text-yellow-300 text-4xl font-bold animate-pulse">{winnerName}</p>
+  // Render active game view
+  return (
+    <div ref={containerRef} className="bg-white rounded-lg shadow-md p-6 relative">
+      {/* Victory Animation */}
+      {winnerName && (
+        <>
+          <Confetti
+            width={dimensions.width || 500}
+            height={dimensions.height || 500}
+            recycle={true}
+            numberOfPieces={500}
+            gravity={0.2}
+            colors={['#FFD700', '#FFA500', '#FF4500', '#FF6347', '#00BFFF', '#1E90FF', '#9370DB', '#32CD32']}
+            opacity={isFadingOut ? 0 : 1}
+            tweenDuration={500}
+          />
+          <div className={`absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center z-10 rounded-lg transition-opacity duration-500 ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
+            <div className="animate-bounce mb-4">
+              <p className="text-white text-xl font-bold mb-2">🏆 FÉLICITATIONS 🏆</p>
             </div>
-        )}
+            <div className="bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 p-6 rounded-lg shadow-lg transform transition-transform duration-500 animate-wiggle scale-110">
+              <p className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-500 to-red-500">
+                {winnerName}
+              </p>
+            </div>
+            <p className="text-white text-lg mt-4 animate-pulse">a remporté la partie !</p>
+          </div>
+        </>
+      )}
 
-       {/* Responsive Header */}
-       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 space-y-4 sm:space-y-0">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 space-y-4 sm:space-y-0">
         <h2 className="text-2xl font-bold text-poker-black">Table en cours</h2>
-        {/* Responsive Button Group */}
         <div className="flex flex-wrap items-center gap-2 justify-end">
-          {/* Show Stop button only if game is in progress */}
           {game.status === 'in_progress' && (
             <button
-              onClick={() => handleEndGame()}
+              onClick={handleEndGame}
               className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors flex items-center"
             >
               <StopCircle className="w-5 h-5 mr-2" />
               Arrêter la partie
             </button>
           )}
-          {/* Removed the second "Retour aux parties" button from here */}
         </div>
       </div>
 
-      {/* Pass the game prop directly to GameTimer */}
+      {/* Game Timer */}
       {game.status === 'in_progress' && <GameTimer game={game} />}
 
-      {/* Display Rebuy Info */}
+      {/* Rebuy Info */}
       {game.status === 'in_progress' && (
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
           Rebuy autorisé jusqu'à la fin du niveau {game.rebuyAllowedUntilLevel}.
           Total Rebuys: {game.totalRebuys} ({game.totalRebuys * game.rebuyAmount} €)
         </div>
       )}
-       {/* Display Rebuy Error */}
-       {rebuyError && (
-         <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-md text-sm text-red-700">
-           Erreur Rebuy: {rebuyError}
-         </div>
-       )}
+      
+      {/* Rebuy Error */}
+      {rebuyError && (
+        <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-md text-sm text-red-700">
+          Erreur Rebuy: {rebuyError}
+        </div>
+      )}
 
-
+      {/* Players List */}
       <div className="space-y-4 mt-6">
         <h3 className="text-xl font-semibold text-gray-800">Joueurs</h3>
         <div className="grid gap-3">
           {game.players.map((player) => {
-            const canRebuy = player.eliminated && game.status === 'in_progress' && game.currentLevel < game.rebuyAllowedUntilLevel;
+            const canRebuy = player.eliminated && 
+                            game.status === 'in_progress' && 
+                            game.currentLevel < game.rebuyAllowedUntilLevel;
             const isLoadingRebuy = rebuyLoading === player.id;
 
             return (
-            <div
-              key={player.id}
-              className={`flex items-center justify-between p-3 rounded-lg border ${
-                player.eliminated
-                  ? 'bg-red-50 border-red-200 opacity-60' // Added opacity for eliminated
-                  : 'bg-green-50 border-green-200'
-              }`}
-            >
-              <div className="flex items-center">
-                {player.eliminated ? (
-                  <UserX className="w-5 h-5 text-red-500 mr-2" />
-                ) : (
-                  <UserCheck className="w-5 h-5 text-green-500 mr-2" />
-                )}
-                <span className={player.eliminated ? 'line-through text-gray-500' : ''}>
-                  {player.nickname || player.name}
-                </span>
-              </div>
-              {/* Responsive Player Action Buttons */}
-              <div className="flex flex-wrap items-center gap-2 justify-end">
-                {/* Rebuy Button - Show only if player eliminated and rebuys allowed */}
-                {canRebuy && (
-                  <button
-                    onClick={() => handleRebuy(player.id)}
-                    disabled={isLoadingRebuy}
-                    className={`px-3 py-1 rounded-md text-sm flex items-center transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-wait`}
-                  >
-                    <RefreshCcw className={`w-4 h-4 mr-1 ${isLoadingRebuy ? 'animate-spin' : ''}`} />
-                    {isLoadingRebuy ? '...' : `Rebuy (${game.rebuyAmount}€)`}
-                  </button>
-                )}
-                {/* Eliminate/Reinstate Button */}
-                <button
-                  onClick={() => handlePlayerElimination(player.id, player.eliminated)}
-                  disabled={game.status !== 'in_progress' || isLoadingRebuy} // Disable if rebuy is loading for this player too
-                  className={`px-3 py-1 rounded-md text-sm flex items-center transition-colors ${
-                    player.eliminated
-                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                      : 'bg-red-100 text-red-700 hover:bg-red-200'
-                  } ${game.status !== 'in_progress' || isLoadingRebuy ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
+              <div
+                key={player.id}
+                className={`flex items-center justify-between p-3 rounded-lg border ${
+                  player.eliminated
+                    ? 'bg-red-50 border-red-200 opacity-60'
+                    : 'bg-green-50 border-green-200'
+                }`}
+              >
+                <div className="flex items-center">
                   {player.eliminated ? (
-                    <>
-                      <UserCheck className="w-4 h-4 mr-1" />
-                      Réintégrer
-                    </>
+                    <UserX className="w-5 h-5 text-red-500 mr-2" />
                   ) : (
-                    <>
-                      <UserMinus className="w-4 h-4 mr-1" />
-                      Éliminer
-                    </>
+                    <UserCheck className="w-5 h-5 text-green-500 mr-2" />
                   )}
-                </button>
+                  <span className={player.eliminated ? 'line-through text-gray-500' : ''}>
+                    {player.nickname || player.name}
+                  </span>
+                </div>
+                
+                {/* Player Actions */}
+                <div className="flex flex-wrap items-center gap-2 justify-end">
+                  {/* Rebuy Button */}
+                  {canRebuy && (
+                    <button
+                      onClick={() => handleRebuy(player.id)}
+                      disabled={isLoadingRebuy}
+                      className={`px-3 py-1 rounded-md text-sm flex items-center transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-wait`}
+                    >
+                      <RefreshCcw className={`w-4 h-4 mr-1 ${isLoadingRebuy ? 'animate-spin' : ''}`} />
+                      {isLoadingRebuy ? '...' : `Rebuy (${game.rebuyAmount}€)`}
+                    </button>
+                  )}
+                  
+                  {/* Eliminate/Reinstate Button */}
+                  <button
+                    onClick={() => handlePlayerElimination(player.id, player.eliminated)}
+                    disabled={game.status !== 'in_progress' || isLoadingRebuy}
+                    className={`px-3 py-1 rounded-md text-sm flex items-center transition-colors ${
+                      player.eliminated
+                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                        : 'bg-red-100 text-red-700 hover:bg-red-200'
+                    } ${game.status !== 'in_progress' || isLoadingRebuy ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {player.eliminated ? (
+                      <>
+                        <UserCheck className="w-4 h-4 mr-1" />
+                        Réintégrer
+                      </>
+                    ) : (
+                      <>
+                        <UserMinus className="w-4 h-4 mr-1" />
+                        Éliminer
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-          )})}
+            );
+          })}
         </div>
       </div>
     </div>
