@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Game } from '../../store/tournamentStore'; // Removed unused Player import
+import type { Game, Player } from '../../store/types/tournamentTypes';
 import { format } from 'date-fns'; // Using date-fns for formatting, will need installation
 
 interface GameSummaryProps {
@@ -36,10 +36,10 @@ const calculateDuration = (start: number | undefined, end: number | null | undef
 };
 
 export function GameSummary({ game }: GameSummaryProps) {
-  const winner = game.players.find(p => !p.eliminated);
+  const winner = game.players.find((p: Player) => !p.eliminated);
   const eliminatedPlayers = game.players
-    .filter(p => p.eliminated && p.eliminationTime)
-    .sort((a, b) => (b.eliminationTime ?? 0) - (a.eliminationTime ?? 0)); // Sort descending by elimination time
+    .filter((p: Player) => p.eliminated && p.eliminationTime)
+    .sort((a: Player, b: Player) => (b.eliminationTime ?? 0) - (a.eliminationTime ?? 0)); // Sort descending by elimination time
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
@@ -93,7 +93,7 @@ export function GameSummary({ game }: GameSummaryProps) {
           )}
 
           {/* Eliminated Players */}
-          {eliminatedPlayers.map((player, index) => {
+          {eliminatedPlayers.map((player: Player, index: number) => {
             const rank = index + 2;
             let winningsDisplay = null;
             if (game.winnings) {
@@ -118,14 +118,14 @@ export function GameSummary({ game }: GameSummaryProps) {
                   <span className="text-md font-semibold text-gray-600 mr-3 w-12 text-center">{rank}e</span>
                   <span className="text-gray-700 flex-grow">{player.nickname || player.name}</span>
                 </div>
-                {/* Display 2nd/3rd place winnings */}
-                {winningsDisplay}
-                {/* Optionally show elimination time if no winnings */}
-                {!winningsDisplay && (
-                   <span className="text-xs text-gray-500">
-                     Éliminé à: {formatTimestamp(player.eliminationTime)}
-                   </span>
-                )}
+                <div className="flex flex-col items-end">
+                  {/* Display 2nd/3rd place winnings */}
+                  {winningsDisplay}
+                  {/* Always show elimination time */}
+                  <span className="text-xs text-gray-500 mt-1">
+                    Éliminé à: {formatTimestamp(player.eliminationTime)}
+                  </span>
+                </div>
               </div>
             );
           })}
