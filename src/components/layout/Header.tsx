@@ -4,6 +4,7 @@ import { Menu, X, UserCheck as PokerChip } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/useAuthStore';
+import { VERSION } from '../../version';
 
 export const Header = () => {
   const { user } = useAuthStore();
@@ -33,7 +34,10 @@ export const Header = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <PokerChip className="w-8 h-8 text-poker-gold" />
-            <span className="text-xl font-bold">PokerTour</span>
+            <div className="flex items-baseline">
+              <span className="text-xl font-bold">PokerTour</span>
+              <span className="ml-2 text-xs text-poker-gold">{VERSION}</span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
