@@ -250,8 +250,8 @@ export function TournamentGames() {
                     </Link>
                 )}
 
-                {/* Registration Buttons (Visible only if scheduled and user is not creator) */}
-                {tournament.status === 'scheduled' && user?.uid !== tournament.creatorId && (
+                {/* Registration Buttons (Visible if tournament not ended and user is not creator) */}
+                {tournament.status !== 'ended' && user?.uid !== tournament.creatorId && (
                     <>
                         {tournament.registrations.some(p => p.id === user?.uid) ? (
                                 <div className="flex items-center gap-4">

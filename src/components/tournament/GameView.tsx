@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Confetti from 'react-confetti';
 import { useTournamentStore } from '../../store/tournamentStore';
 import { StopCircle, UserCheck, UserX, UserMinus, RefreshCcw } from 'lucide-react';
+import { useAuthStore } from '../../store/useAuthStore'; // Import auth store
 import { GameTimer } from './GameTimer';
 import { GameSummary } from './GameSummary';
 
@@ -16,6 +17,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
   const game = useTournamentStore(state =>
     state.tournaments.find(t => t.id === tournamentId)?.games.find(g => g.id === gameId)
   );
+  const { user } = useAuthStore(); // Get current user
 
   // Use store actions
   const eliminatePlayer = useTournamentStore(state => state.eliminatePlayer);
@@ -196,7 +198,8 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 space-y-4 sm:space-y-0">
         <h2 className="text-2xl font-bold text-poker-black">Table en cours</h2>
         <div className="flex flex-wrap items-center gap-2 justify-end">
-          {game.status === 'in_progress' && (
+          {/* Only show End Game button if user is a participant */}
+          {game.status === 'in_progress' && user && game.players.some(p => p.id === user.uid) && (
             <button
               onClick={handleEndGame}
               className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors flex items-center"
@@ -208,8 +211,13 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
         </div>
       </div>
 
-      {/* Game Timer */}
-      {game.status === 'in_progress' && <GameTimer game={game} />}
+      {/* Game Timer - Pass participation status */}
+      {game.status === 'in_progress' && (
+        <GameTimer
+          game={game}
+          isCurrentUserParticipant={user ? game.players.some(p => p.id === user.uid) : false}
+        />
+      )}
 
       {/* Rebuy Info */}
       {game.status === 'in_progress' && (
@@ -255,44 +263,46 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
                     {player.nickname || player.name}
                   </span>
                 </div>
-                
-                {/* Player Actions */}
-                <div className="flex flex-wrap items-center gap-2 justify-end">
-                  {/* Rebuy Button */}
-                  {canRebuy && (
-                    <button
-                      onClick={() => handleRebuy(player.id)}
-                      disabled={isLoadingRebuy}
-                      className={`px-3 py-1 rounded-md text-sm flex items-center transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-wait`}
-                    >
-                      <RefreshCcw className={`w-4 h-4 mr-1 ${isLoadingRebuy ? 'animate-spin' : ''}`} />
-                      {isLoadingRebuy ? '...' : `Rebuy (${game.rebuyAmount}€)`}
-                    </button>
-                  )}
-                  
-                  {/* Eliminate/Reinstate Button */}
-                  <button
-                    onClick={() => handlePlayerElimination(player.id, player.eliminated)}
-                    disabled={game.status !== 'in_progress' || isLoadingRebuy}
-                    className={`px-3 py-1 rounded-md text-sm flex items-center transition-colors ${
-                      player.eliminated
-                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                        : 'bg-red-100 text-red-700 hover:bg-red-200'
-                    } ${game.status !== 'in_progress' || isLoadingRebuy ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {player.eliminated ? (
-                      <>
-                        <UserCheck className="w-4 h-4 mr-1" />
-                        Réintégrer
-                      </>
-                    ) : (
-                      <>
-                        <UserMinus className="w-4 h-4 mr-1" />
-                        Éliminer
-                      </>
+
+                {/* Player Actions - Only show if current user is a participant */}
+                {user && game.players.some(p => p.id === user.uid) && (
+                  <div className="flex flex-wrap items-center gap-2 justify-end">
+                    {/* Rebuy Button */}
+                    {canRebuy && (
+                      <button
+                        onClick={() => handleRebuy(player.id)}
+                        disabled={isLoadingRebuy}
+                        className={`px-3 py-1 rounded-md text-sm flex items-center transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-wait`}
+                      >
+                        <RefreshCcw className={`w-4 h-4 mr-1 ${isLoadingRebuy ? 'animate-spin' : ''}`} />
+                        {isLoadingRebuy ? '...' : `Rebuy (${game.rebuyAmount}€)`}
+                      </button>
                     )}
-                  </button>
-                </div>
+
+                    {/* Eliminate/Reinstate Button */}
+                    <button
+                      onClick={() => handlePlayerElimination(player.id, player.eliminated)}
+                      disabled={game.status !== 'in_progress' || isLoadingRebuy}
+                      className={`px-3 py-1 rounded-md text-sm flex items-center transition-colors ${
+                        player.eliminated
+                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                          : 'bg-red-100 text-red-700 hover:bg-red-200'
+                      } ${game.status !== 'in_progress' || isLoadingRebuy ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {player.eliminated ? (
+                        <>
+                          <UserCheck className="w-4 h-4 mr-1" />
+                          Réintégrer
+                        </>
+                      ) : (
+                        <>
+                          <UserMinus className="w-4 h-4 mr-1" />
+                          Éliminer
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

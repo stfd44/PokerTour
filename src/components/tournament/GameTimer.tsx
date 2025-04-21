@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'; // Removed useCallback
 import { Clock, Play, Pause, SkipForward } from 'lucide-react';
-import type { Game, Blinds } from '../../store/tournamentStore'; // Import Blinds type
+import type { Game, Blinds } from '../../store/types/tournamentTypes'; // Corrected import path for types
 import { useTournamentStore } from '../../store/tournamentStore';
 // Removed incorrect Button import
 
 interface GameTimerProps {
   game: Game;
+  isCurrentUserParticipant: boolean; // Add prop to indicate participation
 }
 
 // Helper to format milliseconds into MM:SS
@@ -17,7 +18,7 @@ const formatTime = (ms: number): string => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-export function GameTimer({ game }: GameTimerProps) {
+export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { // Destructure the new prop
   const { pauseTimer, resumeTimer, advanceBlindLevel } = useTournamentStore(
     (state) => ({
       pauseTimer: state.pauseTimer,
@@ -194,11 +195,10 @@ export function GameTimer({ game }: GameTimerProps) {
             </div>
           </div>
         </div>
-        {/* Control Buttons */}
+        {/* Control Buttons - Only show Pause/Resume if user is participant */}
         <div className="flex items-center space-x-2">
-          {!isLevelComplete && (
+          {isCurrentUserParticipant && !isLevelComplete && ( // Check participation
             <>
-              {/* Use selected isPaused state for button visibility */}
               {isPaused ? (
                 <button onClick={handleResume} className="p-1 rounded hover:bg-gray-200" aria-label="Reprendre">
                   <Play className="w-6 h-6 text-green-600" />
@@ -210,6 +210,8 @@ export function GameTimer({ game }: GameTimerProps) {
               )}
             </>
           )}
+          {/* Always show Advance Level button if level is complete (assuming anyone can advance?) */}
+          {/* If only participants should advance, add isCurrentUserParticipant check here too */}
           {isLevelComplete && (
              <button
                onClick={handleAdvanceLevel}

@@ -74,24 +74,29 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
             <div className="flex flex-col sm:flex-row sm:items-start gap-2 w-full sm:w-auto sm:justify-end">
               {game.status === 'pending' && (
                 <>
-                  <button
-                    onClick={() => handleEditGame(game)}
-                    className="w-full sm:w-auto bg-gray-100 text-gray-600 px-4 py-2 rounded hover:bg-gray-200 transition-colors flex items-center justify-center sm:justify-start"
-                  >
-                    <Edit2 className="w-5 h-5 mr-2" />
-                    Modifier
-                  </button>
-                  <button
-                    onClick={() => {
-                      startGame(tournament.id, game.id);
-                      onViewGame(game.id);
-                    }}
-                    className="w-full sm:w-auto bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center justify-center sm:justify-start"
-                    disabled={tournament.registrations.length < 2}
-                  >
-                    <PlayCircle className="w-5 h-5 mr-2" />
-                    Démarrer
-                  </button>
+                  {/* Add check: Only show Edit/Start if user is a player in this game */}
+                  {userId && game.players.some(p => p.id === userId) && (
+                    <>
+                      <button
+                        onClick={() => handleEditGame(game)}
+                        className="w-full sm:w-auto bg-gray-100 text-gray-600 px-4 py-2 rounded hover:bg-gray-200 transition-colors flex items-center justify-center sm:justify-start"
+                      >
+                        <Edit2 className="w-5 h-5 mr-2" />
+                        Modifier
+                      </button>
+                      <button
+                        onClick={() => {
+                          startGame(tournament.id, game.id);
+                          onViewGame(game.id);
+                        }}
+                        className="w-full sm:w-auto bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center justify-center sm:justify-start"
+                        disabled={tournament.registrations.length < 2}
+                      >
+                        <PlayCircle className="w-5 h-5 mr-2" />
+                        Démarrer
+                      </button>
+                    </>
+                  )}
                 </>
               )}
 

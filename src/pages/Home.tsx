@@ -1,5 +1,5 @@
 // src/pages/Home.tsx
-import React, { useEffect } from 'react';
+import React from 'react'; // Removed useEffect import
 import { useNavigate } from 'react-router-dom';
 import { useTournamentStore } from '../store/tournamentStore';
 import type { Tournament, Player } from '../store/types/tournamentTypes'; // Corrected import path and added Player
@@ -11,14 +11,11 @@ const Home: React.FC = () => {
     const { user } = useAuthStore();
     const navigate = useNavigate();
     // Removed deleteTournament from store destructuring as it's not used here anymore
-    const { fetchTournaments, tournaments } = useTournamentStore();
+    // Tournament fetching is now handled in App.tsx after team fetching
+    const { tournaments } = useTournamentStore();
     const { teams } = useTeamStore();
 
-    useEffect(() => {
-        if (user) {
-            fetchTournaments(user.uid);
-        }
-    }, [fetchTournaments, user, teams]);
+    // Removed useEffect hook for fetching tournaments
 
     // Filter and sort upcoming tournaments
     const upcomingTournaments = tournaments

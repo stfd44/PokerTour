@@ -11,6 +11,7 @@ import { useAuthStore } from './store/useAuthStore';
 // Profile is now routed within MainLayout
 // Tournaments is now routed within MainLayout
 import { useTeamStore } from './store/useTeamStore';
+import { useTournamentStore } from './store/tournamentStore'; // Import tournament store
 import { NicknamePrompt } from './components/NicknamePrompt';
 
 function App() {
@@ -21,9 +22,18 @@ function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser: User | null) => {
       await setUser(currentUser);
-      // fetchTeams should be called without arguments, it gets user from the store
+      // If user is logged in and has a nickname, fetch teams and then tournaments
       if (currentUser && useAuthStore.getState().user?.nickname) {
-        fetchTeams();
+        try {
+          // Fetch teams first
+          await fetchTeams();
+          // After teams are fetched, fetch tournaments
+          // Note: fetchTournaments relies on the updated team state via getState()
+          await useTournamentStore.getState().fetchTournaments(currentUser.uid); // Pass uid as expected
+        } catch (error) {
+          console.error("Error fetching initial data (teams/tournaments):", error);
+          // Handle error appropriately, maybe show a message to the user
+        }
       }
     });
     // Cleanup subscription on unmount
