@@ -237,20 +237,23 @@ export function TournamentGames() {
                 )}
               </div>
             </div>
-             {/* Registration/Edit Buttons (only if scheduled) */}
-             {tournament.status === 'scheduled' && (
-                <div className="border-t mt-4 pt-4 flex flex-wrap items-center justify-end gap-4">
-                    {user?.uid === tournament.creatorId ? (
-                        <Link
-                            to={`/tournament/${tournament.id}/edit`}
-                            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
-                            title="Modifier le tournoi / Gérer les invités"
-                        >
-                            <Edit className="h-4 w-4 mr-2" /> Modifier
-                        </Link>
-                    ) : (
-                        <>
-                            {tournament.registrations.some(p => p.id === user?.uid) ? (
+            {/* --- Action Buttons Container --- */}
+            <div className="border-t mt-4 pt-4 flex flex-wrap items-center justify-end gap-4">
+                {/* Edit Button (Visible only to creator, regardless of status) */}
+                {user?.uid === tournament.creatorId && (
+                    <Link
+                        to={`/tournament/${tournament.id}/edit`}
+                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
+                        title="Modifier le tournoi / Gérer les invités"
+                    >
+                        <Edit className="h-4 w-4 mr-2" /> Modifier
+                    </Link>
+                )}
+
+                {/* Registration Buttons (Visible only if scheduled and user is not creator) */}
+                {tournament.status === 'scheduled' && user?.uid !== tournament.creatorId && (
+                    <>
+                        {tournament.registrations.some(p => p.id === user?.uid) ? (
                                 <div className="flex items-center gap-4">
                                     <span className="flex items-center text-green-600">
                                         <Check className="w-5 h-5 mr-1" />
@@ -279,9 +282,9 @@ export function TournamentGames() {
                                 </button>
                             )}
                         </>
-                    )}
-                </div>
-             )}
+                )}
+            </div>
+            {/* --- End Action Buttons Container --- */}
           </div>
           {/* --- End Tournament Details Section --- */}
 

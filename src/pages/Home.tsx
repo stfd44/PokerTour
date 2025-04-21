@@ -3,14 +3,15 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTournamentStore } from '../store/tournamentStore';
 import type { Tournament, Player } from '../store/types/tournamentTypes'; // Corrected import path and added Player
-import { Calendar, Users, MapPin, PlayCircle, Trophy, Plus, Trash2 } from 'lucide-react';
+import { Calendar, Users, MapPin, PlayCircle, Trophy, Plus } from 'lucide-react'; // Removed Trash2 import
 import { useTeamStore } from '../store/useTeamStore';
 import { useAuthStore } from '../store/useAuthStore';
 
 const Home: React.FC = () => {
     const { user } = useAuthStore();
     const navigate = useNavigate();
-    const { fetchTournaments, tournaments, deleteTournament } = useTournamentStore();
+    // Removed deleteTournament from store destructuring as it's not used here anymore
+    const { fetchTournaments, tournaments } = useTournamentStore();
     const { teams } = useTeamStore();
 
     useEffect(() => {
@@ -32,17 +33,7 @@ const Home: React.FC = () => {
         return isUserRegistered && isUserInTeam;
     });
 
-    const handleDeleteTournament = async (tournamentId: string) => {
-        if (user && window.confirm("Êtes-vous sûr de vouloir supprimer ce tournoi ?")) {
-            try {
-                await deleteTournament(tournamentId, user.uid);
-                fetchTournaments(user.uid);
-            } catch (error) {
-                console.error('Error deleting tournament:', error);
-                alert((error as Error).message);
-            }
-        }
-    };
+    // Removed handleDeleteTournament function as it's no longer used here
 
     const handleCreateTournament = () => {
         navigate('/app/create-tournament', { state: { userId: user?.uid } });
@@ -69,14 +60,7 @@ const Home: React.FC = () => {
                 >
                     <PlayCircle className='w-4 h-4 mr-2' /> Rejoindre
                 </button>
-                {user?.uid === tournament.creatorId && (
-                    <button
-                        onClick={() => handleDeleteTournament(tournament.id)}
-                        className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-2 rounded flex items-center justify-center sm:justify-start w-full sm:w-auto" // Adjusted padding, full width below sm
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </button>
-                )}
+                {/* Delete button removed from Home page card */}
             </div>
         </div>
     );

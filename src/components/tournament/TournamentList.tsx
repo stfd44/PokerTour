@@ -253,7 +253,8 @@ export function TournamentList() {
                     </div>
                   )}
                   {/* Admin Buttons */}
-                  {isCreator && tournament.status === 'scheduled' && (
+                  {/* Condition updated: Delete button visible for creator regardless of status */}
+                  {isCreator && (
                     <button
                       onClick={() => handleDeleteTournament(tournament.id)}
                       className="w-full sm:w-auto bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-2 rounded flex items-center justify-center" // Added w-full sm:w-auto justify-center
