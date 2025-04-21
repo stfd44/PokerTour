@@ -10,6 +10,7 @@ export interface AppUser {
   displayName: string | null; // Keep original Google name if needed
   nickname: string | null;
   photoURL: string | null; // Add photoURL
+  isDev?: boolean; // Flag to identify developers
 }
 
 interface AuthStore {
@@ -41,6 +42,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
               displayName: firebaseUser.displayName,
               nickname: userData.nickname,
               photoURL: firebaseUser.photoURL || null, // Populate photoURL
+              isDev: userData.isDev || false, // Store the isDev flag, default to false
             },
             isLoading: false,
             requiresNickname: false,
@@ -53,6 +55,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
               displayName: firebaseUser.displayName,
               nickname: null,
               photoURL: firebaseUser.photoURL || null, // Populate photoURL
+              isDev: userData?.isDev || false, // Store isDev (default false) even if nickname is missing
             },
             isLoading: false,
             requiresNickname: true, // Set flag to true

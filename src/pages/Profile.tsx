@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from 'react'; // Removed useMemo
+import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-// Removed unused imports: useTournamentStore, Tournament, Game, PlayerResult, useTeamStore
-// Removed ProfileStats interface
 
 const Profile: React.FC = () => {
   const { user, setNickname, isLoading: authLoading } = useAuthStore();
@@ -86,6 +84,45 @@ const Profile: React.FC = () => {
           </p>
         )}
       </div>
+
+      {/* Developer Section - Conditionally Rendered */}
+      {user?.isDev && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg shadow mt-8">
+          <h2 className="text-xl font-semibold text-poker-black mb-4">Options Développeur</h2>
+          <div className="flex items-center space-x-4">
+            <label htmlFor="testDbToggle" className="font-medium">
+              Utiliser la base de données de test :
+            </label>
+            <button
+              id="testDbToggle"
+              onClick={() => {
+                const currentlyUsingTest = localStorage.getItem('useTestDb') === 'true';
+                if (currentlyUsingTest) {
+                  localStorage.removeItem('useTestDb');
+                  console.log("Switching to PRODUCTION database on next reload.");
+                } else {
+                  localStorage.setItem('useTestDb', 'true');
+                  console.warn("Switching to TEST database on next reload.");
+                }
+                window.location.reload();
+              }}
+              className={`px-4 py-2 rounded font-semibold transition-colors ${
+                localStorage.getItem('useTestDb') === 'true'
+                  ? 'bg-red-500 hover:bg-red-600 text-white'
+                  : 'bg-green-500 hover:bg-green-600 text-white'
+              }`}
+            >
+              {localStorage.getItem('useTestDb') === 'true' ? 'Passer en Prod' : 'Passer en Test'}
+            </button>
+            <span className="text-sm text-gray-600">
+              (Rechargement de la page requis)
+            </span>
+          </div>
+           <p className="text-sm mt-2 text-gray-700">
+             Actuellement connecté à : <span className="font-bold">{localStorage.getItem('useTestDb') === 'true' ? 'TEST (pokertourdev)' : 'PRODUCTION'}</span>
+           </p>
+        </div>
+      )}
       {/* Removed Statistics Section */}
     </div>
   );

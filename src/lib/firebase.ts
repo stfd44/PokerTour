@@ -3,7 +3,8 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, getDoc, setDoc, DocumentReference, DocumentData } from 'firebase/firestore'; // Removed updateDoc, collection; Added DocumentReference, DocumentData
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
-const firebaseConfig = {
+// --- Production Config ---
+const prodConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -12,7 +13,38 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+// --- Test Config ---
+const testConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY_TEST,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN_TEST,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID_TEST,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET_TEST,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID_TEST,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID_TEST,
+};
+
+// --- Select Config based on localStorage ---
+// Check if all necessary test keys are present before allowing switch
+const canUseTestDb =
+  testConfig.apiKey &&
+  testConfig.authDomain &&
+  testConfig.projectId &&
+  testConfig.storageBucket &&
+  testConfig.messagingSenderId &&
+  testConfig.appId;
+
+const useTestDb = canUseTestDb && localStorage.getItem('useTestDb') === 'true';
+
+const selectedConfig = useTestDb ? testConfig : prodConfig;
+
+if (useTestDb) {
+  console.warn("Using TEST Firebase Database (pokertourdev)");
+} else {
+  console.log("Using PRODUCTION Firebase Database");
+}
+
+// --- Initialize Firebase ---
+const app = initializeApp(selectedConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
@@ -56,6 +88,7 @@ export const isCreator = async (docRef: DocumentReference<DocumentData>, userId:
 // Type for user data stored in Firestore
 interface UserData {
   nickname: string | null;
+  isDev?: boolean; // Flag to identify developers
   // Add other user-specific fields here if needed in the future
 }
 
@@ -65,6 +98,7 @@ export const getUserData = async (userId: string): Promise<UserData | null> => {
     const userDocRef = doc(db, 'users', userId);
     const docSnap = await getDoc(userDocRef);
     if (docSnap.exists()) {
+      // Return the full data including the optional isDev flag
       return docSnap.data() as UserData;
     } else {
       console.log(`No user data found for user ${userId}`);
