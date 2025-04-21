@@ -95,6 +95,21 @@ const Home: React.FC = () => {
                         </p>
                     </section>
 
+                    {/* Guidance Message */}
+                    {teams.length === 0 && (
+                        <section className="mb-8 p-4 bg-blue-100 border border-blue-300 rounded-lg text-center">
+                            <p className="text-blue-800">
+                                Vous ne faites partie d'aucune équipe pour le moment.
+                            </p>
+                            <p className="text-blue-700 mt-2">
+                                Pour participer ou organiser des tournois, commencez par{' '}
+                                <button onClick={() => navigate('/teams')} className="text-blue-900 font-semibold underline hover:text-blue-700">
+                                    rejoindre une équipe ou en créer une
+                                </button>.
+                            </p>
+                        </section>
+                    )}
+
                     {/* Main Actions */}
                     <div className="grid md:grid-cols-2 gap-8 mb-12">
                         {/* Create Tournament */}
