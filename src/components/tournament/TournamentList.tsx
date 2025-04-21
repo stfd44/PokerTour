@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'; // Import Link
 import { useTournamentStore } from '../../store/tournamentStore';
 import { useTeamStore } from '../../store/useTeamStore'; // Import useTeamStore
 import type { Tournament } from '../../store/types/tournamentTypes'; // Correct import path for Tournament type
-import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2, Edit, User, Info, Calculator } from 'lucide-react'; // Added Edit, User, Info, Calculator icons
+import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2, Edit, User, Info, Calculator, Award } from 'lucide-react'; // Added Edit, User, Info, Calculator, Award icons
 import { useAuthStore } from '../../store/useAuthStore';
 
 // Helper function to get status text and color
@@ -169,6 +169,10 @@ export function TournamentList() {
                 <div className="flex items-center">
                   <MapPin className="w-5 h-5 mr-2 text-poker-gold shrink-0" />
                   <span>{tournament.location}</span>
+                </div>
+                <div className="flex items-center">
+                  <Award className="w-5 h-5 mr-2 text-poker-gold shrink-0" />
+                  <span>Prize min: {tournament.buyin * tournament.registrations.length}€</span>
                 </div>
                 {tournament.creatorNickname && (
                   <div className="flex items-center text-sm text-gray-500 mt-1">
