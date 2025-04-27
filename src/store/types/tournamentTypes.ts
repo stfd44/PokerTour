@@ -79,10 +79,12 @@ export interface Tournament {
 // This defines the shape of the state and the actions available
 export interface TournamentStoreState {
   tournaments: Tournament[];
+  isLoadingTournament: boolean; // Added state for loading a single tournament
 }
 
 export interface TournamentStoreActions {
   fetchTournaments: (userId: string) => Promise<void>;
+  fetchTournamentById: (tournamentId: string) => Promise<void>; // Added action to fetch single tournament
   addTournament: (tournamentData: Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'status' | 'creatorNickname' | 'guests'>, userId: string, teamId: string, initialGuests?: string[]) => Promise<void>;
   updateTournament: (tournamentId: string, userId: string, tournamentData: Partial<Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'teamId' | 'creatorNickname'>>) => Promise<void>;
   deleteTournament: (tournamentId: string, userId: string) => Promise<void>;

@@ -24,17 +24,23 @@ const getStatusInfo = (status: Tournament['status']) => {
 
 export function TournamentGames() {
   const { tournamentId } = useParams<{ tournamentId: string }>();
+  // Get necessary state and actions from the store
   const {
     tournaments,
+    fetchTournamentById, // Added action
+    isLoadingTournament, // Added loading state
     endTournament: endTournamentAction,
     registerToTournament,
     unregisterFromTournament
   } = useTournamentStore(state => ({
     tournaments: state.tournaments,
+    fetchTournamentById: state.fetchTournamentById, // Get the action
+    isLoadingTournament: state.isLoadingTournament, // Get the loading state
     endTournament: state.endTournament,
     registerToTournament: state.registerToTournament,
     unregisterFromTournament: state.unregisterFromTournament,
   }));
+  // Find the tournament in the current state
   const tournament = tournaments.find(t => t.id === tournamentId);
   const { user } = useAuthStore();
 
@@ -59,6 +65,16 @@ export function TournamentGames() {
     }
     // Dependency array includes location.state
   }, [location.state, navigate]); // Add navigate to dependency array
+
+  // Effect to fetch tournament data if not already loaded
+  useEffect(() => {
+    if (tournamentId && !tournament && !isLoadingTournament) {
+      // Only fetch if ID exists, tournament is not found in store, and not already loading
+      console.log(`Tournament ${tournamentId} not found in store. Fetching...`); // Debug log
+      fetchTournamentById(tournamentId);
+    }
+    // Dependencies: tournamentId, the tournament object itself (to re-check if it loads), fetch action, and loading state
+  }, [tournamentId, tournament, fetchTournamentById, isLoadingTournament]);
 
   const handleCreateGameClick = () => {
     setIsCreating(true);
@@ -122,16 +138,31 @@ export function TournamentGames() {
   // --- End Registration Handlers ---
 
   // Add checks for undefined tournamentId or tournament
+  // --- Loading and Not Found States ---
   if (!tournamentId) {
       return <div className="text-center py-12"><p className="text-red-600">ID de tournoi manquant dans l'URL.</p></div>;
   }
-  if (!tournament) {
+
+  // Show loading indicator if actively fetching
+  if (isLoadingTournament) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">Tournoi introuvable ou chargement...</p>
+        <p className="text-gray-600">Chargement du tournoi...</p>
       </div>
     );
   }
+
+  // Show not found if loading is finished but tournament is still not found
+  if (!tournament) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-600">Tournoi introuvable.</p>
+        {/* Optional: Add a link back to the tournaments list */}
+        <Link to="/tournaments" className="text-poker-gold hover:underline mt-4 inline-block">Retour à la liste</Link>
+      </div>
+    );
+  }
+  // --- End Loading and Not Found States ---
 
   // Determine the current game being viewed using the ID and the live tournament data from the store
   const gameToView = viewingGameId ? tournament.games.find(g => g.id === viewingGameId) : null;

@@ -10,6 +10,7 @@ import { Tournament, Player, TournamentStore, TournamentStoreActions } from '../
 // It also needs to conform to the part of TournamentStoreActions it implements
 export type TournamentActionSlice = Pick<TournamentStoreActions,
   'fetchTournaments' |
+  'fetchTournamentById' | // Added fetchTournamentById
   'addTournament' |
   'updateTournament' |
   'deleteTournament' |
@@ -22,7 +23,7 @@ export const createTournamentActionSlice: StateCreator<
   [], // Middleware types (none for now)
   [], // Middleware types (none for now)
   TournamentActionSlice // The type for the slice this creator returns
-> = (set) => ({
+> = (set, get) => ({ // Added get to access current state
   // Fetching Tournaments
   fetchTournaments: async () => {
     try {
@@ -53,10 +54,56 @@ export const createTournamentActionSlice: StateCreator<
         const tournaments = await Promise.all(tournamentsPromises);
         set({ tournaments });
     } catch (error) {
-        handleDatabaseError(error);
-        set({ tournaments: [] }); // Clear tournaments on error
+      handleDatabaseError(error);
+      set({ tournaments: [] }); // Clear tournaments on error
     }
   },
+
+  // Fetching a Single Tournament by ID
+  fetchTournamentById: async (tournamentId) => {
+    set({ isLoadingTournament: true });
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      const docSnap = await getDoc(tournamentRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data() as Omit<Tournament, 'id' | 'creatorNickname'>;
+        let creatorNickname: string | undefined = undefined;
+        if (data.creatorId) {
+          const creatorData = await getUserData(data.creatorId);
+          creatorNickname = creatorData?.nickname ?? undefined;
+        }
+        const fetchedTournament: Tournament = {
+          id: docSnap.id,
+          ...data,
+          creatorNickname: creatorNickname,
+        };
+
+        // Update the tournaments array: replace if exists, add if new
+        const currentTournaments = get().tournaments;
+        const existingIndex = currentTournaments.findIndex(t => t.id === tournamentId);
+        let updatedTournaments;
+        if (existingIndex > -1) {
+          updatedTournaments = [...currentTournaments];
+          updatedTournaments[existingIndex] = fetchedTournament;
+        } else {
+          updatedTournaments = [...currentTournaments, fetchedTournament];
+        }
+        set({ tournaments: updatedTournaments });
+
+      } else {
+        console.warn(`Tournament with ID ${tournamentId} not found.`);
+        // Optionally remove from local state if it was there somehow?
+        // set((state) => ({ tournaments: state.tournaments.filter(t => t.id !== tournamentId) }));
+      }
+    } catch (error) {
+      handleDatabaseError(error);
+      // Optionally clear the specific tournament or handle error state
+    } finally {
+      set({ isLoadingTournament: false });
+    }
+  },
+
 
   // Adding a Tournament
   addTournament: async (tournamentData, creatorId, teamId, initialGuests = []) => {

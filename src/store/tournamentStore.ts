@@ -10,6 +10,7 @@ import { createSettlementActionSlice } from './actions/settlementActions';
 // Define the initial state
 const initialState = {
   tournaments: [],
+  isLoadingTournament: false, // Initialize loading state
 };
 
 // Create the store by combining the initial state and all the action slices
