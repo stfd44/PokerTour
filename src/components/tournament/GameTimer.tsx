@@ -37,7 +37,7 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
     remainingTimeOnPause,
     levelStartTime,
     currentLevel,
-    levelDuration,
+    levelDurations,
     blindStructure
   } = useTournamentStore(state => {
     const tournament = state.tournaments.find(t => t.id === game.tournamentId);
@@ -49,7 +49,7 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
       remainingTimeOnPause: currentGame?.remainingTimeOnPause ?? null,
       levelStartTime: currentGame?.levelStartTime ?? 0,
       currentLevel: currentGame?.currentLevel ?? 0,
-      levelDuration: currentGame?.levelDuration ?? 10,
+      levelDurations: currentGame?.levelDurations ?? [10],
       blindStructure: currentGame?.blindStructure ?? [{ small: 0, big: 0 }]
     };
   });
@@ -58,7 +58,7 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
   const [isLevelComplete, setIsLevelComplete] = useState<boolean>(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   // Calculate levelDurationMs based on selected state
-  const levelDurationMs = useMemo(() => levelDuration * 60 * 1000, [levelDuration]);
+  const levelDurationMs = useMemo(() => (levelDurations[currentLevel] ?? 10) * 60 * 1000, [levelDurations, currentLevel]);
 
   // Get blinds directly from the new structure
   const currentBlinds = useMemo(() => {
@@ -158,7 +158,8 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
     levelStartTime,
     game.id, // Keep game.id for logging/actions
     game.tournamentId, // Keep tournamentId for actions
-    levelDurationMs
+    levelDurationMs,
+    levelDurations
   ]);
 
   // Event handlers remain the same, using game prop for IDs

@@ -37,7 +37,7 @@ export const createTimerActionSlice: StateCreator<
       }
 
       const now = Date.now();
-      const levelDurationMs = game.levelDuration * 60 * 1000;
+      const levelDurationMs = (game.levelDurations[game.currentLevel] || 10) * 60 * 1000;
       const elapsedInLevel = now - game.levelStartTime;
       const remainingTime = Math.max(0, levelDurationMs - elapsedInLevel); // Ensure non-negative
 
@@ -76,7 +76,7 @@ export const createTimerActionSlice: StateCreator<
       }
 
       const now = Date.now();
-      const levelDurationMs = game.levelDuration * 60 * 1000;
+      const levelDurationMs = (game.levelDurations[game.currentLevel] || 10) * 60 * 1000;
       // Calculate the new effective start time for the level
       const newLevelStartTime = now - (levelDurationMs - game.remainingTimeOnPause);
 
@@ -117,6 +117,7 @@ export const createTimerActionSlice: StateCreator<
 
       const nextLevel = game.currentLevel + 1;
       const newBlindStructure = [...game.blindStructure];
+      const newLevelDurations = [...game.levelDurations];
 
       // If the next blind level is not defined, create it by doubling the previous one.
       if (nextLevel >= newBlindStructure.length) {
@@ -127,9 +128,16 @@ export const createTimerActionSlice: StateCreator<
         });
       }
 
+      // If the next level duration is not defined, use the previous one.
+      if (nextLevel >= newLevelDurations.length) {
+        const lastDuration = newLevelDurations[newLevelDurations.length - 1];
+        newLevelDurations.push(lastDuration);
+      }
+
       const updates: Partial<Game> = {
         currentLevel: nextLevel,
         blindStructure: newBlindStructure,
+        levelDurations: newLevelDurations,
         levelStartTime: Date.now(),
         isPaused: false,
         remainingTimeOnPause: null,
@@ -202,11 +210,18 @@ export const createTimerActionSlice: StateCreator<
         throw new Error("Level duration must be a positive number.");
       }
 
+      const updatedLevelDurations = [...game.levelDurations];
+      const nextLevel = game.currentLevel + 1;
+
+      while (updatedLevelDurations.length <= nextLevel) {
+        const lastDuration = updatedLevelDurations[updatedLevelDurations.length - 1] || 10;
+        updatedLevelDurations.push(lastDuration);
+      }
+
+      updatedLevelDurations[nextLevel] = newDuration;
+
       const updates: Partial<Game> = {
-        levelDuration: newDuration,
-        levelStartTime: Date.now(),
-        isPaused: false,
-        remainingTimeOnPause: null,
+        levelDurations: updatedLevelDurations,
       };
 
       const updatedGames = tournamentData.games.map((g: Game) =>

@@ -45,7 +45,6 @@ const initialPercentages: DistributionPercentages = {
 
 export function GameForm({ tournament, editingGame, tournamentId, onClose }: GameFormProps) {
   const addGame = useTournamentStore(state => state.addGame);
-  const updateGame = useTournamentStore(state => state.updateGame);
   const [gameForm, setGameForm] = useState<GameFormType>(initialGameForm);
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [distributionPercentages, setDistributionPercentages] = useState<DistributionPercentages>(initialPercentages);
@@ -53,10 +52,14 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
 
   useEffect(() => {
     if (editingGame) {
+      // Adapter la nouvelle structure de données
+      const firstBlinds = editingGame.blindStructure?.[0] || { small: 25, big: 50 };
+      const firstDuration = editingGame.levelDurations?.[0] || 20;
+      
       setGameForm({
         startingStack: editingGame.startingStack,
-        blinds: { ...editingGame.blinds },
-        blindLevels: editingGame.blindLevels,
+        blinds: { ...firstBlinds },
+        blindLevels: firstDuration,
         players: [...editingGame.players],
       });
       setSelectedPlayers(new Set(editingGame.players.map((p: Player) => p.id))); // Added Player type
@@ -80,19 +83,27 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
     const winnings = calculateWinnings(prizePool, distributionPercentages);
 
     const gameData = {
-      ...gameForm,
+      startingStack: gameForm.startingStack,
       players: selectedPlayersList,
       tournamentId: tournamentId!,
       prizePool: prizePool,
       distributionPercentages: distributionPercentages,
       winnings: winnings,
-      rebuyAllowedUntilLevel: rebuyLevel,
     };
 
     if (editingGame) {
-      updateGame(tournamentId!, editingGame.id, gameData);
+      // Fonctionnalité de modification temporairement désactivée
+      console.warn('La modification de parties existantes n\'est pas encore implémentée');
+      alert('La modification de parties existantes n\'est pas encore disponible');
+      return;
     } else {
-      addGame(tournamentId!, gameData, rebuyLevel);
+      addGame(
+        tournamentId!,
+        gameData,
+        gameForm.blinds, // Blinds initiaux
+        gameForm.blindLevels, // Durée du niveau
+        rebuyLevel // Niveau de rebuy autorisé
+      );
     }
     onClose();
   };

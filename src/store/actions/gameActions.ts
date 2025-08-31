@@ -43,12 +43,12 @@ export const createGameActionSlice: StateCreator<
         id: gameId,
         // Fields from gameData
         startingStack: gameData.startingStack,
-        levelDuration: levelDuration,
+        levelDurations: [levelDuration],
         blindStructure: [initialBlinds],
         players: (gameData.players || []).map(p => ({ // Sanitize players
             id: p.id,
             name: p.name,
-            nickname: p.nickname ?? undefined,
+            nickname: p.nickname ?? null,
             eliminated: p.eliminated ?? false,
             eliminationTime: p.eliminationTime ?? null,
             rebuysMade: p.rebuysMade ?? 0, // Ensure rebuysMade exists
@@ -63,7 +63,7 @@ export const createGameActionSlice: StateCreator<
         levelStartTime: 0, // Or Date.now() if preferred, but 0 is safe
         isPaused: false,
         remainingTimeOnPause: null,
-        startedAt: undefined, // Not started yet
+        startedAt: null, // Not started yet
         endedAt: null, // Not ended yet
         results: [], // Initialize results as empty array
         // Rebuy fields initialization
@@ -309,8 +309,19 @@ export const createGameActionSlice: StateCreator<
 
         // Create a new array for the blind structure to avoid direct mutation
         const updatedBlindStructure = [...game.blindStructure];
-        // Update the blinds for the current level
-        updatedBlindStructure[game.currentLevel] = newBlinds;
+        const nextLevel = game.currentLevel + 1;
+
+        // Ensure the array is long enough to hold the next level's blinds
+        while (updatedBlindStructure.length <= nextLevel) {
+          const lastBlinds = updatedBlindStructure[updatedBlindStructure.length - 1] || { small: 5, big: 10 }; // Fallback
+          updatedBlindStructure.push({
+            small: lastBlinds.small * 2,
+            big: lastBlinds.big * 2,
+          });
+        }
+        
+        // Update the blinds for the *next* level
+        updatedBlindStructure[nextLevel] = newBlinds;
 
         const updatedGame = { ...game, blindStructure: updatedBlindStructure };
         

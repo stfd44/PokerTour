@@ -116,14 +116,14 @@ export const createTournamentActionSlice: StateCreator<
       const creatorRegistration: Player = {
         id: creatorId,
         name: creatorNickname || `Utilisateur_${creatorId.substring(0, 5)}`, // Fallback name if no nickname
-        nickname: creatorNickname || undefined,
+        nickname: creatorNickname || null, // Use null instead of undefined
       };
 
       // Create registration entries for initial guests
       const guestRegistrations = initialGuests.map(guestName => ({
         id: `guest_${guestName.replace(/\s+/g, '_')}`, // Create a simple guest ID
         name: guestName,
-        // No nickname for guests initially
+        nickname: null, // Explicitly set nickname to null for guests
       }));
 
       // Combine creator and guest registrations

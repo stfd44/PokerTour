@@ -24,8 +24,10 @@ export function cleanGameForFirestore(game: Game): Game {
             });
             // Ensure required fields that might become undefined are defaulted if necessary
             // (Though the interface marks them optional, Firestore might require consistency)
-             cleanedPlayer.eliminated = cleanedPlayer.eliminated ?? false;
-             cleanedPlayer.eliminationTime = cleanedPlayer.eliminationTime ?? null;
+            cleanedPlayer.eliminated = cleanedPlayer.eliminated ?? false;
+            cleanedPlayer.eliminationTime = cleanedPlayer.eliminationTime ?? null;
+            cleanedPlayer.rebuysMade = cleanedPlayer.rebuysMade ?? 0;
+            cleanedPlayer.nickname = cleanedPlayer.nickname ?? null;
             return cleanedPlayer;
         });
     } else {

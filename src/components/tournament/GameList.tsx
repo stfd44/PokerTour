@@ -63,7 +63,7 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
                   <Timer className="w-5 h-5 mr-2 text-poker-gold" />
                   {/* Support for both new and old data structures */}
                   {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  <span>Niveaux: {game.levelDuration || (game as any).blindLevels}min</span>
+                  <span>Niveaux: {game.levelDurations?.[0] || (game as any).levelDuration || (game as any).blindLevels}min</span>
                 </div>
               </div>
 

@@ -3,7 +3,7 @@
 export interface Player {
   id: string;
   name: string;
-  nickname?: string;
+  nickname?: string | null;
   eliminated?: boolean;
   eliminationTime?: number | null; // Added for tracking elimination time
   rebuysMade?: number; // ADDED: Track rebuys per player in a game
@@ -28,10 +28,10 @@ export interface Game {
   tournamentId: string;
   startingStack: number;
   blindStructure: Blinds[]; // Remplacé 'blinds' et 'blindLevels'
-  levelDuration: number; // Durée de chaque niveau en minutes
+  levelDurations: number[]; // Durée de chaque niveau en minutes
   players: Player[];
   status: 'pending' | 'in_progress' | 'ended';
-  startedAt?: number; // Changed to number (timestamp) for consistency
+  startedAt?: number | null; // Changed to number (timestamp) for consistency
   currentLevel: number; // Index of the current blind level (starts at 0)
   levelStartTime: number; // Timestamp when the current level started (adjusted for pauses)
   isPaused: boolean; // Is the timer manually paused?

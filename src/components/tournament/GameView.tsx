@@ -84,6 +84,39 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
     };
   }, [animationEndTime]);
 
+  // Effect to pre-fill next level's settings in the input fields
+  useEffect(() => {
+    if (!game) return;
+
+    const nextLevel = game.currentLevel + 1;
+    const nextBlinds = game.blindStructure?.[nextLevel];
+    const nextDuration = game.levelDurations?.[nextLevel];
+
+    if (nextBlinds) {
+      setNewSmallBlind(nextBlinds.small.toString());
+      setNewBigBlind(nextBlinds.big.toString());
+    } else {
+      // Propose doubling the current blinds if next level isn't set
+      const currentBlinds = game.blindStructure?.[game.currentLevel];
+      if (currentBlinds) {
+        setNewSmallBlind((currentBlinds.small * 2).toString());
+        setNewBigBlind((currentBlinds.big * 2).toString());
+      }
+    }
+
+    if (nextDuration) {
+      setNewLevelDuration(nextDuration.toString());
+    } else {
+      // Propose using the current duration if next level's isn't set
+      const currentDuration = game.levelDurations?.[game.currentLevel];
+      if (currentDuration) {
+        setNewLevelDuration(currentDuration.toString());
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.currentLevel]);
+
+
   const startVictoryAnimation = (winner: string) => {
     // Set winner name
     setWinnerName(winner);
@@ -160,8 +193,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
         return;
     }
     updateBlinds(tournamentId, gameId, { small, big }, user.uid);
-    setNewSmallBlind('');
-    setNewBigBlind('');
+    updateBlinds(tournamentId, gameId, { small, big }, user.uid);
   };
 
   const handleUpdateDuration = () => {
@@ -172,7 +204,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
         return;
     }
     updateLevelDuration(tournamentId, gameId, duration, user.uid);
-    setNewLevelDuration('');
+    updateLevelDuration(tournamentId, gameId, duration, user.uid);
   };
 
   const handleResetTimer = () => {
@@ -263,20 +295,22 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Blinds Control */}
+            {/* Blinds Control for NEXT level */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Blinds</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Blinds (Niveau {game.currentLevel + 2})
+              </label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
-                  placeholder={`SB: ${game.blindStructure[game.currentLevel]?.small ?? 'N/A'}`}
+                  placeholder={`SB: ${game.blindStructure[game.currentLevel]?.small * 2}`}
                   value={newSmallBlind}
                   onChange={(e) => setNewSmallBlind(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
                 <input
                   type="number"
-                  placeholder={`BB: ${game.blindStructure[game.currentLevel]?.big ?? 'N/A'}`}
+                  placeholder={`BB: ${game.blindStructure[game.currentLevel]?.big * 2}`}
                   value={newBigBlind}
                   onChange={(e) => setNewBigBlind(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
@@ -286,18 +320,20 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
                   className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
                   disabled={!newSmallBlind || !newBigBlind}
                 >
-                  OK
+                  Définir
                 </button>
               </div>
             </div>
 
-            {/* Level Duration Control */}
+            {/* Level Duration Control for NEXT level */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Durée du niveau (min)</label>
+               <label className="block text-sm font-medium text-gray-700">
+                Durée (Niveau {game.currentLevel + 2})
+              </label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
-                  placeholder={`${game.levelDuration} min`}
+                  placeholder={`${game.levelDurations?.[game.currentLevel]} min`}
                   value={newLevelDuration}
                   onChange={(e) => setNewLevelDuration(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
@@ -307,7 +343,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
                   className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
                   disabled={!newLevelDuration}
                 >
-                  OK
+                  Définir
                 </button>
               </div>
             </div>
