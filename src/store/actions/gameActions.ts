@@ -3,7 +3,7 @@ import { StateCreator } from 'zustand';
 import { db, handleDatabaseError } from '../../lib/firebase';
 import { doc, updateDoc, arrayUnion, getDoc, runTransaction } from 'firebase/firestore';
 import { Blinds, Game, Player, Tournament, TournamentStore, TournamentStoreActions } from '../types/tournamentTypes';
-import { cleanGameForFirestore } from '../helpers/tournamentHelpers';
+import { cleanGameForFirestore, calculateResultsForGame } from '../helpers/tournamentHelpers';
 
 // Define the slice for game actions
 export type GameActionSlice = Pick<TournamentStoreActions,
@@ -208,12 +208,26 @@ export const createGameActionSlice: StateCreator<
         }
 
         const now = Date.now();
-        // Simplified: Only update status and endedAt. Results calculation moved to settlement.
+        
+        // Calculate results for the ended game
+        const resultsCalculation = calculateResultsForGame(gameToEnd);
+        let gameResults = gameToEnd.results || [];
+        let finalWinnings = gameToEnd.winnings || { first: 0, second: 0, third: 0 };
+        
+        if (resultsCalculation) {
+          gameResults = resultsCalculation.results;
+          finalWinnings = resultsCalculation.finalWinnings;
+          console.log(`[endGame Transaction - ${gameId}] Calculated results:`, gameResults);
+        } else {
+          console.warn(`[endGame Transaction - ${gameId}] Could not calculate results for game`);
+        }
+
         const updatedGameData = cleanGameForFirestore({
             ...gameToEnd,
             status: 'ended',
             endedAt: now,
-            // results and winnings are NOT calculated or updated here anymore
+            results: gameResults, // Store calculated results
+            winnings: finalWinnings, // Store updated winnings
         });
 
         // Create the updated games array
