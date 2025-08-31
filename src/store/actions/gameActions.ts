@@ -24,7 +24,7 @@ export const createGameActionSlice: StateCreator<
   // Adding a Game
   addGame: async (
     tournamentId: string,
-    gameData: Pick<Game, 'startingStack' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings'>,
+    gameData: Pick<Game, 'startingStack' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings' | 'potContributions' | 'totalPotAmount'>,
     initialBlinds: Blinds,
     levelDuration: number,
     rebuyAllowedUntilLevel: number = 2
@@ -70,7 +70,18 @@ export const createGameActionSlice: StateCreator<
         rebuyAllowedUntilLevel: rebuyAllowedUntilLevel,
         totalRebuys: 0,
         rebuyAmount: tournamentData.buyin, // Set rebuy amount from tournament buyin
+        // ADDED: Pot management fields (only if provided)
+        ...(gameData.potContributions && {
+          potContributions: gameData.potContributions,
+          totalPotAmount: gameData.totalPotAmount || 0
+        })
       };
+
+      console.log(`[addGame] Creating ${gameData.potContributions ? 'pot-based' : 'traditional'} game ${gameId}`, {
+        usePot: !!gameData.potContributions,
+        potAmount: gameData.totalPotAmount || 0,
+        contributionsCount: gameData.potContributions?.length || 0
+      });
       // Clean the object before saving
       const cleanNewGame = cleanGameForFirestore(newGame);
       await updateDoc(tournamentRef, {

@@ -61,40 +61,92 @@ export const createSettlementActionSlice: StateCreator<
             // --- End Calculate Missing Results ---
 
 
-            // 1. Calculate Balances (Corrected Logic: Buy-in per game participation)
+            // 1. Calculate Balances (ENHANCED: Support for both pot-based and traditional games)
             console.log(`Calculating balances for tournament ${tournamentId}. Buy-in per game: ${tournament.buyin}`);
             const playerBalancesMap: Map<string, { name: string; balance: number }> = new Map();
+            let totalPotAmount = 0; // Track total pot amount across all games
+            const potContributors: string[] = []; // Track who contributed to pots
 
             // Initialize balances to 0 for all registered players first
             tournament.registrations.forEach(player => {
                 playerBalancesMap.set(player.id, { name: player.nickname || player.name, balance: 0 });
             });
 
-            console.log(`Processing ${gamesWithResults.length} games for buy-ins and winnings...`);
+            console.log(`Processing ${gamesWithResults.length} games for contributions/buy-ins and winnings...`);
             gamesWithResults.forEach((game, gameIndex) => { // Iterate over the potentially updated array
                 console.log(` > Processing Game ${gameIndex + 1} (ID: ${game.id})`);
+                
+                // ENHANCED: Check if this game uses pot system or traditional system
+                const usesPotSystem = game.potContributions && game.potContributions.length > 0;
+                console.log(`   Game uses ${usesPotSystem ? 'POT' : 'TRADITIONAL'} system`);
 
-                // Subtract buy-in for each player *in this game*
-                game.players.forEach(playerInGame => {
-                    const currentPlayerData = playerBalancesMap.get(playerInGame.id);
-                    if (currentPlayerData) {
-                        const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin); // Calculate cost of rebuys for this player in this game
-                        const totalCostForGame = tournament.buyin + rebuyCost; // Total cost = buyin + rebuys
+                if (usesPotSystem) {
+                    // NEW: Pot-based system - Different logic for contributors vs non-contributors
+                    const gamePotAmount = game.totalPotAmount || 0;
+                    totalPotAmount += gamePotAmount;
+                    console.log(`   Pot amount for this game: ${gamePotAmount}€`);
 
-                        console.log(`   - Subtracting total cost ${totalCostForGame}€ (Buy-in: ${tournament.buyin}€, Rebuys: ${rebuyCost}€ [${playerInGame.rebuysMade || 0} x ${game.rebuyAmount || tournament.buyin}€]) for ${currentPlayerData.name} (ID: ${playerInGame.id}) for game ${game.id}. Old balance: ${currentPlayerData.balance}`);
-                        currentPlayerData.balance -= totalCostForGame;
-                        console.log(`   - New balance for ${currentPlayerData.name}: ${currentPlayerData.balance}`);
+                    const potContributorIds = game.potContributions ?
+                        game.potContributions.filter(c => c.amount > 0).map(c => c.playerId) : [];
 
-                    } else {
-                        // If player played but wasn't registered (e.g., guest removed later?), initialize with negative buy-in + rebuys
-                        const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
-                        const initialBalance = -(tournament.buyin + rebuyCost);
-                        console.warn(`   - Player ${playerInGame.name} (ID: ${playerInGame.id}) played game ${game.id} but not found in final registrations. Initializing balance with buy-in + rebuys: ${initialBalance}€.`);
-                        playerBalancesMap.set(playerInGame.id, { name: playerInGame.name, balance: initialBalance });
-                    }
-                });
+                    // Subtract costs based on pot contribution status
+                    game.players.forEach(playerInGame => {
+                        const currentPlayerData = playerBalancesMap.get(playerInGame.id);
+                        const playerName = playerInGame.nickname || playerInGame.name;
+                        const hasPaidToPot = potContributorIds.includes(playerInGame.id);
 
-                // Add winnings if game is ended and has results
+                        if (currentPlayerData) {
+                            if (hasPaidToPot) {
+                                // Contributor: only subtract rebuys (buy-in already paid to pot)
+                                const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
+                                currentPlayerData.balance -= rebuyCost;
+                                console.log(`   - ${playerName} paid to pot, only subtracting rebuys: ${rebuyCost}€. New balance: ${currentPlayerData.balance}`);
+                            } else {
+                                // Non-contributor: subtract full buy-in + rebuys
+                                const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
+                                const totalCostForGame = tournament.buyin + rebuyCost;
+                                currentPlayerData.balance -= totalCostForGame;
+                                console.log(`   - ${playerName} didn't pay to pot, subtracting full cost: ${totalCostForGame}€. New balance: ${currentPlayerData.balance}`);
+                            }
+                        } else {
+                            // Initialize player
+                            const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
+                            const initialBalance = hasPaidToPot ? -rebuyCost : -(tournament.buyin + rebuyCost);
+                            playerBalancesMap.set(playerInGame.id, { name: playerName, balance: initialBalance });
+                        }
+                    });
+
+                    // Track pot contributors for this game
+                    potContributorIds.forEach(contributorId => {
+                        if (!potContributors.includes(contributorId)) {
+                            potContributors.push(contributorId);
+                            const contributor = game.potContributions?.find(c => c.playerId === contributorId);
+                            console.log(`   - ${contributor?.playerName} added to pot contributors list`);
+                        }
+                    });
+                } else {
+                    // EXISTING: Traditional system - subtract buy-in for each player *in this game*
+                    game.players.forEach(playerInGame => {
+                        const currentPlayerData = playerBalancesMap.get(playerInGame.id);
+                        if (currentPlayerData) {
+                            const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin); // Calculate cost of rebuys for this player in this game
+                            const totalCostForGame = tournament.buyin + rebuyCost; // Total cost = buyin + rebuys
+
+                            console.log(`   - Subtracting total cost ${totalCostForGame}€ (Buy-in: ${tournament.buyin}€, Rebuys: ${rebuyCost}€ [${playerInGame.rebuysMade || 0} x ${game.rebuyAmount || tournament.buyin}€]) for ${currentPlayerData.name} (ID: ${playerInGame.id}) for game ${game.id}. Old balance: ${currentPlayerData.balance}`);
+                            currentPlayerData.balance -= totalCostForGame;
+                            console.log(`   - New balance for ${currentPlayerData.name}: ${currentPlayerData.balance}`);
+
+                        } else {
+                            // If player played but wasn't registered (e.g., guest removed later?), initialize with negative buy-in + rebuys
+                            const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
+                            const initialBalance = -(tournament.buyin + rebuyCost);
+                            console.warn(`   - Player ${playerInGame.name} (ID: ${playerInGame.id}) played game ${game.id} but not found in final registrations. Initializing balance with buy-in + rebuys: ${initialBalance}€.`);
+                            playerBalancesMap.set(playerInGame.id, { name: playerInGame.name, balance: initialBalance });
+                        }
+                    });
+                }
+
+                // Add winnings if game is ended and has results (same for both systems)
                 if (game.results && game.results.length > 0 && game.status === 'ended') {
                     console.log(`   >> Adding winnings for ended game ${gameIndex + 1} (ID: ${game.id})`);
                     game.results.forEach(result => {
@@ -114,6 +166,9 @@ export const createSettlementActionSlice: StateCreator<
                 }
             });
 
+            console.log(`Total pot amount across all games: ${totalPotAmount}€`);
+            console.log(`Pot contributors:`, potContributors);
+
             console.log("Final calculated balances before settlement:");
             playerBalancesMap.forEach((data, id) => {
                 console.log(`  - ${data.name} (ID: ${id}): ${data.balance.toFixed(2)}`);
@@ -123,9 +178,65 @@ export const createSettlementActionSlice: StateCreator<
                 id, name: data.name, balance: data.balance,
             }));
 
-            // 2. Calculate Optimized Transactions
+            // 2. Calculate Optimized Transactions (ENHANCED: Support for pot-based system)
             console.log("Calculating settlement transactions...");
-            const transactions = calculateSettlementTransactions(balancesArray);
+            
+            // Determine if any games used the pot system
+            const hasAnyPotGames = gamesWithResults.some(game =>
+                game.potContributions && game.potContributions.length > 0
+            );
+            
+            let transactions: Transaction[] = [];
+            if (hasAnyPotGames && totalPotAmount > 0) {
+                console.log(`[Settlement DEBUG] Starting pot distribution. Total pot: ${totalPotAmount}€`);
+                console.log(`[Settlement DEBUG] Player balances:`, balancesArray.map(b => `${b.name}: ${b.balance.toFixed(2)}€`));
+                
+                // Working copy for optimization
+                const workingBalances = balancesArray.map(b => ({ ...b }));
+                let remainingPot = totalPotAmount;
+                
+                // Phase 1: Distribute ENTIRE pot to positive balances
+                const allCreditors = workingBalances.filter(p => p.balance > 0.01);
+                const totalCreditNeeded = allCreditors.reduce((sum, c) => sum + c.balance, 0);
+                console.log(`[Settlement DEBUG] Total positive balances: ${totalCreditNeeded.toFixed(2)}€, Available pot: ${remainingPot.toFixed(2)}€`);
+                
+                // Distribute pot to cover positive balances completely
+                for (const creditor of allCreditors) {
+                    if (remainingPot <= 0.01) break;
+                    
+                    // Give creditor exactly their positive balance (or remaining pot if insufficient)
+                    const potShare = Math.min(creditor.balance, remainingPot);
+                    
+                    if (potShare > 0.01) {
+                        transactions.push({
+                            fromPlayerId: "POT",
+                            fromPlayerName: "POT",
+                            toPlayerId: creditor.id,
+                            toPlayerName: creditor.name,
+                            amount: Math.round(potShare * 100) / 100,
+                            completed: false,
+                            type: 'pot_withdrawal'
+                        });
+                        
+                        creditor.balance -= potShare;
+                        remainingPot -= potShare;
+                        console.log(`[Settlement DEBUG] ${creditor.name} receives ${potShare.toFixed(2)}€ from pot. New balance: ${creditor.balance.toFixed(2)}€. Remaining pot: ${remainingPot.toFixed(2)}€`);
+                    }
+                }
+                
+                console.log(`[Settlement DEBUG] Pot distribution complete. Distributed: ${(totalPotAmount - remainingPot).toFixed(2)}€, Remaining: ${remainingPot.toFixed(2)}€`);
+                console.log(`[Settlement DEBUG] Final balances:`, workingBalances.map(b => `${b.name}: ${b.balance.toFixed(2)}€`));
+                
+                // Phase 2: Handle remaining debts between players
+                const playerDebtTransactions = calculateSettlementTransactions(workingBalances);
+                transactions.push(...playerDebtTransactions.map(tx => ({ ...tx, type: 'player_debt' as const })));
+                
+            } else {
+                console.log("Using TRADITIONAL settlement algorithm");
+                transactions = calculateSettlementTransactions(balancesArray);
+                transactions = transactions.map(tx => ({ ...tx, type: 'player_debt' as const }));
+            }
+            
             console.log("Calculated transactions:", transactions);
 
             // 3. Update Firestore within the transaction

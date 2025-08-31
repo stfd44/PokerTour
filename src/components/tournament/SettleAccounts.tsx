@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useTournamentStore, PlayerResult } from '../../store/tournamentStore'; // Removed unused Tournament, Transaction imports
+import { useTournamentStore } from '../../store/tournamentStore';
+import type { PlayerResult } from '../../store/types/tournamentTypes';
 import { ArrowLeft, Check, Loader2 } from 'lucide-react';
 
 // Define PlayerBalance locally as it's specific to this component's calculation logic
@@ -75,34 +76,64 @@ function SettleAccounts() {
         balances.set(player.id, { name: player.nickname || player.name, balance: 0 });
     });
 
-    // Iterate through games to subtract buy-ins and add winnings
+    // Iterate through games to subtract contributions/buy-ins and add winnings
     tournament.games.forEach(game => {
-        // Subtract buy-in for each player who participated in this game
-        game.players.forEach(playerInGame => {
-            const current = balances.get(playerInGame.id);
-            if (current) {
-                // Subtract buy-in AND cost of rebuys made by this player in this game
-                const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
-                const totalCostForGame = tournament.buyin + rebuyCost;
-                current.balance -= totalCostForGame;
-            } else {
-                 // Player might have been unregistered after playing? Initialize with negative buy-in + rebuys.
-                 const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
-                 const initialBalance = -(tournament.buyin + rebuyCost);
-                 balances.set(playerInGame.id, { name: playerInGame.name, balance: initialBalance });
-            }
-        });
+        // ENHANCED: Check if this game uses pot system or traditional system
+        const usesPotSystem = game.potContributions && game.potContributions.length > 0;
 
-        // Add winnings if game is ended and has results
+        if (usesPotSystem) {
+            // POT SYSTEM: Différent calcul selon qui a payé au pot
+            const potContributorIds = game.potContributions ?
+                game.potContributions.filter(c => c.amount > 0).map(c => c.playerId) : [];
+
+            game.players.forEach(playerInGame => {
+                const current = balances.get(playerInGame.id);
+                const playerName = playerInGame.nickname || playerInGame.name;
+                const hasPaidToPot = potContributorIds.includes(playerInGame.id);
+
+                if (current) {
+                    if (hasPaidToPot) {
+                        // A payé au pot : ne déduire que les rebuys, pas le buy-in
+                        const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
+                        current.balance -= rebuyCost;
+                        console.log(`[UI Balance] ${playerName} paid to pot, only subtracting rebuys: ${rebuyCost}€`);
+                    } else {
+                        // N'a pas payé au pot : déduire buy-in + rebuys
+                        const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
+                        const totalCostForGame = tournament.buyin + rebuyCost;
+                        current.balance -= totalCostForGame;
+                        console.log(`[UI Balance] ${playerName} didn't pay to pot, subtracting full cost: ${totalCostForGame}€`);
+                    }
+                } else {
+                    // Initialize player
+                    const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
+                    const initialBalance = hasPaidToPot ? -rebuyCost : -(tournament.buyin + rebuyCost);
+                    balances.set(playerInGame.id, { name: playerName, balance: initialBalance });
+                }
+            });
+        } else {
+            // TRADITIONAL SYSTEM: Subtract buy-in for ALL players
+            game.players.forEach(playerInGame => {
+                const current = balances.get(playerInGame.id);
+                if (current) {
+                    const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
+                    const totalCostForGame = tournament.buyin + rebuyCost;
+                    current.balance -= totalCostForGame;
+                } else {
+                     const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
+                     const initialBalance = -(tournament.buyin + rebuyCost);
+                     balances.set(playerInGame.id, { name: playerInGame.name, balance: initialBalance });
+                }
+            });
+        }
+
+        // Add winnings for all players (same for both systems)
         if (game.results) {
             game.results.forEach((result: PlayerResult) => {
                 const current = balances.get(result.playerId);
                 if (current) {
                     current.balance += result.winnings;
                 }
-                // If player not in map here, it means they weren't registered but had results?
-                // This case is less likely if registrations are managed properly.
-                // We avoid adding them here if their buy-in wasn't subtracted.
             });
         }
     });
@@ -193,9 +224,21 @@ function SettleAccounts() {
                     aria-labelledby={`transaction-label-${index}`}
                   />
                   <span id={`transaction-label-${index}`}>
-                    <span className="font-semibold text-red-600">{tx.fromPlayerName}</span> doit
-                    <span className="font-bold mx-1">{tx.amount.toFixed(2)} €</span> à
-                    <span className="font-semibold text-green-600"> {tx.toPlayerName}</span>
+                    {tx.type === 'pot_withdrawal' ? (
+                      // Pot withdrawal transaction
+                      <>
+                        <span className="font-semibold text-green-600">{tx.toPlayerName}</span> reçoit
+                        <span className="font-bold mx-1">{tx.amount.toFixed(2)} €</span>
+                        <span className="font-semibold text-blue-600">du pot</span>
+                      </>
+                    ) : (
+                      // Traditional player debt transaction
+                      <>
+                        <span className="font-semibold text-red-600">{tx.fromPlayerName}</span> doit
+                        <span className="font-bold mx-1">{tx.amount.toFixed(2)} €</span> à
+                        <span className="font-semibold text-green-600"> {tx.toPlayerName}</span>
+                      </>
+                    )}
                   </span>
                 </div>
                  {tx.completed && <Check className="w-5 h-5 text-green-600" />}

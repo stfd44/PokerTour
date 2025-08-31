@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Added useMemo, useCallback
 import { useTournamentStore } from '../../store/tournamentStore';
 import { UserCheck, X, Minus, Plus } from 'lucide-react'; // Added Minus, Plus icons (Removed Percent)
-import type { Game, Player, Tournament } from '../../store/types/tournamentTypes'; // Corrected import path for types
+import type { Game, Player, Tournament, PotContribution } from '../../store/types/tournamentTypes'; // Added PotContribution import
 import { calculatePrizePool, calculateWinnings } from '../../lib/utils'; // Import calculation functions
 
 interface GameFormProps {
@@ -49,6 +49,9 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [distributionPercentages, setDistributionPercentages] = useState<DistributionPercentages>(initialPercentages);
   const [rebuyLevel, setRebuyLevel] = useState<number>(2); // State for rebuy level
+  // ADDED: State for pot management
+  const [usePotSystem, setUsePotSystem] = useState<boolean>(false); // Toggle for pot system
+  const [playersWhoPaidPot, setPlayersWhoPaidPot] = useState<Set<string>>(new Set()); // Players who paid to pot
 
   useEffect(() => {
     if (editingGame) {
@@ -73,14 +76,43 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
     }
   }, [editingGame]);
 
+  // ADDED: Calculate total pot amount (sum of buy-ins for players who paid to pot)
+  const totalPotAmount = useMemo(() => {
+    if (!usePotSystem) return 0;
+    return playersWhoPaidPot.size * tournament.buyin;
+  }, [playersWhoPaidPot.size, usePotSystem, tournament.buyin]);
+
+  // ADDED: Toggle player pot payment
+  const togglePlayerPotPayment = (playerId: string) => {
+    setPlayersWhoPaidPot(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(playerId)) {
+        newSet.delete(playerId);
+      } else {
+        newSet.add(playerId);
+      }
+      return newSet;
+    });
+  };
+
   const handleCreateGame = (e: React.FormEvent) => {
     e.preventDefault();
     const selectedPlayersList = tournament!.registrations.filter(
       (player: Player) => selectedPlayers.has(player.id) // Added Player type
     );
 
+    // Prize pool is ALWAYS based on number of players, not pot amount
     const prizePool = calculatePrizePool(tournament.buyin, selectedPlayersList.length);
     const winnings = calculateWinnings(prizePool, distributionPercentages);
+
+    // Prepare pot contributions if pot system is used
+    const potContributionsArray: PotContribution[] = usePotSystem
+      ? selectedPlayersList.map(player => ({
+          playerId: player.id,
+          playerName: player.nickname || player.name,
+          amount: playersWhoPaidPot.has(player.id) ? tournament.buyin : 0 // Buy-in amount if paid to pot, 0 otherwise
+        }))
+      : [];
 
     const gameData = {
       startingStack: gameForm.startingStack,
@@ -89,6 +121,11 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
       prizePool: prizePool,
       distributionPercentages: distributionPercentages,
       winnings: winnings,
+      // ADDED: Include pot data if pot system is used
+      ...(usePotSystem && {
+        potContributions: potContributionsArray,
+        totalPotAmount: totalPotAmount
+      })
     };
 
     if (editingGame) {
@@ -323,12 +360,92 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
           </div>
         </div>
 
+        {/* ADDED: Pot Management Section */}
+        <div className="border-t pt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-poker-black">Gestion du Pot</h3>
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={usePotSystem}
+                onChange={(e) => setUsePotSystem(e.target.checked)}
+                className="w-4 h-4 text-poker-red border-gray-300 rounded focus:ring-poker-red"
+              />
+              <span className="text-sm text-gray-700">Utiliser un pot centralisé</span>
+            </label>
+          </div>
+
+          {usePotSystem && selectedPlayers.size > 0 && (
+           <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+             <p className="text-sm text-gray-600">
+               Qui a payé son buy-in ({tournament.buyin}€) au pot :
+             </p>
+             
+             <div className="space-y-2 max-h-48 overflow-y-auto">
+               {Array.from(selectedPlayers).map(playerId => {
+                 const player = tournament.registrations.find(p => p.id === playerId);
+                 if (!player) return null;
+                 
+                 const hasPaidToPot = playersWhoPaidPot.has(playerId);
+                 
+                 return (
+                   <div key={playerId} className="flex items-center justify-between bg-white p-3 rounded border">
+                     <span className="font-medium text-gray-800">
+                       {player.nickname || player.name}
+                     </span>
+                     <label className="flex items-center space-x-2 cursor-pointer">
+                       <input
+                         type="checkbox"
+                         checked={hasPaidToPot}
+                         onChange={() => togglePlayerPotPayment(playerId)}
+                         className="w-4 h-4 text-poker-red border-gray-300 rounded focus:ring-poker-red"
+                       />
+                       <span className="text-sm text-gray-600">
+                         {hasPaidToPot ? `${tournament.buyin}€` : '0€'}
+                       </span>
+                     </label>
+                   </div>
+                 );
+               })}
+             </div>
+
+             <div className="flex justify-between items-center bg-poker-red/10 p-3 rounded border-l-4 border-poker-red">
+               <span className="font-semibold text-gray-800">Total du Pot :</span>
+               <span className="font-bold text-xl text-poker-red">{totalPotAmount} €</span>
+             </div>
+
+             {totalPotAmount > 0 && (
+               <p className="text-xs text-gray-500">
+                 Le prize pool sera distribué à partir de ce pot. Les règlements tiendront compte des contributions individuelles.
+               </p>
+             )}
+           </div>
+         )}
+
+          {usePotSystem && selectedPlayers.size === 0 && (
+            <p className="text-sm text-gray-500 italic">
+              Sélectionnez d'abord les joueurs pour configurer le pot.
+            </p>
+          )}
+        </div>
+
         <div className="border-t pt-6 space-y-4">
             <h3 className="text-lg font-semibold text-poker-black">Prize Pool & Répartition</h3>
             <div className="flex justify-between items-center bg-gray-100 p-3 rounded-md">
-                <span className="font-medium text-gray-800">Prize Pool Total:</span>
+                <span className="font-medium text-gray-800">
+                 Prize Pool Total:
+               </span>
                 <span className="font-bold text-xl text-poker-red">{prizePool} €</span>
             </div>
+
+            {usePotSystem && totalPotAmount < prizePool && (
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3">
+                <p className="text-sm text-yellow-800">
+                  ⚠️ Le pot ({totalPotAmount}€) ne couvre pas entièrement le prize pool ({prizePool}€).
+                  Les manquants devront être réglés entre joueurs.
+                </p>
+              </div>
+            )}
 
              {selectedPlayers.size >= 3 ? (
                 <div className="space-y-3">

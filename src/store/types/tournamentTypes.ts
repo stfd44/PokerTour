@@ -14,6 +14,13 @@ export interface Blinds {
   big: number;
 }
 
+// ADDED: Interface for pot contributions by players
+export interface PotContribution {
+  playerId: string;
+  playerName: string;
+  amount: number; // Amount paid to the pot by this player
+}
+
 // Define the structure for storing detailed game results per player
 export interface PlayerResult {
   playerId: string;
@@ -46,16 +53,20 @@ export interface Game {
   rebuyAllowedUntilLevel: number; // Max level for rebuys (e.g., 2)
   totalRebuys: number; // Count of rebuys made
   rebuyAmount: number; // Cost of one rebuy (usually tournament buyin)
+  // ADDED: Pot management fields (optional for backward compatibility)
+  potContributions?: PotContribution[]; // Who paid how much to the pot
+  totalPotAmount?: number; // Total amount available in the pot
 }
 
 // ADDED: Interface for settlement transactions
 export interface Transaction {
   fromPlayerId: string;
   fromPlayerName: string;
-  toPlayerId: string;
-  toPlayerName: string;
+  toPlayerId: string; // "POT" for pot withdrawals
+  toPlayerName: string; // "POT" for pot withdrawals
   amount: number;
   completed: boolean;
+  type?: 'pot_withdrawal' | 'player_debt'; // ADDED: Type of transaction (optional for backward compatibility)
 }
 
 export interface Tournament {
