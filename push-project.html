@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title></title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+<link href="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.css" rel="stylesheet" type="text/css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="projet-dévolution--pwa-et-notifications-push-pour-pokertour">Projet d'Évolution : PWA et Notifications Push pour PokerTour</h1>
+<p>Ce document détaille les étapes nécessaires pour transformer l'application web PokerTour en une Progressive Web App (PWA) et pour y intégrer un système de notifications push via Firebase Cloud Messaging (FCM).</p>
+<p><strong>Objectifs :</strong></p>
+<ol>
+<li>Rendre l'application installable sur les appareils des utilisateurs (mobile et bureau).</li>
+<li>Permettre un fonctionnement hors-ligne de base.</li>
+<li>Mettre en place des notifications push pour informer les joueurs d'événements importants (ex: fin d'un niveau de blind, début d'un tournoi).</li>
+</ol>
+<p><strong>Stack technique concernée :</strong></p>
+<ul>
+<li>Frontend : React avec Vite</li>
+<li>Backend : Firebase (Cloud Firestore, Cloud Functions, Cloud Messaging)</li>
+</ul>
+<hr>
+<h2 id="partie-1--transformation-en-progressive-web-app-pwa">Partie 1 : Transformation en Progressive Web App (PWA)</h2>
+<p>L'objectif ici est de rendre votre application installable et de lui donner des capacités hors-ligne grâce à un Service Worker. Le plugin <code>vite-plugin-pwa</code> est l'outil idéal pour cela.</p>
+<h3 id="étape-11--installation-et-configuration-de-vite-plugin-pwa">Étape 1.1 : Installation et Configuration de <code>vite-plugin-pwa</code></h3>
+<ol>
+<li>
+<p><strong>Installez le plugin :</strong></p>
+<pre><code class="language-bash">npm install vite-plugin-pwa -D
+</code></pre>
+</li>
+<li>
+<p><strong>Configurez <code>vite.config.js</code> :</strong>
+Ajoutez le plugin à votre configuration Vite. Cela générera automatiquement le Service Worker et le fichier <code>manifest.json</code>.</p>
+<pre><code class="language-javascript"><span class="hljs-keyword">import</span> { defineConfig } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;vite&#x27;</span>
+<span class="hljs-keyword">import</span> react <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;@vitejs/plugin-react&#x27;</span>
+<span class="hljs-keyword">import</span> { <span class="hljs-title class_">VitePWA</span> } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;vite-plugin-pwa&#x27;</span>
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title function_">defineConfig</span>({
+  <span class="hljs-attr">plugins</span>: [
+    <span class="hljs-title function_">react</span>(),
+    <span class="hljs-title class_">VitePWA</span>({
+      <span class="hljs-attr">registerType</span>: <span class="hljs-string">&#x27;autoUpdate&#x27;</span>,
+      <span class="hljs-attr">workbox</span>: {
+        <span class="hljs-attr">globPatterns</span>: [<span class="hljs-string">&#x27;**/*.{js,css,html,ico,png,svg}&#x27;</span>] <span class="hljs-comment">// Met en cache les assets essentiels</span>
+      },
+      <span class="hljs-attr">manifest</span>: {
+        <span class="hljs-attr">name</span>: <span class="hljs-string">&#x27;PokerTour&#x27;</span>,
+        <span class="hljs-attr">short_name</span>: <span class="hljs-string">&#x27;PokerTour&#x27;</span>,
+        <span class="hljs-attr">description</span>: <span class="hljs-string">&#x27;Votre application de gestion de tournois de poker.&#x27;</span>,
+        <span class="hljs-attr">theme_color</span>: <span class="hljs-string">&#x27;#A80000&#x27;</span>, <span class="hljs-comment">// Couleur thème (rouge poker)</span>
+        <span class="hljs-attr">background_color</span>: <span class="hljs-string">&#x27;#F3F4F6&#x27;</span>, <span class="hljs-comment">// Couleur de fond (poker-light)</span>
+        <span class="hljs-attr">icons</span>: [
+          {
+            <span class="hljs-attr">src</span>: <span class="hljs-string">&#x27;pwa-192x192.png&#x27;</span>,
+            <span class="hljs-attr">sizes</span>: <span class="hljs-string">&#x27;192x192&#x27;</span>,
+            <span class="hljs-attr">type</span>: <span class="hljs-string">&#x27;image/png&#x27;</span>
+          },
+          {
+            <span class="hljs-attr">src</span>: <span class="hljs-string">&#x27;pwa-512x512.png&#x27;</span>,
+            <span class="hljs-attr">sizes</span>: <span class="hljs-string">&#x27;512x512&#x27;</span>,
+            <span class="hljs-attr">type</span>: <span class="hljs-string">&#x27;image/png&#x27;</span>
+          },
+          {
+            <span class="hljs-attr">src</span>: <span class="hljs-string">&#x27;pwa-512x512.png&#x27;</span>,
+            <span class="hljs-attr">sizes</span>: <span class="hljs-string">&#x27;512x512&#x27;</span>,
+            <span class="hljs-attr">type</span>: <span class="hljs-string">&#x27;image/png&#x27;</span>,
+            <span class="hljs-attr">purpose</span>: <span class="hljs-string">&#x27;any maskable&#x27;</span>
+          }
+        ]
+      }
+    })
+  ]
+})
+</code></pre>
+</li>
+</ol>
+<h3 id="étape-12--création-des-icônes">Étape 1.2 : Création des icônes</h3>
+<p>Vous devez créer les icônes <code>pwa-192x192.png</code> et <code>pwa-512x512.png</code> et les placer dans votre dossier <code>public</code>. Des outils comme <a href="http://favicon.io">favicon.io</a> peuvent vous aider à générer les différentes tailles nécessaires.</p>
+<h3 id="étape-13--mise-à-jour-de-indexhtml">Étape 1.3 : Mise à jour de <code>index.html</code></h3>
+<p>Assurez-vous que votre fichier <code>public/index.html</code> contient les balises meta pour la PWA. Le plugin Vite s'occupera d'injecter le lien vers le manifest.</p>
+<pre><code class="language-html"><span class="hljs-tag">&lt;<span class="hljs-name">head</span>&gt;</span>
+  ...
+  <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;theme-color&quot;</span> <span class="hljs-attr">content</span>=<span class="hljs-string">&quot;#A80000&quot;</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>PokerTour<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">head</span>&gt;</span>
+</code></pre>
+<p>Une fois ces étapes terminées, après un <code>npm run build</code>, votre application sera une PWA installable !</p>
+<hr>
+<h2 id="partie-2--implémentation-des-notifications-push-côté-client">Partie 2 : Implémentation des Notifications Push (Côté Client)</h2>
+<p>Nous allons utiliser Firebase Cloud Messaging (FCM) pour envoyer des notifications.</p>
+<h3 id="étape-21--fichier-service-worker-pour-fcm">Étape 2.1 : Fichier Service Worker pour FCM</h3>
+<p>Créez un fichier <code>public/firebase-messaging-sw.js</code>. Ce fichier gérera la réception des notifications lorsque l'application est en arrière-plan.</p>
+<pre><code class="language-javascript"><span class="hljs-comment">// public/firebase-messaging-sw.js</span>
+<span class="hljs-keyword">import</span> { initializeApp } <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;firebase/app&quot;</span>;
+<span class="hljs-keyword">import</span> { getMessaging, onBackgroundMessage } <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;firebase/messaging/sw&quot;</span>;
+
+<span class="hljs-keyword">const</span> firebaseConfig = {
+  <span class="hljs-attr">apiKey</span>: <span class="hljs-string">&quot;...&quot;</span>, <span class="hljs-comment">// Vos clés depuis votre config Firebase</span>
+  <span class="hljs-attr">authDomain</span>: <span class="hljs-string">&quot;...&quot;</span>,
+  <span class="hljs-attr">projectId</span>: <span class="hljs-string">&quot;...&quot;</span>,
+  <span class="hljs-attr">storageBucket</span>: <span class="hljs-string">&quot;...&quot;</span>,
+  <span class="hljs-attr">messagingSenderId</span>: <span class="hljs-string">&quot;...&quot;</span>,
+  <span class="hljs-attr">appId</span>: <span class="hljs-string">&quot;...&quot;</span>
+};
+
+<span class="hljs-keyword">const</span> app = <span class="hljs-title function_">initializeApp</span>(firebaseConfig);
+<span class="hljs-keyword">const</span> messaging = <span class="hljs-title function_">getMessaging</span>(app);
+
+<span class="hljs-title function_">onBackgroundMessage</span>(messaging, <span class="hljs-function">(<span class="hljs-params">payload</span>) =&gt;</span> {
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;[firebase-messaging-sw.js] Received background message &#x27;</span>, payload);
+
+  <span class="hljs-keyword">const</span> notificationTitle = payload.<span class="hljs-property">notification</span>.<span class="hljs-property">title</span>;
+  <span class="hljs-keyword">const</span> notificationOptions = {
+    <span class="hljs-attr">body</span>: payload.<span class="hljs-property">notification</span>.<span class="hljs-property">body</span>,
+    <span class="hljs-attr">icon</span>: <span class="hljs-string">&#x27;/pwa-192x192.png&#x27;</span>
+  };
+
+  self.<span class="hljs-property">registration</span>.<span class="hljs-title function_">showNotification</span>(notificationTitle, notificationOptions);
+});
+</code></pre>
+<blockquote>
+<p><strong>Note :</strong> Vous devrez remplacer les valeurs de <code>firebaseConfig</code> par les vôtres.</p>
+</blockquote>
+<h3 id="étape-22--service-pour-gérer-les-notifications-dans-lapplication-react">Étape 2.2 : Service pour gérer les notifications dans l'application React</h3>
+<p>Créez un service pour encapsuler la logique FCM dans votre application React.</p>
+<pre><code class="language-javascript"><span class="hljs-comment">// src/services/push-notification-service.js</span>
+<span class="hljs-keyword">import</span> { getMessaging, getToken, onMessage } <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;firebase/messaging&quot;</span>;
+<span class="hljs-keyword">import</span> { app } <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;./firebase-config&quot;</span>; <span class="hljs-comment">// Assurez-vous d&#x27;avoir un fichier de config central</span>
+<span class="hljs-keyword">import</span> { doc, setDoc, getFirestore } <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;firebase/firestore&quot;</span>;
+
+<span class="hljs-keyword">const</span> messaging = <span class="hljs-title function_">getMessaging</span>(app);
+<span class="hljs-keyword">const</span> db = <span class="hljs-title function_">getFirestore</span>(app);
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> <span class="hljs-title function_">requestNotificationPermission</span> = <span class="hljs-keyword">async</span> (<span class="hljs-params">userId</span>) =&gt; {
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;Requesting notification permission...&quot;</span>);
+  <span class="hljs-keyword">const</span> permission = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Notification</span>.<span class="hljs-title function_">requestPermission</span>();
+
+  <span class="hljs-keyword">if</span> (permission === <span class="hljs-string">&quot;granted&quot;</span>) {
+    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;Notification permission granted.&quot;</span>);
+    <span class="hljs-keyword">try</span> {
+      <span class="hljs-keyword">const</span> currentToken = <span class="hljs-keyword">await</span> <span class="hljs-title function_">getToken</span>(messaging, {
+        <span class="hljs-attr">vapidKey</span>: <span class="hljs-string">&quot;VOTRE_VAPID_KEY_DE_FIREBASE_CONSOLE&quot;</span>,
+      });
+      <span class="hljs-keyword">if</span> (currentToken) {
+        <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;FCM Token:&quot;</span>, currentToken);
+        <span class="hljs-keyword">await</span> <span class="hljs-title function_">saveTokenToFirestore</span>(userId, currentToken);
+      } <span class="hljs-keyword">else</span> {
+        <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;No registration token available. Request permission to generate one.&quot;</span>);
+      }
+    } <span class="hljs-keyword">catch</span> (err) {
+      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">&quot;An error occurred while retrieving token. &quot;</span>, err);
+    }
+  } <span class="hljs-keyword">else</span> {
+    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;Unable to get permission to notify.&quot;</span>);
+  }
+};
+
+<span class="hljs-keyword">const</span> <span class="hljs-title function_">saveTokenToFirestore</span> = <span class="hljs-keyword">async</span> (<span class="hljs-params">userId, token</span>) =&gt; {
+  <span class="hljs-keyword">if</span> (!userId) <span class="hljs-keyword">return</span>;
+  <span class="hljs-keyword">const</span> userRef = <span class="hljs-title function_">doc</span>(db, <span class="hljs-string">&quot;users&quot;</span>, userId);
+  <span class="hljs-keyword">await</span> <span class="hljs-title function_">setDoc</span>(userRef, { <span class="hljs-attr">fcmToken</span>: token }, { <span class="hljs-attr">merge</span>: <span class="hljs-literal">true</span> });
+};
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> <span class="hljs-title function_">onForegroundMessage</span> = (<span class="hljs-params"></span>) =&gt; {
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">Promise</span>(<span class="hljs-function">(<span class="hljs-params">resolve</span>) =&gt;</span> {
+    <span class="hljs-title function_">onMessage</span>(messaging, <span class="hljs-function">(<span class="hljs-params">payload</span>) =&gt;</span> {
+      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;Message received in foreground.&quot;</span>, payload);
+      <span class="hljs-title function_">resolve</span>(payload);
+    });
+  });
+};
+</code></pre>
+<blockquote>
+<p><strong>Important :</strong> Récupérez votre clé VAPID depuis la console Firebase &gt; Project Settings &gt; Cloud Messaging &gt; Web configuration.</p>
+</blockquote>
+<h3 id="étape-23--intégration-dans-un-composant-react">Étape 2.3 : Intégration dans un composant React</h3>
+<p>Dans un composant principal (par exemple <code>App.jsx</code> ou un layout), demandez la permission après la connexion de l'utilisateur.</p>
+<pre><code class="language-jsx"><span class="hljs-comment">// Exemple dans un composant</span>
+<span class="hljs-keyword">import</span> <span class="hljs-title class_">React</span>, { useEffect } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;react&#x27;</span>;
+<span class="hljs-keyword">import</span> { useAuthStore } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;./stores/authStore&#x27;</span>; <span class="hljs-comment">// En supposant que vous utilisez Zustand</span>
+<span class="hljs-keyword">import</span> { requestNotificationPermission, onForegroundMessage } <span class="hljs-keyword">from</span> <span class="hljs-string">&#x27;./services/push-notification-service&#x27;</span>;
+
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">NotificationManager</span>(<span class="hljs-params"></span>) {
+  <span class="hljs-keyword">const</span> { user } = <span class="hljs-title function_">useAuthStore</span>();
+
+  <span class="hljs-title function_">useEffect</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-keyword">if</span> (user) {
+      <span class="hljs-title function_">requestNotificationPermission</span>(user.<span class="hljs-property">uid</span>);
+    }
+  }, [user]);
+
+  <span class="hljs-title function_">useEffect</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-title function_">onForegroundMessage</span>().<span class="hljs-title function_">then</span>(<span class="hljs-function"><span class="hljs-params">payload</span> =&gt;</span> {
+      <span class="hljs-comment">// Affichez une notification/toast in-app ici</span>
+      <span class="hljs-title function_">alert</span>(<span class="hljs-string">`New Notification: <span class="hljs-subst">${payload.notification.title}</span>`</span>);
+    });
+  }, []);
+
+  <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>; <span class="hljs-comment">// Ce composant n&#x27;affiche rien</span>
+}
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-title class_">NotificationManager</span>;
+</code></pre>
+<hr>
+<h2 id="partie-3--déclenchement-des-notifications-côté-backend">Partie 3 : Déclenchement des Notifications (Côté Backend)</h2>
+<p>Nous utiliserons une Cloud Function qui se déclenche sur un événement dans Firestore pour envoyer les notifications.</p>
+<h3 id="étape-31--scénario---fin-dun-niveau-de-blind">Étape 3.1 : Scénario - Fin d'un niveau de blind</h3>
+<p>Le déclencheur sera la mise à jour d'un document de partie (<code>game</code>) dans un tournoi. Lorsque le champ <code>currentLevel</code> change, nous enverrons une notification à tous les joueurs du tournoi.</p>
+<h3 id="étape-32--code-de-la-cloud-function">Étape 3.2 : Code de la Cloud Function</h3>
+<p>Modifiez votre fichier <code>functions/src/index.ts</code>.</p>
+<pre><code class="language-typescript"><span class="hljs-keyword">import</span> * <span class="hljs-keyword">as</span> functions <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;firebase-functions&quot;</span>;
+<span class="hljs-keyword">import</span> * <span class="hljs-keyword">as</span> admin <span class="hljs-keyword">from</span> <span class="hljs-string">&quot;firebase-admin&quot;</span>;
+
+admin.<span class="hljs-title function_">initializeApp</span>();
+
+<span class="hljs-keyword">const</span> db = admin.<span class="hljs-title function_">firestore</span>();
+<span class="hljs-keyword">const</span> messaging = admin.<span class="hljs-title function_">messaging</span>();
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> onBlindLevelUp = functions.<span class="hljs-property">firestore</span>
+  .<span class="hljs-title function_">document</span>(<span class="hljs-string">&quot;tournaments/{tournamentId}&quot;</span>)
+  .<span class="hljs-title function_">onUpdate</span>(<span class="hljs-keyword">async</span> (change, context) =&gt; {
+    <span class="hljs-keyword">const</span> beforeData = change.<span class="hljs-property">before</span>.<span class="hljs-title function_">data</span>();
+    <span class="hljs-keyword">const</span> afterData = change.<span class="hljs-property">after</span>.<span class="hljs-title function_">data</span>();
+
+    <span class="hljs-comment">// Trouvez la partie qui a changé de niveau</span>
+    <span class="hljs-keyword">const</span> changedGame = afterData.<span class="hljs-property">games</span>.<span class="hljs-title function_">find</span>(<span class="hljs-function">(<span class="hljs-params">game, index</span>) =&gt;</span> {
+      <span class="hljs-keyword">const</span> oldGame = beforeData.<span class="hljs-property">games</span>[index];
+      <span class="hljs-keyword">return</span> oldGame &amp;&amp; game.<span class="hljs-property">currentLevel</span> &gt; oldGame.<span class="hljs-property">currentLevel</span>;
+    });
+
+    <span class="hljs-keyword">if</span> (!changedGame) {
+      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;No blind level change detected.&quot;</span>);
+      <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;
+    }
+
+    <span class="hljs-keyword">const</span> tournamentName = afterData.<span class="hljs-property">name</span>;
+    <span class="hljs-keyword">const</span> newLevel = changedGame.<span class="hljs-property">currentLevel</span> + <span class="hljs-number">1</span>;
+    <span class="hljs-keyword">const</span> newBlinds = changedGame.<span class="hljs-property">blinds</span>.<span class="hljs-property">small</span> * (<span class="hljs-number">2</span> ** newLevel) + <span class="hljs-string">&quot;/&quot;</span> + changedGame.<span class="hljs-property">blinds</span>.<span class="hljs-property">big</span> * (<span class="hljs-number">2</span> ** newLevel);
+
+    <span class="hljs-comment">// Récupérer les tokens FCM de tous les joueurs inscrits</span>
+    <span class="hljs-keyword">const</span> playerIds = afterData.<span class="hljs-property">registrations</span>
+      .<span class="hljs-title function_">map</span>(<span class="hljs-function">(<span class="hljs-params">p: <span class="hljs-built_in">any</span></span>) =&gt;</span> p.<span class="hljs-property">id</span>)
+      .<span class="hljs-title function_">filter</span>(<span class="hljs-function">(<span class="hljs-params">id: <span class="hljs-built_in">string</span></span>) =&gt;</span> !id.<span class="hljs-title function_">startsWith</span>(<span class="hljs-string">&quot;guest_&quot;</span>));
+
+    <span class="hljs-keyword">if</span> (playerIds.<span class="hljs-property">length</span> === <span class="hljs-number">0</span>) {
+      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;No registered users to notify.&quot;</span>);
+      <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;
+    }
+
+    <span class="hljs-keyword">const</span> <span class="hljs-attr">tokens</span>: <span class="hljs-built_in">string</span>[] = [];
+    <span class="hljs-keyword">const</span> userDocs = <span class="hljs-keyword">await</span> db.<span class="hljs-title function_">collection</span>(<span class="hljs-string">&quot;users&quot;</span>).<span class="hljs-title function_">where</span>(admin.<span class="hljs-property">firestore</span>.<span class="hljs-property">FieldPath</span>.<span class="hljs-title function_">documentId</span>(), <span class="hljs-string">&quot;in&quot;</span>, playerIds).<span class="hljs-title function_">get</span>();
+
+    userDocs.<span class="hljs-title function_">forEach</span>(<span class="hljs-function">(<span class="hljs-params">doc</span>) =&gt;</span> {
+      <span class="hljs-keyword">const</span> userData = doc.<span class="hljs-title function_">data</span>();
+      <span class="hljs-keyword">if</span> (userData.<span class="hljs-property">fcmToken</span>) {
+        tokens.<span class="hljs-title function_">push</span>(userData.<span class="hljs-property">fcmToken</span>);
+      }
+    });
+
+    <span class="hljs-keyword">if</span> (tokens.<span class="hljs-property">length</span> === <span class="hljs-number">0</span>) {
+      <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&quot;No FCM tokens found for registered users.&quot;</span>);
+      <span class="hljs-keyword">return</span> <span class="hljs-literal">null</span>;
+    }
+
+    <span class="hljs-comment">// Préparer la notification</span>
+    <span class="hljs-keyword">const</span> payload = {
+      <span class="hljs-attr">notification</span>: {
+        <span class="hljs-attr">title</span>: <span class="hljs-string">`Niveau de blind augmenté dans <span class="hljs-subst">${tournamentName}</span> !`</span>,
+        <span class="hljs-attr">body</span>: <span class="hljs-string">`Niveau <span class="hljs-subst">${newLevel}</span>. Blinds : <span class="hljs-subst">${newBlinds}</span>`</span>,
+        <span class="hljs-attr">icon</span>: <span class="hljs-string">&quot;/pwa-192x192.png&quot;</span>,
+      },
+    };
+
+    <span class="hljs-comment">// Envoyer les notifications</span>
+    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`Sending notification to <span class="hljs-subst">${tokens.length}</span> tokens.`</span>);
+    <span class="hljs-keyword">return</span> messaging.<span class="hljs-title function_">sendToDevice</span>(tokens, payload);
+  });
+</code></pre>
+<h3 id="étape-33--déploiement">Étape 3.3 : Déploiement</h3>
+<p>Depuis le répertoire racine de votre projet, déployez la fonction :</p>
+<pre><code class="language-bash">firebase deploy --only <span class="hljs-built_in">functions</span>
+</code></pre>
+<hr>
+<h2 id="résumé">Résumé</h2>
+<ol>
+<li><strong>PWA</strong>: Utilisez <code>vite-plugin-pwa</code> pour rendre l'application installable et mettre en cache les assets.</li>
+<li><strong>Client FCM</strong>: Créez un <code>firebase-messaging-sw.js</code> pour les notifications en arrière-plan. Dans votre code React, demandez la permission à l'utilisateur, récupérez son token FCM et sauvegardez-le dans son document utilisateur sur Firestore.</li>
+<li><strong>Backend FCM</strong>: Créez une Cloud Function qui s'exécute lors de la mise à jour d'un tournoi, récupère les tokens des joueurs concernés et leur envoie une notification via FCM.</li>
+</ol>
+<p>Ce plan vous fournit une base solide pour implémenter ces fonctionnalités avancées et améliorer significativement votre application PokerTour.</p>
+
+            <script async src="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.js"></script>
+            
+        </body>
+        </html>

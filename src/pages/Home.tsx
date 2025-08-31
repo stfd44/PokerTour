@@ -36,31 +36,59 @@ const Home: React.FC = () => {
         navigate('/app/create-tournament', { state: { userId: user?.uid } });
     };
 
-    const TournamentCard = ({ tournament }: { tournament: Tournament }) => (
-        // Responsive Card Layout: stack vertically below sm, row sm and up
-        <div key={tournament.id} className="bg-white rounded-lg shadow-md p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            {/* Details Section */}
-            <div className="min-w-0"> {/* Allow shrinking */}
-                <h3 className="font-semibold text-lg">{tournament.name}</h3>
-                {/* Responsive Details Row: wrap items */}
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-gray-600 text-sm"> {/* Use text-sm for smaller text */}
-                    <span className="flex items-center shrink-0"><Calendar className="w-4 h-4 mr-1" /> {new Date(tournament.date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</span>
-                    <span className="flex items-center shrink-0"><MapPin className="w-4 h-4 mr-1" /> {tournament.location}</span>
-                    <span className="flex items-center shrink-0"><Users className="w-4 h-4 mr-1" /> {tournament.registrations.length} / {tournament.maxPlayers}</span>
+    const TournamentCard = ({ tournament }: { tournament: Tournament }) => {
+        const getButtonProps = (status: 'scheduled' | 'in_progress' | 'ended') => {
+            switch (status) {
+                case 'ended':
+                    return {
+                        label: 'Voir le résumé',
+                        icon: <Trophy className='w-4 h-4 mr-2' />,
+                        className: "bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors flex items-center justify-center sm:justify-start w-full sm:w-auto"
+                    };
+                case 'in_progress':
+                    return {
+                        label: 'Accéder',
+                        icon: <PlayCircle className='w-4 h-4 mr-2' />,
+                        className: "bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors flex items-center justify-center sm:justify-start w-full sm:w-auto"
+                    };
+                case 'scheduled':
+                default:
+                    return {
+                        label: 'Rejoindre',
+                        icon: <PlayCircle className='w-4 h-4 mr-2' />,
+                        className: "bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center justify-center sm:justify-start w-full sm:w-auto"
+                    };
+            }
+        };
+
+        const buttonProps = getButtonProps(tournament.status);
+
+        return (
+            // Responsive Card Layout: stack vertically below sm, row sm and up
+            <div key={tournament.id} className="bg-white rounded-lg shadow-md p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                {/* Details Section */}
+                <div className="min-w-0"> {/* Allow shrinking */}
+                    <h3 className="font-semibold text-lg">{tournament.name}</h3>
+                    {/* Responsive Details Row: wrap items */}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-gray-600 text-sm"> {/* Use text-sm for smaller text */}
+                        <span className="flex items-center shrink-0"><Calendar className="w-4 h-4 mr-1" /> {new Date(tournament.date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                        <span className="flex items-center shrink-0"><MapPin className="w-4 h-4 mr-1" /> {tournament.location}</span>
+                        <span className="flex items-center shrink-0"><Users className="w-4 h-4 mr-1" /> {tournament.registrations.length} / {tournament.maxPlayers}</span>
+                    </div>
+                </div>
+                {/* Button Section: stack vertically, align end on sm+ */}
+                <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 w-full sm:w-auto'>
+                    <button
+                        onClick={() => navigate(`/tournament/${tournament.id}`)} // Navigate to the specific tournament page
+                        className={buttonProps.className}
+                    >
+                        {buttonProps.icon} {buttonProps.label}
+                    </button>
+                    {/* Delete button removed from Home page card */}
                 </div>
             </div>
-            {/* Button Section: stack vertically, align end on sm+ */}
-            <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 w-full sm:w-auto'>
-                <button
-                    onClick={() => navigate(`/tournament/${tournament.id}`)} // Navigate to the specific tournament page
-                    className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center justify-center sm:justify-start w-full sm:w-auto" // Full width below sm
-                >
-                    <PlayCircle className='w-4 h-4 mr-2' /> Rejoindre
-                </button>
-                {/* Delete button removed from Home page card */}
-            </div>
-        </div>
-    );
+        );
+    }
 
     return (
         <div className="min-h-screen bg-poker-light">

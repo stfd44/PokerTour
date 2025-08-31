@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title></title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="détails-de-la-page-daccueil-dashboard-de-pokertour">Détails de la Page d'Accueil (Dashboard) de PokerTour</h1>
+<p>Ce document analyse et détaille les différents éléments prévus pour être affichés sur la page d'accueil de l'application PokerTour. Cette page sert de tableau de bord central pour l'utilisateur connecté.</p>
+<h2 id="1-message-de-bienvenue-et-actions-principales">1. Message de Bienvenue et Actions Principales</h2>
+<p>En haut de la page, l'utilisateur est accueilli par :</p>
+<ul>
+<li><strong>Un titre principal :</strong> &quot;Bienvenue sur PokerTour&quot;.</li>
+<li><strong>Un slogan :</strong> &quot;Organisez et gérez vos tournois de poker comme un professionnel&quot;.</li>
+</ul>
+<p>Juste en dessous, deux boutons d'action principaux permettent une navigation rapide vers les fonctionnalités clés :</p>
+<ul>
+<li><strong>Créer un Tournoi :</strong> Un bouton proéminent qui redirige l'utilisateur vers le formulaire de création de tournoi.</li>
+<li><strong>Rejoindre un Tournoi :</strong> Un second bouton qui mène à la liste de tous les tournois disponibles, où l'utilisateur peut s'inscrire.</li>
+</ul>
+<hr>
+<h2 id="2-section-prochains-tournois">2. Section &quot;Prochains Tournois&quot;</h2>
+<p>Cette section a pour but de mettre en avant les tournois à venir pour susciter l'engagement.</p>
+<ul>
+<li><strong>Contenu :</strong> Affiche une liste des <strong>3 prochains tournois</strong> dont le statut est &quot;prévu&quot; (scheduled), triés par date.</li>
+<li><strong>Informations par tournoi :</strong>
+<ul>
+<li>Nom du tournoi.</li>
+<li>Date et heure.</li>
+<li>Lieu.</li>
+<li>Nombre de joueurs inscrits par rapport au maximum (<code>X / Y joueurs</code>).</li>
+<li>Un bouton pour <strong>&quot;Rejoindre&quot;</strong> ou <strong>&quot;Accéder&quot;</strong> au tournoi, qui redirige vers la page de détails du tournoi.</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p><strong>Note :</strong> Cette section est visible par tous les utilisateurs connectés, qu'ils soient inscrits ou non à ces tournois.</p>
+</blockquote>
+<hr>
+<h2 id="3-section-mes-tournois">3. Section &quot;Mes Tournois&quot;</h2>
+<p>Cette section est personnalisée pour l'utilisateur et lui donne un accès rapide aux tournois qui le concernent directement.</p>
+<ul>
+<li><strong>Condition d'affichage :</strong> Cette section n'apparaît que si l'utilisateur est inscrit à au moins un tournoi.</li>
+<li><strong>Contenu :</strong> Affiche la liste de tous les tournois auxquels l'utilisateur actuel est inscrit, quel que soit leur statut (prévu, en cours, terminé).</li>
+<li><strong>Informations par tournoi :</strong> Similaires à la section &quot;Prochains Tournois&quot;, avec des actions contextuelles :
+<ul>
+<li>Nom du tournoi.</li>
+<li>Date, lieu, nombre de joueurs.</li>
+<li>Un bouton d'action qui change en fonction du statut du tournoi (<code>scheduled</code>, <code>in_progress</code>, <code>ended</code>) :
+<ul>
+<li><strong>&quot;Voir le résumé&quot;</strong> si le tournoi est terminé.</li>
+<li><strong>&quot;Accéder&quot;</strong> si le tournoi est en cours.</li>
+<li><strong>&quot;Rejoindre&quot;</strong> si le tournoi est encore à venir.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="en-résumé">En résumé</h2>
+<p>La page d'accueil est conçue pour être un hub dynamique qui :</p>
+<ol>
+<li><strong>Accueille</strong> l'utilisateur.</li>
+<li>Propose des <strong>actions rapides</strong> (créer/rejoindre).</li>
+<li>Met en avant les <strong>prochains événements</strong> pour toute la communauté.</li>
+<li>Offre un <strong>accès personnalisé</strong> aux événements de l'utilisateur.</li>
+</ol>
+<p>Tout le contenu est chargé dynamiquement à partir de la base de données Firestore et dépend de l'état de connexion de l'utilisateur et de ses inscriptions.</p>
+
+            
+            
+        </body>
+        </html>
