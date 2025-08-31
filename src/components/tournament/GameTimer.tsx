@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'; // Removed useCallback
 import { Clock, Play, Pause, SkipForward } from 'lucide-react';
-import type { Game, Blinds } from '../../store/types/tournamentTypes'; // Corrected import path for types
+import type { Game } from '../../store/types/tournamentTypes'; // Corrected import path for types
 import { useTournamentStore } from '../../store/tournamentStore';
+import { useAuthStore } from '../../store/useAuthStore';
 // Removed incorrect Button import
 
 interface GameTimerProps {
@@ -19,6 +20,7 @@ const formatTime = (ms: number): string => {
 };
 
 export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { // Destructure the new prop
+  const { user } = useAuthStore();
   const { pauseTimer, resumeTimer, advanceBlindLevel } = useTournamentStore(
     (state) => ({
       pauseTimer: state.pauseTimer,
@@ -35,8 +37,8 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
     remainingTimeOnPause,
     levelStartTime,
     currentLevel,
-    blindLevels, // Needed for levelDurationMs calculation
-    blinds // Needed for current/next blinds calculation
+    levelDuration,
+    blindStructure
   } = useTournamentStore(state => {
     const tournament = state.tournaments.find(t => t.id === game.tournamentId);
     const currentGame = tournament?.games.find(g => g.id === game.id);
@@ -47,8 +49,8 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
       remainingTimeOnPause: currentGame?.remainingTimeOnPause ?? null,
       levelStartTime: currentGame?.levelStartTime ?? 0,
       currentLevel: currentGame?.currentLevel ?? 0,
-      blindLevels: currentGame?.blindLevels ?? 10, // Default blind level duration
-      blinds: currentGame?.blinds ?? { small: 0, big: 0 } // Default blinds
+      levelDuration: currentGame?.levelDuration ?? 10,
+      blindStructure: currentGame?.blindStructure ?? [{ small: 0, big: 0 }]
     };
   });
 
@@ -56,19 +58,17 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
   const [isLevelComplete, setIsLevelComplete] = useState<boolean>(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   // Calculate levelDurationMs based on selected state
-  const levelDurationMs = useMemo(() => blindLevels * 60 * 1000, [blindLevels]);
+  const levelDurationMs = useMemo(() => levelDuration * 60 * 1000, [levelDuration]);
 
-  // Function to calculate blinds for a given level index
-  const calculateBlindsForLevel = (levelIndex: number): Blinds => {
-    return {
-      small: game.blinds.small * Math.pow(2, levelIndex),
-      big: game.blinds.big * Math.pow(2, levelIndex),
-    };
-  };
+  // Get blinds directly from the new structure
+  const currentBlinds = useMemo(() => {
+    return blindStructure[currentLevel] ?? { small: 'N/A', big: 'N/A' };
+  }, [blindStructure, currentLevel]);
 
-  // Calculate blinds based on selected state
-  const currentBlinds = useMemo(() => calculateBlindsForLevel(currentLevel), [currentLevel, blinds]);
-  const nextBlinds = useMemo(() => calculateBlindsForLevel(currentLevel + 1), [currentLevel, blinds]);
+  const nextBlinds = useMemo(() => {
+    // The next level's blinds are either already defined or will be created by advanceBlindLevel
+    return blindStructure[currentLevel + 1] ?? { small: 'Auto', big: 'Auto' };
+  }, [blindStructure, currentLevel]);
 
   useEffect(() => {
     // Use selected state values in logs and logic
@@ -163,16 +163,19 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
 
   // Event handlers remain the same, using game prop for IDs
   const handlePause = () => {
+    if (!user) return;
     console.log(`[HandlePause] Clicked for Game ID: ${game.id}`);
-    pauseTimer(game.tournamentId, game.id);
+    pauseTimer(game.tournamentId, game.id, user.uid);
   };
   const handleResume = () => {
+    if (!user) return;
     console.log(`[HandleResume] Clicked for Game ID: ${game.id}`);
-    resumeTimer(game.tournamentId, game.id);
+    resumeTimer(game.tournamentId, game.id, user.uid);
   };
   const handleAdvanceLevel = () => {
+    if (!user) return;
     console.log(`[HandleAdvanceLevel] Clicked for Game ID: ${game.id}`);
-    advanceBlindLevel(game.tournamentId, game.id);
+    advanceBlindLevel(game.tournamentId, game.id, user.uid);
     // Reset local state immediately for better UX, store will catch up
     setIsLevelComplete(false);
   };
@@ -197,7 +200,7 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
         </div>
         {/* Control Buttons - Only show Pause/Resume if user is participant */}
         <div className="flex items-center space-x-2">
-          {isCurrentUserParticipant && !isLevelComplete && ( // Check participation
+          {isCurrentUserParticipant && (
             <>
               {isPaused ? (
                 <button onClick={handleResume} className="p-1 rounded hover:bg-gray-200" aria-label="Reprendre">
@@ -208,18 +211,14 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
                   <Pause className="w-6 h-6 text-yellow-600" />
                 </button>
               )}
+              <button
+                onClick={handleAdvanceLevel}
+                className="p-1 rounded hover:bg-gray-200"
+                aria-label="Niveau suivant"
+              >
+                <SkipForward className="w-6 h-6 text-gray-600" />
+              </button>
             </>
-          )}
-          {/* Always show Advance Level button if level is complete (assuming anyone can advance?) */}
-          {/* If only participants should advance, add isCurrentUserParticipant check here too */}
-          {isLevelComplete && (
-             <button
-               onClick={handleAdvanceLevel}
-               className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 inline-flex items-center"
-             >
-               <SkipForward className="w-4 h-4 mr-2" />
-               Niveau Suivant
-             </button>
           )}
         </div>
       </div>

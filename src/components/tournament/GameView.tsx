@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Confetti from 'react-confetti';
 import { useTournamentStore } from '../../store/tournamentStore';
-import { StopCircle, UserCheck, UserX, UserMinus, RefreshCcw } from 'lucide-react';
+import { StopCircle, UserCheck, UserX, UserMinus, RefreshCcw, Edit } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore'; // Import auth store
 import { GameTimer } from './GameTimer';
 import { GameSummary } from './GameSummary';
@@ -24,10 +24,16 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
   const reinstatePlayer = useTournamentStore(state => state.reinstatePlayer);
   const rebuyPlayer = useTournamentStore(state => state.rebuyPlayer);
   const endGame = useTournamentStore(state => state.endGame);
+  const updateBlinds = useTournamentStore(state => state.updateBlinds);
+  const resetLevelTimer = useTournamentStore(state => state.resetLevelTimer);
+  const updateLevelDuration = useTournamentStore(state => state.updateLevelDuration);
   
   // Local state
   const [rebuyLoading, setRebuyLoading] = useState<string | null>(null);
   const [rebuyError, setRebuyError] = useState<string | null>(null);
+  const [newSmallBlind, setNewSmallBlind] = useState('');
+  const [newBigBlind, setNewBigBlind] = useState('');
+  const [newLevelDuration, setNewLevelDuration] = useState('');
   const [winnerName, setWinnerName] = useState<string | null>(null);
   const [animationEndTime, setAnimationEndTime] = useState<number | null>(null);
   const [isFadingOut, setIsFadingOut] = useState(false);
@@ -145,6 +151,35 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
     endGame(tournamentId, gameId);
   };
 
+  const handleUpdateBlinds = () => {
+    if (!user || !game) return;
+    const small = parseInt(newSmallBlind, 10);
+    const big = parseInt(newBigBlind, 10);
+    if (isNaN(small) || isNaN(big) || small <= 0 || big <= small) {
+        alert("Veuillez entrer des blinds valides (la grosse blind doit être supérieure à la petite).");
+        return;
+    }
+    updateBlinds(tournamentId, gameId, { small, big }, user.uid);
+    setNewSmallBlind('');
+    setNewBigBlind('');
+  };
+
+  const handleUpdateDuration = () => {
+    if (!user || !game) return;
+    const duration = parseInt(newLevelDuration, 10);
+    if (isNaN(duration) || duration <= 0) {
+        alert("Veuillez entrer une durée valide en minutes.");
+        return;
+    }
+    updateLevelDuration(tournamentId, gameId, duration, user.uid);
+    setNewLevelDuration('');
+  };
+
+  const handleResetTimer = () => {
+    if (!user || !game) return;
+    resetLevelTimer(tournamentId, gameId, user.uid);
+  };
+
   // Handle loading state
   if (!game) {
     return (
@@ -217,6 +252,71 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
           game={game}
           isCurrentUserParticipant={user ? game.players.some(p => p.id === user.uid) : false}
         />
+      )}
+
+      {/* Admin Controls - Only for players in the game */}
+      {game.status === 'in_progress' && user && game.players.some(p => p.id === user.uid) && game.blindStructure && game.blindStructure.length > 0 && (
+        <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <Edit className="w-5 h-5 mr-2" />
+            Contrôles de la partie
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Blinds Control */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Blinds</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  placeholder={`SB: ${game.blindStructure[game.currentLevel]?.small ?? 'N/A'}`}
+                  value={newSmallBlind}
+                  onChange={(e) => setNewSmallBlind(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                <input
+                  type="number"
+                  placeholder={`BB: ${game.blindStructure[game.currentLevel]?.big ?? 'N/A'}`}
+                  value={newBigBlind}
+                  onChange={(e) => setNewBigBlind(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                <button
+                  onClick={handleUpdateBlinds}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                  disabled={!newSmallBlind || !newBigBlind}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+
+            {/* Level Duration Control */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Durée du niveau (min)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  placeholder={`${game.levelDuration} min`}
+                  value={newLevelDuration}
+                  onChange={(e) => setNewLevelDuration(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                <button
+                  onClick={handleUpdateDuration}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                  disabled={!newLevelDuration}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+            
+          <div className="mt-4 flex flex-wrap gap-2">
+             <button onClick={handleResetTimer} className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300">Réinit. Timer</button>
+          </div>
+        </div>
       )}
 
       {/* Rebuy Info */}

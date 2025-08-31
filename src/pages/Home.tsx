@@ -162,7 +162,7 @@ const Home: React.FC = () => {
                             </h2>
                             <div className="grid gap-4">
                                 {upcomingTournaments.map((tournament: Tournament) => (
-                                    <TournamentCard tournament={tournament} />
+                                    <TournamentCard key={tournament.id} tournament={tournament} />
                                 ))}
                             </div>
                         </section>
@@ -176,7 +176,7 @@ const Home: React.FC = () => {
                             </h2>
                             <div className="grid gap-4">
                                 {userTournaments.map((tournament: Tournament) => (
-                                    <TournamentCard tournament={tournament} />
+                                    <TournamentCard key={tournament.id} tournament={tournament} />
                                 ))}
                             </div>
                         </section>

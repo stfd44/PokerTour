@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>D&eacute;tails de la Gestion d&apos;une Partie de Poker</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="détails-de-la-gestion-dune-partie-de-poker">Détails de la Gestion d'une Partie de Poker</h1>
+<p>Ce document détaille le fonctionnement d'une partie de poker au sein de l'application et décrit les modifications à apporter pour implémenter de nouvelles fonctionnalités de contrôle par les joueurs.</p>
+<h2 id="1-fonctionnement-dune-partie-in_progress">1. Fonctionnement d'une Partie (<code>in_progress</code>)</h2>
+<p>Lorsqu'un tournoi est en cours, une partie est gérée de la manière suivante :</p>
+<ul>
+<li><strong>Démarrage :</strong> La partie est lancée par <strong>un membre du tournoi</strong>. Le statut du tournoi passe à <code>in_progress</code>. Auparavant, seul le créateur pouvait lancer la partie.</li>
+<li><strong>Gestion du Temps et des Blinds :</strong>
+<ul>
+<li>Un timer est initié, basé sur la <code>duration</code> définie pour chaque niveau dans <code>blindLevels</code>.</li>
+<li>Les blinds augmentent automatiquement à la fin de chaque niveau.</li>
+<li><strong>N'importe quel joueur de la partie</strong> peut désormais manuellement :
+<ul>
+<li>Mettre en pause (<code>pauseTimer</code>) ou reprendre (<code>resumeTimer</code>) le timer.</li>
+<li>Passer au niveau de blind suivant (<code>advanceBlindLevel</code>) ou précédent (<code>goToPreviousLevel</code>).</li>
+<li>Modifier la durée du niveau en cours.</li>
+<li>Modifier les blinds (petite et grosse).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Gestion des Joueurs :</strong> Le créateur du tournoi conserve les droits pour gérer les éliminations et les rebuys.</li>
+<li><strong>Fin de la partie :</strong> Le créateur met fin à la partie, ce qui met à jour son statut.</li>
+</ul>
+<p>Cette logique est gérée par les actions du store Zustand qui modifient l'état du tournoi dans Firestore. Les permissions sont étendues pour permettre une gestion collaborative de la partie.</p>
+<hr>
+<h2 id="2-fonctionnalités-de-contrôle-étendues-pour-les-joueurs">2. Fonctionnalités de Contrôle Étendues pour les Joueurs</h2>
+<h3 id="objectif">Objectif</h3>
+<p>Donner une flexibilité maximale, notamment pour les parties amicales, en permettant à <strong>n'importe quel joueur participant</strong> à une partie en cours de contrôler tous les aspects du jeu. De plus, n'importe quel membre d'un tournoi peut en démarrer une partie.</p>
+<h3 id="logique-des-fonctionnalités">Logique des fonctionnalités</h3>
+<ul>
+<li><strong>Démarrage de partie :</strong> Tout utilisateur dont l'UID est présent dans la liste des <code>participants</code> du tournoi peut lancer une partie (<code>startGame</code>).</li>
+<li><strong>Contrôles en jeu :</strong> Une fois la partie commencée, tout utilisateur dont l'UID est présent dans la liste des <code>players</code> de la partie en cours peut effectuer les actions suivantes :
+<ul>
+<li><strong>Modifier les blinds :</strong> Saisir de nouvelles valeurs pour la petite et la grosse blind et les appliquer immédiatement au niveau en cours.</li>
+<li><strong>Gérer le timer :</strong>
+<ul>
+<li>Mettre en pause / Reprendre le timer.</li>
+<li>Réinitialiser le timer pour le niveau actuel.</li>
+<li>Forcer le passage au niveau suivant ou précédent.</li>
+</ul>
+</li>
+<li><strong>Modifier la durée du niveau :</strong> Ajuster la durée prévue pour le niveau en cours, ce qui recalcule automatiquement le temps restant.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="3-modifications-à-apporter">3. Modifications à Apporter</h2>
+<p>Pour implémenter ces fonctionnalités, les changements suivants sont nécessaires :</p>
+<h3 id="a-interface-utilisateur-ui">a. Interface Utilisateur (UI)</h3>
+<p>Dans la vue de la partie en cours :</p>
+<ul>
+<li>
+<p><strong>Section Timer :</strong></p>
+<ul>
+<li>À côté du temps restant, afficher un champ de saisie (input) pour la <strong>&quot;Durée du niveau (min)&quot;</strong>.</li>
+<li>Ajouter un bouton &quot;Valider&quot; pour mettre à jour cette durée.</li>
+<li>Les boutons &quot;Pause/Reprendre&quot;, &quot;Niveau Précédent&quot; et &quot;Niveau Suivant&quot; doivent être accessibles à tous les joueurs de la partie.</li>
+</ul>
+</li>
+<li>
+<p><strong>Section Blinds :</strong></p>
+<ul>
+<li>Ajouter deux champs de saisie pour la &quot;Petite Blind&quot; et la &quot;Grosse Blind&quot;.</li>
+<li>Ajouter un bouton &quot;Mettre à jour les blinds&quot; pour soumettre les nouvelles valeurs.</li>
+</ul>
+</li>
+</ul>
+<h3 id="b-logique-state-management---zustandfirestore">b. Logique (State Management - Zustand/Firestore)</h3>
+<ol>
+<li>
+<p><strong>Nouvelle action dans le store <code>useGameStore</code> :</strong></p>
+<ul>
+<li><code>updateBlinds(tournamentId, gameId, newBlinds)</code> : Met à jour l'objet <code>blinds</code> pour le niveau en cours dans <code>games[...].blindLevels[currentLevel]</code>.</li>
+<li><code>updateLevelDuration(tournamentId, gameId, newDuration)</code> : Met à jour la propriété <code>duration</code> pour le niveau en cours dans <code>games[...].blindLevels[currentLevel]</code>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Mise à jour des actions existantes :</strong></p>
+<ul>
+<li><strong><code>startGame</code></strong> : La vérification des permissions doit s'assurer que l'UID de l'utilisateur (<code>auth.uid</code>) est présent dans le tableau <code>participants</code> du tournoi, et non plus seulement égal au <code>creatorId</code>.</li>
+<li><strong>Contrôles en jeu</strong> (<code>pauseTimer</code>, <code>resumeTimer</code>, <code>advanceBlindLevel</code>, etc.) : La vérification des permissions doit s'assurer que l'UID de l'utilisateur est présent dans le tableau <code>game.players</code> de la partie en cours.</li>
+</ul>
+</li>
+<li>
+<p><strong>Nouvelles actions pour le timer :</strong></p>
+<ul>
+<li>Créer une action <code>goToPreviousLevel(tournamentId, gameId)</code> pour décrémenter <code>currentLevel</code>.</li>
+<li>Créer une action <code>resetLevelTimer(tournamentId, gameId)</code> qui réinitialise <code>levelStartTime</code> à <code>Date.now()</code>.</li>
+</ul>
+</li>
+</ol>
+<h3 id="c-backend-règles-de-sécurité-firestore">c. Backend (Règles de Sécurité Firestore)</h3>
+<p>Les règles de sécurité Firestore doivent être mises à jour pour refléter ces nouvelles permissions.</p>
+<p><strong>Exemple de règle à adapter :</strong></p>
+<pre><code class="language-js"><span class="hljs-comment">// functions/firestore.rules</span>
+
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">isTournamentParticipant</span>(<span class="hljs-params">tournament, userId</span>) {
+  <span class="hljs-comment">// participants est un tableau d&#x27;objets { id, name, ... }</span>
+  <span class="hljs-keyword">return</span> tournament.<span class="hljs-property">participants</span>.<span class="hljs-title function_">exists</span>(<span class="hljs-function"><span class="hljs-params">p</span> =&gt;</span> p.<span class="hljs-property">id</span> == userId);
+}
+
+<span class="hljs-keyword">function</span> <span class="hljs-title function_">isPlayerInGame</span>(<span class="hljs-params">game, userId</span>) {
+  <span class="hljs-comment">// players est un tableau d&#x27;objets { id, name, ... }</span>
+  <span class="hljs-keyword">return</span> game.<span class="hljs-property">players</span>.<span class="hljs-title function_">exists</span>(<span class="hljs-function"><span class="hljs-params">p</span> =&gt;</span> p.<span class="hljs-property">id</span> == userId);
+}
+
+match /tournaments/{tournamentId} {
+  allow <span class="hljs-attr">update</span>: <span class="hljs-keyword">if</span> request.<span class="hljs-property">auth</span>.<span class="hljs-property">uid</span> == resource.<span class="hljs-property">data</span>.<span class="hljs-property">creatorId</span> ||
+                   <span class="hljs-comment">// Permet à un participant de démarrer une partie</span>
+                   (request.<span class="hljs-property">resource</span>.<span class="hljs-property">data</span>.<span class="hljs-property">status</span> == <span class="hljs-string">&#x27;in_progress&#x27;</span> &amp;&amp; <span class="hljs-title function_">isTournamentParticipant</span>(resource.<span class="hljs-property">data</span>, request.<span class="hljs-property">auth</span>.<span class="hljs-property">uid</span>)) ||
+                   <span class="hljs-comment">// Permet à un joueur de la partie de la modifier</span>
+                   <span class="hljs-title function_">isPlayerInGame</span>(request.<span class="hljs-property">resource</span>.<span class="hljs-property">data</span>.<span class="hljs-property">games</span>[<span class="hljs-comment">/* logique pour trouver le jeu */</span>], request.<span class="hljs-property">auth</span>.<span class="hljs-property">uid</span>);
+
+  <span class="hljs-comment">// Une logique plus fine est nécessaire pour :</span>
+  <span class="hljs-comment">// 1. Trouver le bon jeu dans le tableau `games`.</span>
+  <span class="hljs-comment">// 2. Restreindre les champs modifiables (par ex. un joueur ne peut pas changer le `creatorId`).</span>
+  <span class="hljs-comment">// Exemple pour la mise à jour d&#x27;un jeu spécifique :</span>
+  <span class="hljs-comment">// allow update: if request.auth.uid == resource.data.creatorId ||</span>
+  <span class="hljs-comment">//                  (request.resource.data.games[gameId].players.exists(p =&gt; p.id == request.auth.uid) &amp;&amp;</span>
+  <span class="hljs-comment">//                   request.resource.data.diff(resource.data).affectedKeys().hasOnly([&#x27;games&#x27;]));</span>
+}
+</code></pre>
+
+            
+            
+        </body>
+        </html>

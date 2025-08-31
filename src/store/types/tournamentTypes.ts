@@ -27,8 +27,8 @@ export interface Game {
   id: string;
   tournamentId: string;
   startingStack: number;
-  blinds: Blinds;
-  blindLevels: number;
+  blindStructure: Blinds[]; // Remplacé 'blinds' et 'blindLevels'
+  levelDuration: number; // Durée de chaque niveau en minutes
   players: Player[];
   status: 'pending' | 'in_progress' | 'ended';
   startedAt?: number; // Changed to number (timestamp) for consistency
@@ -96,16 +96,21 @@ export interface TournamentStoreActions {
   removeGuestFromTournament: (tournamentId: string, guestName: string, userId: string) => Promise<void>;
   addGame: (
     tournamentId: string,
-    gameData: Pick<Game, 'startingStack' | 'blinds' | 'blindLevels' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings'>,
+    gameData: Pick<Game, 'startingStack' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings'>,
+    initialBlinds: Blinds,
+    levelDuration: number,
     rebuyAllowedUntilLevel?: number
   ) => Promise<void>;
-  updateGame: (tournamentId: string, gameId: string, gameData: Partial<Game>) => Promise<void>;
-  startGame: (tournamentId: string, gameId: string) => Promise<void>;
+  // updateGame: (tournamentId: string, gameId: string, gameData: Partial<Game>) => Promise<void>;
+  startGame: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
   endGame: (tournamentId: string, gameId: string) => Promise<void>;
   deleteGame: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
-  pauseTimer: (tournamentId: string, gameId: string) => Promise<void>;
-  resumeTimer: (tournamentId: string, gameId: string) => Promise<void>;
-  advanceBlindLevel: (tournamentId: string, gameId: string) => Promise<void>;
+  updateBlinds: (tournamentId: string, gameId: string, newBlinds: Blinds, userId: string) => Promise<void>;
+  pauseTimer: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
+  resumeTimer: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
+  advanceBlindLevel: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
+  resetLevelTimer: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
+  updateLevelDuration: (tournamentId: string, gameId: string, newDuration: number, userId: string) => Promise<void>;
   eliminatePlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
   reinstatePlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
   rebuyPlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;

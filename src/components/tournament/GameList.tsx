@@ -61,12 +61,20 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
                 </div>
                 <div className="flex items-center">
                   <Timer className="w-5 h-5 mr-2 text-poker-gold" />
-                  <span>Niveaux: {game.blindLevels}min</span>
+                  {/* Support for both new and old data structures */}
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  <span>Niveaux: {game.levelDuration || (game as any).blindLevels}min</span>
                 </div>
               </div>
 
               <div className="text-gray-600">
-                Blinds: {game.blinds.small}/{game.blinds.big}
+                {/* Support for both new and old data structures */}
+                Blinds de départ:
+                {game.blindStructure && game.blindStructure[0]
+                  ? ` ${game.blindStructure[0].small}/${game.blindStructure[0].big}`
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  : ` ${(game as any).blinds?.small ?? 'N/A'}/${(game as any).blinds?.big ?? 'N/A'}`
+                }
               </div>
             </div>
 
@@ -86,7 +94,9 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
                       </button>
                       <button
                         onClick={() => {
-                          startGame(tournament.id, game.id);
+                          if (userId) {
+                            startGame(tournament.id, game.id, userId);
+                          }
                           onViewGame(game.id);
                         }}
                         className="w-full sm:w-auto bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center justify-center sm:justify-start"
