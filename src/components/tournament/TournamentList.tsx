@@ -103,9 +103,32 @@ export function TournamentList() {
     );
   }
 
+  // Sort tournaments with custom logic
+  const sortedTournaments = tournaments
+    .map(tournament => {
+      // Find the last ended game to use as the actual tournament end date
+      const lastEndedGame = tournament.games
+        .filter(game => game.status === 'ended')
+        .sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0))[0];
+      
+      return {
+        tournament,
+        sortPriority: tournament.status === 'scheduled' ? 3 :
+                       tournament.status === 'in_progress' ? 2 :
+                       1,
+        sortDate: lastEndedGame ? (lastEndedGame.endedAt || 0) : new Date(tournament.date).getTime()
+      };
+    })
+    .sort((a, b) =>
+      a.sortPriority !== b.sortPriority
+        ? b.sortPriority - a.sortPriority
+        : b.sortDate - a.sortDate
+    )
+    .map(item => item.tournament);
+
   return (
     <div className="grid gap-6">
-      {tournaments.map((tournament) => {
+      {sortedTournaments.map((tournament) => {
         const isRegistered = user ? tournament.registrations.some(p => p.id === user.uid) : false;
         const registrationState = registrationStates[tournament.id];
         const isFull = tournament.registrations.length >= tournament.maxPlayers;

@@ -2,7 +2,7 @@
 import React from 'react'; // Removed useEffect import
 import { useNavigate } from 'react-router-dom';
 import { useTournamentStore } from '../store/tournamentStore';
-import type { Tournament, Player } from '../store/types/tournamentTypes'; // Corrected import path and added Player
+import type { Tournament } from '../store/types/tournamentTypes'; // Removed unused Player import
 import { Calendar, Users, MapPin, PlayCircle, Trophy, Plus } from 'lucide-react'; // Removed Trash2 import
 import { useTeamStore } from '../store/useTeamStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -23,12 +23,28 @@ const Home: React.FC = () => {
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .slice(0, 3);
 
-    // Filter the user's tournament
-    const userTournaments = tournaments.filter((tournament: Tournament) => {
-        const isUserRegistered = tournament.registrations.some((p: Player) => p.id === user?.uid); // Added Player type
-        const isUserInTeam = teams.some(team => team.id === tournament.teamId);
-        return isUserRegistered && isUserInTeam;
-    });
+    // Removed userTournaments filter as it's no longer used
+
+    // Filter recent tournaments for the user's team
+    const recentTournaments = tournaments
+        .filter((tournament: Tournament) => {
+            const isInUserTeam = teams.some(team => team.id === tournament.teamId);
+            const isRecentStatus = ['in_progress', 'ended'].includes(tournament.status);
+            return isInUserTeam && isRecentStatus;
+        })
+        .map(tournament => {
+            // Find the last ended game to use as the actual tournament end date
+            const lastEndedGame = tournament.games
+                .filter(game => game.status === 'ended')
+                .sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0))[0];
+            
+            return {
+                ...tournament,
+                actualEndDate: lastEndedGame ? lastEndedGame.endedAt : new Date(tournament.date).getTime()
+            };
+        })
+        .sort((a, b) => (b.actualEndDate || 0) - (a.actualEndDate || 0))
+        .slice(0, 3);
 
     // Removed handleDeleteTournament function as it's no longer used here
 
@@ -168,19 +184,21 @@ const Home: React.FC = () => {
                         </section>
                     )}
 
-                    {/* User's Tournaments */}
-                    {userTournaments.length > 0 && user && (
+                    {/* Recent Tournaments */}
+                    {recentTournaments.length > 0 && user && (
                         <section className="mb-12">
                             <h2 className="text-2xl font-bold text-poker-black mb-4 flex items-center">
-                                <Trophy className="w-6 h-6 mr-2" /> Mes Tournois
+                                <Trophy className="w-6 h-6 mr-2" /> Tournois Récents
                             </h2>
                             <div className="grid gap-4">
-                                {userTournaments.map((tournament: Tournament) => (
+                                {recentTournaments.map((tournament: Tournament) => (
                                     <TournamentCard key={tournament.id} tournament={tournament} />
                                 ))}
                             </div>
                         </section>
                     )}
+
+                    {/* User's Tournaments section removed as per user request */}
                 </div>
             </main>
         </div>
