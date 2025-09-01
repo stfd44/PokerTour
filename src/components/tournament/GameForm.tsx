@@ -381,7 +381,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                Qui a payé son buy-in ({tournament.buyin}€) au pot :
              </p>
              
-             <div className="space-y-2 max-h-48 overflow-y-auto">
+             <div className="grid grid-cols-2 gap-2">
                {Array.from(selectedPlayers).map(playerId => {
                  const player = tournament.registrations.find(p => p.id === playerId);
                  if (!player) return null;
@@ -389,11 +389,16 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                  const hasPaidToPot = playersWhoPaidPot.has(playerId);
                  
                  return (
-                   <div key={playerId} className="flex items-center justify-between bg-white p-3 rounded border">
-                     <span className="font-medium text-gray-800">
+                   <label
+                     key={playerId}
+                     className={`flex items-center justify-between p-2 rounded cursor-pointer ${
+                       hasPaidToPot ? 'bg-poker-gold/10 border-poker-gold' : 'bg-white border-gray-200'
+                     } border`}
+                   >
+                     <span className="font-medium text-gray-800 text-sm">
                        {player.nickname || player.name}
                      </span>
-                     <label className="flex items-center space-x-2 cursor-pointer">
+                     <div className="flex items-center space-x-2">
                        <input
                          type="checkbox"
                          checked={hasPaidToPot}
@@ -403,8 +408,8 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                        <span className="text-sm text-gray-600">
                          {hasPaidToPot ? `${tournament.buyin}€` : '0€'}
                        </span>
-                     </label>
-                   </div>
+                     </div>
+                   </label>
                  );
                })}
              </div>
