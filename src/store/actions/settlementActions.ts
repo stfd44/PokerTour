@@ -161,22 +161,29 @@ export const createSettlementActionSlice: StateCreator<
                         if (currentPlayerData) {
                             let winningsForPlayer = 0;
                             
-                            // Main pot winnings based on rank
+                            // Main pot winnings based on rank (pour les logs de debug)
                             if (result.rank === 1) {
                                 winningsForPlayer = mainPotWinnings.first;
-                                // Winner also gets all rebuy money
-                                winningsForPlayer += totalRebuyPot;
-                                console.log(`     - Winner gets additional rebuy pot: ${totalRebuyPot}€`);
                             } else if (result.rank === 2) {
                                 winningsForPlayer = mainPotWinnings.second;
                             } else if (result.rank === 3) {
                                 winningsForPlayer = mainPotWinnings.third;
                             }
 
-                            if (winningsForPlayer > 0) {
-                                console.log(`     - Adding total winnings ${winningsForPlayer.toFixed(2)}€ to ${currentPlayerData.name} (ID: ${result.playerId}). Old balance: ${currentPlayerData.balance}`);
-                                currentPlayerData.balance += winningsForPlayer;
-                                console.log(`     - New balance for ${currentPlayerData.name}: ${currentPlayerData.balance}`);
+                            // LOGS DE DÉBOGAGE CRITIQUES
+                            console.log(`[BALANCE DEBUG] Game ${gameIndex + 1} - Player ${currentPlayerData.name}:`);
+                            console.log(`    - Rank: ${result.rank}`);
+                            console.log(`    - Main pot winnings: ${winningsForPlayer.toFixed(2)}€`);
+                            console.log(`    - Total winnings (includes rebuy distribution): ${result.winnings.toFixed(2)}€`);
+                            console.log(`    - Rebuy gains distributed: ${(result.winnings - winningsForPlayer).toFixed(2)}€`);
+                            console.log(`    - Current balance before adding: ${currentPlayerData.balance.toFixed(2)}€`);
+
+                            // ✅ CORRECTION APPLIQUÉE : Utiliser result.winnings qui inclut la distribution cyclique des rebuy
+                            // Les rebuy sont calculés dans calculateResultsForGame() selon la règle de distribution
+                            if (result.winnings > 0) {
+                                console.log(`     - [FIXED] Adding total winnings ${result.winnings.toFixed(2)}€ to ${currentPlayerData.name} (ID: ${result.playerId}). Old balance: ${currentPlayerData.balance}`);
+                                currentPlayerData.balance += result.winnings;
+                                console.log(`     - [FIXED] New balance for ${currentPlayerData.name}: ${currentPlayerData.balance}`);
                             }
                         }
                     });
@@ -351,30 +358,18 @@ export const createSettlementActionSlice: StateCreator<
                                 });
                             }
 
-                            // 2. Gains par rebuy = montant du buy-in (tournament.buyin = 10€)
-                            // CORRECTION: Seul le 1er joueur récupère TOUS les rebuys
-                            if (result?.rank === 1) {
-                                // Collecte tous les rebuys faits dans cette partie avec les noms des joueurs
-                                const rebuyDetails: Array<{playerId: string, playerName: string}> = [];
-                                game.players.forEach(p => {
-                                    for (let i = 0; i < (p.rebuysMade || 0); i++) {
-                                        rebuyDetails.push({
-                                            playerId: p.id,
-                                            playerName: p.nickname || p.name || 'Joueur inconnu'
-                                        });
-                                    }
-                                });
-
-                                // Ajouter les gains pour chaque rebuy (montant réel = buy-in, pas proportionnel)
-                                if (rebuyDetails.length > 0) {
-                                    rebuyDetails.forEach(rebuy => {
-                                        const rebuyWinnings = tournament.buyin; // Montant réel du buy-in
-                                        summary.ledger.push({
-                                            gameId: game.id,
-                                            type: 'winnings',
-                                            amount: rebuyWinnings,
-                                            description: `Gains sur rebuy de ${rebuy.playerName} (Partie ${gameNumber})`,
-                                        });
+                            // CORRECTION : Les gains de rebuy sont déjà inclus dans result.winnings par calculateResultsForGame
+                            // On calcule la différence entre les gains totaux et les gains du pot de base
+                            if (result && mainPotWinnings > 0) {
+                                const rebuyGainsForPlayer = result.winnings - baseWinnings;
+                                
+                                if (rebuyGainsForPlayer > 0) {
+                                    console.log(`[DETAILED] Game ${gameNumber} - Player ${playerInGame.nickname || playerInGame.name} has rebuy gains: ${rebuyGainsForPlayer}€`);
+                                    summary.ledger.push({
+                                        gameId: game.id,
+                                        type: 'winnings',
+                                        amount: rebuyGainsForPlayer,
+                                        description: `Gains sur rebuy (Partie ${gameNumber})`,
                                     });
                                 }
                             }

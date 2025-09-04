@@ -46,10 +46,21 @@ export function GameSummary({ game }: GameSummaryProps) {
       .sort((a: Player, b: Player) => (b.eliminationTime ?? 0) - (a.eliminationTime ?? 0)),
   ];
 
-  // Calculate total rebuy amount to be added to the first winner
-  const totalRebuyAmount = game.players.reduce((sum, p) => {
-    return sum + (p.rebuysMade || 0) * (game.rebuyAmount || 0);
-  }, 0);
+  // Calculate rebuy amount for each player individually (for cyclic distribution)
+  const calculatePlayerRebuyWinnings = (playerId: string): number => {
+    const playerResult = game.results?.find(r => r.playerId === playerId);
+    if (!playerResult) return 0;
+    
+    // Calculate main pot winnings based on rank
+    const gameWinnings = game.winnings || { first: 0, second: 0, third: 0 };
+    let baseWinnings = 0;
+    if (playerResult.rank === 1) baseWinnings = gameWinnings.first;
+    else if (playerResult.rank === 2) baseWinnings = gameWinnings.second;
+    else if (playerResult.rank === 3) baseWinnings = gameWinnings.third;
+    
+    // Rebuy winnings = total winnings - base winnings
+    return Math.max(0, playerResult.winnings - baseWinnings);
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
@@ -66,7 +77,7 @@ export function GameSummary({ game }: GameSummaryProps) {
         </div>
         <div>
           <p className="text-sm font-medium text-gray-500">Durée</p>
-          <p className="text-lg font-semibold text-gray-800">{calculateDuration(game.startedAt, game.endedAt)}</p>
+          <p className="text-lg font-semibold text-gray-800">{calculateDuration(game.startedAt, game.endedAt ?? undefined)}</p>
         </div>
       </div>
 
@@ -78,13 +89,14 @@ export function GameSummary({ game }: GameSummaryProps) {
             let winningsDisplay = null;
             const playerResult = game.results?.find(r => r.playerId === player.id);
             const mainPotWinnings = playerResult?.winnings || 0;
-            const isFirstWinner = playerResult?.rank === 1;
 
-            if (mainPotWinnings > 0 || (isFirstWinner && totalRebuyAmount > 0)) {
+            const playerRebuyWinnings = calculatePlayerRebuyWinnings(player.id);
+            
+            if (mainPotWinnings > 0 || playerRebuyWinnings > 0) {
               const displayWinnings = mainPotWinnings;
 
               const colorClass =
-                isFirstWinner ? 'text-green-600 bg-green-100' :
+                playerResult?.rank === 1 ? 'text-green-600 bg-green-100' :
                 playerResult?.rank === 2 ? 'text-blue-600 bg-blue-100' :
                 playerResult?.rank === 3 ? 'text-orange-600 bg-orange-100' :
                 'text-gray-600 bg-gray-100';
@@ -92,8 +104,8 @@ export function GameSummary({ game }: GameSummaryProps) {
               winningsDisplay = (
                 <span className={`text-sm font-semibold px-2 py-1 rounded ${colorClass}`}>
                   {displayWinnings.toFixed(2)} €
-                  {isFirstWinner && totalRebuyAmount > 0 && (
-                    <span className="text-xs text-gray-500 ml-1">(dont {totalRebuyAmount.toFixed(2)}€ de rebuys)</span>
+                  {playerRebuyWinnings > 0 && (
+                    <span className="text-xs text-gray-500 ml-1">(dont {playerRebuyWinnings.toFixed(2)}€ de rebuy)</span>
                   )}
                 </span>
               );

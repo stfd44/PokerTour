@@ -53,6 +53,7 @@ export interface Game {
   rebuyAllowedUntilLevel: number; // Max level for rebuys (e.g., 2)
   totalRebuys: number; // Count of rebuys made
   rebuyAmount: number; // Cost of one rebuy (usually tournament buyin)
+  rebuyDistributionRule: 'winner_takes_all' | 'cyclic_distribution'; // ADDED: Distribution rule for rebuys
   // ADDED: Pot management fields (optional for backward compatibility)
   potContributions?: PotContribution[]; // Who paid how much to the pot
   totalPotAmount?: number; // Total amount available in the pot
@@ -138,7 +139,7 @@ export interface TournamentStoreActions {
   removeGuestFromTournament: (tournamentId: string, guestName: string, userId: string) => Promise<void>;
   addGame: (
     tournamentId: string,
-    gameData: Pick<Game, 'startingStack' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings'>,
+    gameData: Pick<Game, 'startingStack' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings' | 'potContributions' | 'totalPotAmount' | 'rebuyDistributionRule'>,
     initialBlinds: Blinds,
     levelDuration: number,
     rebuyAllowedUntilLevel?: number

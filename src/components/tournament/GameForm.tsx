@@ -49,6 +49,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [distributionPercentages, setDistributionPercentages] = useState<DistributionPercentages>(initialPercentages);
   const [rebuyLevel, setRebuyLevel] = useState<number>(2); // State for rebuy level
+  const [rebuyDistributionRule, setRebuyDistributionRule] = useState<'winner_takes_all' | 'cyclic_distribution'>('winner_takes_all'); // State for rebuy distribution rule
   // ADDED: State for pot management
   const [usePotSystem, setUsePotSystem] = useState<boolean>(false); // Toggle for pot system
   const [playersWhoPaidPot, setPlayersWhoPaidPot] = useState<Set<string>>(new Set()); // Players who paid to pot
@@ -68,11 +69,13 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
       setSelectedPlayers(new Set(editingGame.players.map((p: Player) => p.id))); // Added Player type
       setDistributionPercentages(editingGame.distributionPercentages || initialPercentages);
       setRebuyLevel(editingGame.rebuyAllowedUntilLevel ?? 2);
+      setRebuyDistributionRule(editingGame.rebuyDistributionRule ?? 'winner_takes_all');
     } else {
       setGameForm(initialGameForm);
       setSelectedPlayers(new Set());
       setDistributionPercentages(initialPercentages);
       setRebuyLevel(2);
+      setRebuyDistributionRule('winner_takes_all');
     }
   }, [editingGame]);
 
@@ -121,6 +124,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
       prizePool: prizePool,
       distributionPercentages: distributionPercentages,
       winnings: winnings,
+      rebuyDistributionRule: rebuyDistributionRule, // ADDED: Include rebuy distribution rule
       // ADDED: Include pot data if pot system is used
       ...(usePotSystem && {
         potContributions: potContributionsArray,
@@ -329,6 +333,26 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
             required
           />
            <p className="text-xs text-gray-500 mt-1">Niveau 0 = pas de rebuy après le début. Niveau 2 (défaut) = rebuy possible pendant niveaux 1 et 2.</p>
+        </div>
+
+        <div>
+          <label htmlFor="rebuyDistributionRule" className="block text-sm font-medium text-gray-700 mb-1">
+            Règle de distribution des rebuy
+          </label>
+          <select
+            id="rebuyDistributionRule"
+            value={rebuyDistributionRule}
+            onChange={(e) => setRebuyDistributionRule(e.target.value as 'winner_takes_all' | 'cyclic_distribution')}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+          >
+            <option value="winner_takes_all">Tous les rebuy au vainqueur</option>
+            <option value="cyclic_distribution">Distribution cyclique (1er, 2ème, 3ème)</option>
+          </select>
+          <p className="text-xs text-gray-500 mt-1">
+            {rebuyDistributionRule === 'winner_takes_all'
+              ? 'Tous les rebuy iront au 1er place (règle actuelle).'
+              : 'Les rebuy seront distribués en cycle : 1er rebuy → 1er place, 2ème rebuy → 2ème place, 3ème rebuy → 3ème place, puis recommence.'}
+          </p>
         </div>
 
         <div>

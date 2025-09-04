@@ -24,7 +24,7 @@ export const createGameActionSlice: StateCreator<
   // Adding a Game
   addGame: async (
     tournamentId: string,
-    gameData: Pick<Game, 'startingStack' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings' | 'potContributions' | 'totalPotAmount'>,
+    gameData: Pick<Game, 'startingStack' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings' | 'potContributions' | 'totalPotAmount' | 'rebuyDistributionRule'>,
     initialBlinds: Blinds,
     levelDuration: number,
     rebuyAllowedUntilLevel: number = 2
@@ -70,6 +70,7 @@ export const createGameActionSlice: StateCreator<
         rebuyAllowedUntilLevel: rebuyAllowedUntilLevel,
         totalRebuys: 0,
         rebuyAmount: tournamentData.buyin, // Set rebuy amount from tournament buyin
+        rebuyDistributionRule: gameData.rebuyDistributionRule || 'winner_takes_all', // Set rebuy distribution rule with default
         // ADDED: Pot management fields (only if provided)
         ...(gameData.potContributions && {
           potContributions: gameData.potContributions,
@@ -80,7 +81,9 @@ export const createGameActionSlice: StateCreator<
       console.log(`[addGame] Creating ${gameData.potContributions ? 'pot-based' : 'traditional'} game ${gameId}`, {
         usePot: !!gameData.potContributions,
         potAmount: gameData.totalPotAmount || 0,
-        contributionsCount: gameData.potContributions?.length || 0
+        contributionsCount: gameData.potContributions?.length || 0,
+        rebuyDistributionRule: gameData.rebuyDistributionRule,
+        finalRebuyRule: newGame.rebuyDistributionRule
       });
       // Clean the object before saving
       const cleanNewGame = cleanGameForFirestore(newGame);

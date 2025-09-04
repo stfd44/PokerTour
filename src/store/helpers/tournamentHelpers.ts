@@ -110,10 +110,46 @@ export const calculateResultsForGame = (game: Game): { results: PlayerResult[], 
 
     const totalRebuyAmount = (game.totalRebuys || 0) * (game.rebuyAmount || 0);
     const finalWinnings = { ...(game.winnings ?? { first: 0, second: 0, third: 0 }) };
+    
+    // CORRECTION DU BUG: Respecter la règle de distribution des rebuy
     if (results.length > 0 && totalRebuyAmount > 0) {
-        const winnerIndex = results.findIndex(r => r.rank === 1);
-        if (winnerIndex !== -1) {
-          results[winnerIndex].winnings += totalRebuyAmount;
+        const rebuyDistributionRule = game.rebuyDistributionRule || 'winner_takes_all';
+        console.log(`[calculateResultsForGame] Game ${game.id} - Applying rebuy rule: ${rebuyDistributionRule}, Total rebuy amount: ${totalRebuyAmount}€`);
+        
+        if (rebuyDistributionRule === 'winner_takes_all') {
+            // Règle actuelle: tous les rebuy au vainqueur
+            const winnerIndex = results.findIndex(r => r.rank === 1);
+            if (winnerIndex !== -1) {
+                results[winnerIndex].winnings += totalRebuyAmount;
+                console.log(`[calculateResultsForGame] Winner takes all rebuy: ${totalRebuyAmount}€ to ${results[winnerIndex].name}`);
+            }
+        } else if (rebuyDistributionRule === 'cyclic_distribution') {
+            // NOUVELLE RÈGLE: Distribution cyclique des rebuy
+            const rebuyAmount = game.rebuyAmount || 0;
+            const allRebuys: Array<{playerId: string, playerName: string}> = [];
+            
+            // Collecte tous les rebuy en ordre
+            game.players.forEach(p => {
+                for (let i = 0; i < (p.rebuysMade || 0); i++) {
+                    allRebuys.push({
+                        playerId: p.id,
+                        playerName: p.nickname || p.name || 'Joueur inconnu'
+                    });
+                }
+            });
+            
+            console.log(`[calculateResultsForGame] Cyclic distribution: ${allRebuys.length} rebuys to distribute`);
+            
+            // Distribution cyclique des rebuy
+            allRebuys.forEach((rebuy, index) => {
+                const targetRank = (index % 3) + 1; // 1, 2, 3, 1, 2, 3, ...
+                const targetResultIndex = results.findIndex(r => r.rank === targetRank);
+                
+                if (targetResultIndex !== -1) {
+                    results[targetResultIndex].winnings += rebuyAmount;
+                    console.log(`[calculateResultsForGame] Rebuy ${index + 1} (${rebuyAmount}€) from ${rebuy.playerName} → Rank ${targetRank} (${results[targetResultIndex].name})`);
+                }
+            });
         }
     }
     return { results, finalWinnings };
