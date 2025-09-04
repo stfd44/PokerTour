@@ -19,7 +19,7 @@ const formatTimestamp = (timestamp: number | null | undefined): string => {
 
 // Helper function to calculate duration
 const calculateDuration = (start: number | undefined, end: number | null | undefined): string => {
-  if (!start || !end) return 'N/A';
+  if (start == null || end == null) return 'N/A';
   const durationMs = end - start;
   if (durationMs < 0) return 'N/A';
 
@@ -36,10 +36,20 @@ const calculateDuration = (start: number | undefined, end: number | null | undef
 };
 
 export function GameSummary({ game }: GameSummaryProps) {
-  const winner = game.players.find((p: Player) => !p.eliminated);
-  const eliminatedPlayers = game.players
-    .filter((p: Player) => p.eliminated && p.eliminationTime)
-    .sort((a: Player, b: Player) => (b.eliminationTime ?? 0) - (a.eliminationTime ?? 0)); // Sort descending by elimination time
+  // Create a unified ranking list
+  const rankedPlayers = [
+    // Add winner(s) first
+    ...game.players.filter((p: Player) => !p.eliminated),
+    // Then add eliminated players, sorted by elimination time descending
+    ...game.players
+      .filter((p: Player) => p.eliminated && p.eliminationTime)
+      .sort((a: Player, b: Player) => (b.eliminationTime ?? 0) - (a.eliminationTime ?? 0)),
+  ];
+
+  // Calculate total rebuy amount to be added to the first winner
+  const totalRebuyAmount = game.players.reduce((sum, p) => {
+    return sum + (p.rebuysMade || 0) * (game.rebuyAmount || 0);
+  }, 0);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
@@ -63,68 +73,51 @@ export function GameSummary({ game }: GameSummaryProps) {
       <div className="space-y-4">
         <h3 className="text-xl font-semibold text-gray-800 mb-3">Classement</h3>
         <div className="space-y-3">
-          {/* Winner */}
-          {winner && (
-            <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-50 border border-yellow-300">
-              <div className="flex items-center">
-                <span className="text-lg font-bold text-yellow-600 mr-3 w-12 text-center">🏆 1er</span>
-                <span className="font-medium text-gray-800 flex-grow">{winner.nickname || winner.name}</span>
-              </div>
-              {/* Display 1st place winnings with rebuy info */}
-              {game.winnings && game.winnings.first >= 0 && (() => { // Allow display even if base winnings are 0 but rebuys exist
-                const baseWinnings = game.winnings.first || 0;
-                const totalRebuyAmount = (game.totalRebuys || 0) * (game.rebuyAmount || 0);
-                const displayTotalWinnings = baseWinnings + totalRebuyAmount;
-
-                // Only display if there are base winnings or rebuys
-                if (displayTotalWinnings > 0) {
-                  return (
-                    <span className="text-sm font-semibold text-green-600 bg-green-100 px-2 py-1 rounded">
-                      {displayTotalWinnings} €
-                      {totalRebuyAmount > 0 && (
-                        <span className="text-xs text-gray-500 ml-1">(dont {totalRebuyAmount}€ de rebuy)</span>
-                      )}
-                    </span>
-                  );
-                }
-                return null; // Don't display anything if total is 0
-              })()}
-            </div>
-          )}
-
-          {/* Eliminated Players */}
-          {eliminatedPlayers.map((player: Player, index: number) => {
-            const rank = index + 2;
+          {rankedPlayers.map((player: Player, index: number) => {
+            const rank = index + 1;
             let winningsDisplay = null;
-            if (game.winnings) {
-              if (rank === 2 && game.winnings.second > 0) {
-                winningsDisplay = (
-                  <span className="text-sm font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                    {game.winnings.second} €
-                  </span>
-                );
-              } else if (rank === 3 && game.winnings.third > 0) {
-                 winningsDisplay = (
-                  <span className="text-sm font-semibold text-orange-600 bg-orange-100 px-2 py-1 rounded">
-                    {game.winnings.third} €
-                  </span>
-                );
-              }
-            }
+            const playerResult = game.results?.find(r => r.playerId === player.id);
+            const mainPotWinnings = playerResult?.winnings || 0;
+            const isFirstWinner = playerResult?.rank === 1;
 
+            if (mainPotWinnings > 0 || (isFirstWinner && totalRebuyAmount > 0)) {
+              const displayWinnings = mainPotWinnings;
+
+              const colorClass =
+                isFirstWinner ? 'text-green-600 bg-green-100' :
+                playerResult?.rank === 2 ? 'text-blue-600 bg-blue-100' :
+                playerResult?.rank === 3 ? 'text-orange-600 bg-orange-100' :
+                'text-gray-600 bg-gray-100';
+
+              winningsDisplay = (
+                <span className={`text-sm font-semibold px-2 py-1 rounded ${colorClass}`}>
+                  {displayWinnings.toFixed(2)} €
+                  {isFirstWinner && totalRebuyAmount > 0 && (
+                    <span className="text-xs text-gray-500 ml-1">(dont {totalRebuyAmount.toFixed(2)}€ de rebuys)</span>
+                  )}
+                </span>
+              );
+            }
+            
+            const isWinner = !player.eliminated;
+            const rankText = isWinner ? `🏆 ${rank}er` : `${rank}e`;
+            const bgColor = isWinner ? 'bg-yellow-50 border-yellow-300' : 'bg-gray-50 border-gray-200';
+            const rankColor = isWinner ? 'text-yellow-600' : 'text-gray-600';
+            
             return (
-              <div key={player.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-200">
+              <div key={player.id} className={`flex items-center justify-between p-3 rounded-lg border ${bgColor}`}>
                 <div className="flex items-center">
-                  <span className="text-md font-semibold text-gray-600 mr-3 w-12 text-center">{rank}e</span>
+                  <span className={`text-md font-semibold ${rankColor} mr-3 w-12 text-center`}>{rankText}</span>
                   <span className="text-gray-700 flex-grow">{player.nickname || player.name}</span>
                 </div>
+
                 <div className="flex flex-col items-end">
-                  {/* Display 2nd/3rd place winnings */}
                   {winningsDisplay}
-                  {/* Always show elimination time */}
-                  <span className="text-xs text-gray-500 mt-1">
-                    Éliminé à: {formatTimestamp(player.eliminationTime)}
-                  </span>
+                  {!isWinner && (
+                    <span className="text-xs text-gray-500 mt-1">
+                      Éliminé à: {formatTimestamp(player.eliminationTime)}
+                    </span>
+                  )}
                 </div>
               </div>
             );

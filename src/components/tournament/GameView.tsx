@@ -13,10 +13,10 @@ interface GameViewProps {
 }
 
 export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
-  // Select the specific game from the store using the IDs
-  const game = useTournamentStore(state =>
-    state.tournaments.find(t => t.id === tournamentId)?.games.find(g => g.id === gameId)
+  const tournament = useTournamentStore(state =>
+    state.tournaments.find(t => t.id === tournamentId)
   );
+  const game = tournament?.games.find(g => g.id === gameId);
   const { user } = useAuthStore(); // Get current user
 
   // Use store actions
@@ -213,7 +213,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
   };
 
   // Handle loading state
-  if (!game) {
+  if (!game || !tournament) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600">Chargement de la partie...</p>
@@ -405,14 +405,16 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
                   <div className="flex flex-wrap items-center gap-2 justify-end">
                     {/* Rebuy Button */}
                     {canRebuy && (
-                      <button
-                        onClick={() => handleRebuy(player.id)}
-                        disabled={isLoadingRebuy}
-                        className={`px-3 py-1 rounded-md text-sm flex items-center transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-wait`}
-                      >
-                        <RefreshCcw className={`w-4 h-4 mr-1 ${isLoadingRebuy ? 'animate-spin' : ''}`} />
-                        {isLoadingRebuy ? '...' : `Rebuy (${game.rebuyAmount}€)`}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleRebuy(player.id)}
+                          disabled={isLoadingRebuy}
+                          className={`px-3 py-1 rounded-md text-sm flex items-center transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-wait`}
+                        >
+                          <RefreshCcw className={`w-4 h-4 mr-1 ${isLoadingRebuy ? 'animate-spin' : ''}`} />
+                          {isLoadingRebuy ? '...' : `Rebuy (${game.rebuyAmount}€)`}
+                        </button>
+                      </div>
                     )}
 
                     {/* Eliminate/Reinstate Button */}

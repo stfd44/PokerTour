@@ -69,6 +69,36 @@ export interface Transaction {
   type?: 'pot_withdrawal' | 'player_debt'; // ADDED: Type of transaction (optional for backward compatibility)
 }
 
+export interface TransactionLedgerItem {
+  description: string;
+  amount: number;
+  gameId: string;
+  type: 'buy_in_cost' | 'rebuy_cost' | 'buy_in_win' | 'rebuy_win' | 'winnings';
+  relatedPlayerId?: string; // ID du joueur dont le buy-in/rebuy a généré le gain
+}
+
+
+export interface PlayerGameSummary {
+  gameId: string;
+  rebuys: number;
+  winnings: number;
+  netResult: number;
+}
+
+export interface PlayerSettlementSummary {
+  playerId: string;
+  playerName: string;
+  totalBuyIn: number;
+  totalWinnings: number;
+  netResult: number;
+  gamesSummary: PlayerGameSummary[];
+  ledger: TransactionLedgerItem[];
+}
+
+export interface DetailedSettlement {
+  playerSummaries: PlayerSettlementSummary[];
+}
+
 export interface Tournament {
   id: string;
   creatorNickname?: string; // Added field for organizer's nickname
@@ -84,6 +114,7 @@ export interface Tournament {
   teamId: string; // Add teamId to Tournament interface
   guests?: string[]; // Optional array for guest names
   settlementTransactions?: Transaction[]; // ADDED: Optional array for settlement transactions
+  detailedSettlement?: DetailedSettlement;
 }
 
 // Interface for the Zustand store itself

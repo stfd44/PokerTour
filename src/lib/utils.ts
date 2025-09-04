@@ -108,16 +108,30 @@ export function calculateSettlementTransactions(balances: PlayerBalance[]): Tran
   // Use a small epsilon for floating point comparisons
   const epsilon = 0.01; // Adjust if needed based on currency precision
 
+  console.log('[Settlement Debug] Starting calculateSettlementTransactions with balances:',
+    balances.map(b => `${b.name}: ${b.balance.toFixed(2)}€`));
+
   // Separate debtors and creditors, filter out zero balances
   // Use const as these arrays are modified via shift(), not reassigned
   const debtors = balances.filter(p => p.balance < -epsilon).sort((a, b) => a.balance - b.balance); // Most negative first
   const creditors = balances.filter(p => p.balance > epsilon).sort((a, b) => b.balance - a.balance); // Most positive first
 
+  console.log('[Settlement Debug] Initial debtors:', debtors.map(d => `${d.name}: ${d.balance.toFixed(2)}€`));
+  console.log('[Settlement Debug] Initial creditors:', creditors.map(c => `${c.name}: ${c.balance.toFixed(2)}€`));
+
+  let iteration = 0;
   while (debtors.length > 0 && creditors.length > 0) {
+    iteration++;
+    console.log(`[Settlement Debug] Iteration ${iteration}:`);
+    
     const debtor = debtors[0];
     const creditor = creditors[0];
 
+    console.log(`  Current debtor: ${debtor.name} (${debtor.balance.toFixed(2)}€)`);
+    console.log(`  Current creditor: ${creditor.name} (${creditor.balance.toFixed(2)}€)`);
+
     const amountToTransfer = Math.min(-debtor.balance, creditor.balance);
+    console.log(`  Amount to transfer: ${amountToTransfer.toFixed(2)}€`);
 
     // Create the transaction
     transactions.push({
@@ -129,22 +143,46 @@ export function calculateSettlementTransactions(balances: PlayerBalance[]): Tran
       completed: false, // Initially not completed
     });
 
+    console.log(`  Created transaction: ${debtor.name} → ${creditor.name}: ${amountToTransfer.toFixed(2)}€`);
+
     // Update balances
     debtor.balance += amountToTransfer;
     creditor.balance -= amountToTransfer;
 
+    console.log(`  Updated balances: ${debtor.name}: ${debtor.balance.toFixed(2)}€, ${creditor.name}: ${creditor.balance.toFixed(2)}€`);
+
     // Remove settled players
-    if (Math.abs(debtor.balance) < epsilon) {
+    const debtorSettled = Math.abs(debtor.balance) < epsilon;
+    const creditorSettled = Math.abs(creditor.balance) < epsilon;
+    
+    console.log(`  Debtor settled: ${debtorSettled}, Creditor settled: ${creditorSettled}`);
+    
+    if (debtorSettled) {
       debtors.shift(); // Remove debtor if settled
+      console.log(`  Removed debtor: ${debtor.name}`);
     }
-    if (Math.abs(creditor.balance) < epsilon) {
+    if (creditorSettled) {
       creditors.shift(); // Remove creditor if settled
+      console.log(`  Removed creditor: ${creditor.name}`);
+    }
+
+    console.log(`  Remaining debtors: ${debtors.length}, creditors: ${creditors.length}`);
+    
+    // Safety check to prevent infinite loop
+    if (iteration > 10) {
+      console.error('[Settlement Debug] Too many iterations, breaking to prevent infinite loop');
+      break;
     }
 
     // Re-sort if needed (optional, but can maintain order)
     // debtors.sort((a, b) => a.balance - b.balance);
     // creditors.sort((a, b) => b.balance - a.balance);
   }
+
+  console.log('[Settlement Debug] Final transactions:', transactions.length);
+  transactions.forEach((tx, i) => {
+    console.log(`  ${i + 1}. ${tx.fromPlayerName} → ${tx.toPlayerName}: ${tx.amount}€`);
+  });
 
    // Log any remaining balances (should be very close to zero due to epsilon)
    // This helps debug potential floating point issues

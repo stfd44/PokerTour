@@ -114,7 +114,6 @@ export const calculateResultsForGame = (game: Game): { results: PlayerResult[], 
         const winnerIndex = results.findIndex(r => r.rank === 1);
         if (winnerIndex !== -1) {
           results[winnerIndex].winnings += totalRebuyAmount;
-          finalWinnings.first = (finalWinnings.first ?? 0) + totalRebuyAmount;
         }
     }
     return { results, finalWinnings };

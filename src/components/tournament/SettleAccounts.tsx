@@ -1,15 +1,60 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTournamentStore } from '../../store/tournamentStore';
-import type { PlayerResult } from '../../store/types/tournamentTypes';
-import { ArrowLeft, Check, Loader2 } from 'lucide-react';
+import type { PlayerSettlementSummary } from '../../store/types/tournamentTypes';
+import { ArrowLeft, Check, Loader2, ChevronDown } from 'lucide-react';
 
-// Define PlayerBalance locally as it's specific to this component's calculation logic
-interface PlayerBalance {
-  id: string;
-  name: string;
-  balance: number;
-}
+// Sub-component for displaying individual player settlement details
+const PlayerSettlementDetails: React.FC<{ summary: PlayerSettlementSummary }> = ({ summary }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const { playerName, netResult, totalBuyIn, totalWinnings } = summary;
+
+  const isNetPositive = netResult >= 0;
+
+  return (
+    <div className={`border rounded-lg overflow-hidden ${isNetPositive ? 'border-green-200' : 'border-red-200'}`}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex justify-between items-center p-3 text-left focus:outline-none"
+      >
+        <span className="font-medium">{playerName}</span>
+        <div className="flex items-center">
+          <span className={`font-bold ${isNetPositive ? 'text-green-600' : 'text-red-600'}`}>
+            {isNetPositive ? '+' : ''}{netResult.toFixed(2)} €
+          </span>
+          <ChevronDown className={`w-5 h-5 ml-2 transform transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
+      {isOpen && (
+        <div className="p-3 border-t bg-gray-50">
+          <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+            <div>
+              <p className="font-semibold">Total Buy-ins:</p>
+              <p>{totalBuyIn.toFixed(2)} €</p>
+            </div>
+            <div>
+              <p className="font-semibold">Total Gains:</p>
+              <p className="text-green-600">{totalWinnings.toFixed(2)} €</p>
+            </div>
+          </div>
+          <h4 className="font-semibold text-sm mb-2">Grand livre des transactions :</h4>
+          <ul className="space-y-1 text-xs">
+            {summary.ledger.map((entry, index) => (
+              <li key={index} className="flex justify-between items-center">
+                <span>{entry.description}</span>
+                <span className={entry.amount >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                  {entry.amount >= 0 ? '+' : ''}{entry.amount.toFixed(2)} €
+                </span>
+              </li>
+            ))}
+          </ul>
+
+        </div>
+      )}
+    </div>
+  );
+};
+
 
 function SettleAccounts() {
   const { tournamentId } = useParams<{ tournamentId: string }>();
@@ -65,87 +110,21 @@ function SettleAccounts() {
     }
   }, [tournament, tournamentId, calculateAndStoreSettlement]);
 
-  // Calculate player balances for display (derived from game results and buyin)
-  const playerBalances = useMemo((): PlayerBalance[] => {
-    if (!tournament) return [];
-
-    const balances: Map<string, { name: string; balance: number }> = new Map();
-
-    // Initialize balances to 0 for all registered players
-    tournament.registrations.forEach(player => {
-        balances.set(player.id, { name: player.nickname || player.name, balance: 0 });
-    });
-
-    // Iterate through games to subtract contributions/buy-ins and add winnings
-    tournament.games.forEach(game => {
-        // ENHANCED: Check if this game uses pot system or traditional system
-        const usesPotSystem = game.potContributions && game.potContributions.length > 0;
-
-        if (usesPotSystem) {
-            // POT SYSTEM: Différent calcul selon qui a payé au pot
-            const potContributorIds = game.potContributions ?
-                game.potContributions.filter(c => c.amount > 0).map(c => c.playerId) : [];
-
-            game.players.forEach(playerInGame => {
-                const current = balances.get(playerInGame.id);
-                const playerName = playerInGame.nickname || playerInGame.name;
-                const hasPaidToPot = potContributorIds.includes(playerInGame.id);
-
-                if (current) {
-                    if (hasPaidToPot) {
-                        // A payé au pot : ne déduire que les rebuys, pas le buy-in
-                        const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
-                        current.balance -= rebuyCost;
-                        console.log(`[UI Balance] ${playerName} paid to pot, only subtracting rebuys: ${rebuyCost}€`);
-                    } else {
-                        // N'a pas payé au pot : déduire buy-in + rebuys
-                        const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
-                        const totalCostForGame = tournament.buyin + rebuyCost;
-                        current.balance -= totalCostForGame;
-                        console.log(`[UI Balance] ${playerName} didn't pay to pot, subtracting full cost: ${totalCostForGame}€`);
-                    }
-                } else {
-                    // Initialize player
-                    const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
-                    const initialBalance = hasPaidToPot ? -rebuyCost : -(tournament.buyin + rebuyCost);
-                    balances.set(playerInGame.id, { name: playerName, balance: initialBalance });
-                }
-            });
-        } else {
-            // TRADITIONAL SYSTEM: Subtract buy-in for ALL players
-            game.players.forEach(playerInGame => {
-                const current = balances.get(playerInGame.id);
-                if (current) {
-                    const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
-                    const totalCostForGame = tournament.buyin + rebuyCost;
-                    current.balance -= totalCostForGame;
-                } else {
-                     const rebuyCost = (playerInGame.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin);
-                     const initialBalance = -(tournament.buyin + rebuyCost);
-                     balances.set(playerInGame.id, { name: playerInGame.name, balance: initialBalance });
-                }
-            });
-        }
-
-        // Add winnings for all players (same for both systems)
-        if (game.results) {
-            game.results.forEach((result: PlayerResult) => {
-                const current = balances.get(result.playerId);
-                if (current) {
-                    current.balance += result.winnings;
-                }
-            });
-        }
-    });
-
-    return Array.from(balances.entries()).map(([id, data]) => ({
-      id,
-      name: data.name,
-      balance: Math.round(data.balance * 100) / 100, // Round to 2 decimal places for display
-    })).sort((a, b) => b.balance - a.balance); // Sort by balance descending
-
-  }, [tournament]);
-
+  const handleRecalculateSettlement = async () => {
+    if (!tournamentId) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      console.log(`Forçage du recalcul pour le tournoi: ${tournamentId}`);
+      await calculateAndStoreSettlement(tournamentId);
+      console.log(`Recalcul terminé pour le tournoi: ${tournamentId}`);
+    } catch (err) {
+      console.error("Erreur lors du recalcul:", err);
+      setError(err instanceof Error ? err.message : "Une erreur est survenue lors du recalcul.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleCheckboxChange = async (transactionIndex: number, currentCompletedStatus: boolean) => {
     if (!tournamentId) return;
@@ -189,22 +168,42 @@ function SettleAccounts() {
       <div className="mb-6">
         <h3 className="text-xl font-semibold text-poker-dark-gray mb-3">Bilans des Joueurs</h3>
         <div className="space-y-2">
-          {playerBalances.length > 0 ? playerBalances.map(player => (
-            <div key={player.id} className={`flex justify-between items-center p-3 rounded ${player.balance >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-              <span className="font-medium">{player.name}</span>
-              <span className={`font-bold ${player.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {player.balance >= 0 ? '+' : ''}{player.balance.toFixed(2)} €
-              </span>
+          {tournament?.detailedSettlement?.playerSummaries ? (
+            [...tournament.detailedSettlement.playerSummaries]
+              .sort((a, b) => b.netResult - a.netResult)
+              .map(summary => (
+                <PlayerSettlementDetails key={summary.playerId} summary={summary} />
+              ))
+          ) : (
+            <div className="flex items-center text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <span>Chargement du règlement détaillé...</span>
             </div>
-          )) : (
-             <p className="text-gray-500">Calcul des bilans en cours ou données indisponibles...</p>
           )}
         </div>
       </div>
 
       {/* Section Transactions */}
       <div>
-        <h3 className="text-xl font-semibold text-poker-dark-gray mb-3">Transactions à effectuer</h3>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-xl font-semibold text-poker-dark-gray">Transactions à effectuer</h3>
+          {tournament?.status === 'ended' && (
+            <button
+              onClick={handleRecalculateSettlement}
+              disabled={isLoading}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Recalcul...
+                </>
+              ) : (
+                'Recalculer'
+              )}
+            </button>
+          )}
+        </div>
         {isLoading && (
           <div className="flex justify-center items-center min-h-[100px]">
             <Loader2 className="h-6 w-6 animate-spin text-poker-gold" />

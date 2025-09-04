@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand';
 import { db, handleDatabaseError } from '../../lib/firebase';
 import { doc, updateDoc, getDoc, runTransaction } from 'firebase/firestore';
-import { Game, Tournament, Transaction, TournamentStore, TournamentStoreActions } from '../types/tournamentTypes';
+import { DetailedSettlement, Game, PlayerSettlementSummary, Tournament, Transaction, TournamentStore, TournamentStoreActions } from '../types/tournamentTypes';
 import { calculateResultsForGame, cleanGameForFirestore } from '../helpers/tournamentHelpers';
 import { calculateSettlementTransactions } from '../../lib/utils';
 
@@ -148,19 +148,39 @@ export const createSettlementActionSlice: StateCreator<
 
                 // Add winnings if game is ended and has results (same for both systems)
                 if (game.results && game.results.length > 0 && game.status === 'ended') {
+                    // CORRECTED LOGIC: Use game.winnings as the source of truth for the main pot.
+                    const mainPotWinnings = game.winnings || { first: 0, second: 0, third: 0 };
+                    const totalRebuyPot = game.players.reduce((sum, p) => sum + (p.rebuysMade || 0) * (game.rebuyAmount || tournament.buyin), 0);
+                    
                     console.log(`   >> Adding winnings for ended game ${gameIndex + 1} (ID: ${game.id})`);
+                    console.log(`   >> Main pot distribution: 1st=${mainPotWinnings.first}, 2nd=${mainPotWinnings.second}, 3rd=${mainPotWinnings.third}`);
+                    console.log(`   >> Rebuy pot to winner: ${totalRebuyPot}`);
+
                     game.results.forEach(result => {
                         const currentPlayerData = playerBalancesMap.get(result.playerId);
                         if (currentPlayerData) {
-                             console.log(`     - Adding winnings ${result.winnings} to ${currentPlayerData.name} (ID: ${result.playerId}). Old balance: ${currentPlayerData.balance}`);
-                            currentPlayerData.balance += result.winnings;
-                             console.log(`     - New balance for ${currentPlayerData.name}: ${currentPlayerData.balance}`);
-                        } else {
-                            // This case should be less likely now due to the loop above, but keep as a fallback
-                            console.warn(`     - Player ${result.playerId} (${result.name}) in results but not map. Balance might be incorrect.`);
-                            // Avoid setting balance here as buy-in wasn't subtracted if they weren't in game.players
+                            let winningsForPlayer = 0;
+                            
+                            // Main pot winnings based on rank
+                            if (result.rank === 1) {
+                                winningsForPlayer = mainPotWinnings.first;
+                                // Winner also gets all rebuy money
+                                winningsForPlayer += totalRebuyPot;
+                                console.log(`     - Winner gets additional rebuy pot: ${totalRebuyPot}€`);
+                            } else if (result.rank === 2) {
+                                winningsForPlayer = mainPotWinnings.second;
+                            } else if (result.rank === 3) {
+                                winningsForPlayer = mainPotWinnings.third;
+                            }
+
+                            if (winningsForPlayer > 0) {
+                                console.log(`     - Adding total winnings ${winningsForPlayer.toFixed(2)}€ to ${currentPlayerData.name} (ID: ${result.playerId}). Old balance: ${currentPlayerData.balance}`);
+                                currentPlayerData.balance += winningsForPlayer;
+                                console.log(`     - New balance for ${currentPlayerData.name}: ${currentPlayerData.balance}`);
+                            }
                         }
                     });
+
                 } else {
                      console.log(`   >> Skipping winnings for game ${gameIndex + 1} (ID: ${game.id}). Status: ${game.status}, Results Length: ${game.results?.length ?? 0}`);
                 }
@@ -187,7 +207,7 @@ export const createSettlementActionSlice: StateCreator<
             );
             
             let transactions: Transaction[] = [];
-            if (hasAnyPotGames && totalPotAmount > 0) {
+            if (hasAnyPotGames) {
                 console.log(`[Settlement DEBUG] Starting pot distribution. Total pot: ${totalPotAmount}€`);
                 console.log(`[Settlement DEBUG] Player balances:`, balancesArray.map(b => `${b.name}: ${b.balance.toFixed(2)}€`));
                 
@@ -233,32 +253,194 @@ export const createSettlementActionSlice: StateCreator<
                 
             } else {
                 console.log("Using TRADITIONAL settlement algorithm");
+                console.log("Input balances for traditional algorithm:", balancesArray.map(b => `${b.name}: ${b.balance.toFixed(2)}€`));
                 transactions = calculateSettlementTransactions(balancesArray);
                 transactions = transactions.map(tx => ({ ...tx, type: 'player_debt' as const }));
+                console.log("Generated traditional transactions:", transactions.length);
             }
             
             console.log("Calculated transactions:", transactions);
 
-            // 3. Update Firestore within the transaction
-            const updateData: { settlementTransactions: Transaction[]; games?: Game[] } = {
-                settlementTransactions: transactions
-            };
-            if (needsUpdate) {
-                // Only include games if results were calculated
-                updateData.games = gamesWithResults.map(g => cleanGameForFirestore(g));
-                console.log(`[calculateAndStoreSettlement Transaction - ${tournamentId}] Scheduling update for games array (results added) and settlementTransactions.`);
+            // NOUVEAU BLOC : Génération du règlement détaillé
+            console.log("Checking for and generating detailed settlement object...");
+            let detailedSettlementData: DetailedSettlement | null = null;
+
+            if (!tournament.detailedSettlement) {
+                console.log("No existing detailed settlement found. Generating new one.");
+                const playerSummariesMap: Map<string, PlayerSettlementSummary> = new Map();
+
+                tournament.registrations.forEach(player => {
+                    playerSummariesMap.set(player.id, {
+                        playerId: player.id,
+                        playerName: player.nickname || player.name || 'Unknown Player',
+                        totalBuyIn: 0,
+                        totalWinnings: 0,
+                        netResult: 0,
+                        gamesSummary: [],
+                        ledger: [], // Assurez-vous que ledger est initialisé
+                    });
+                });
+
+                gamesWithResults.forEach((game, gameIndex) => {
+                    const gameNumber = gameIndex + 1;
+                    
+                    // CORRECTION: Vérifier si cette partie utilise le système de pot
+                    const usesPotSystem = game.potContributions && game.potContributions.length > 0;
+                    const potContributorIds = usesPotSystem && game.potContributions ?
+                        game.potContributions.filter(c => c.amount > 0).map(c => c.playerId) : [];
+
+                    // Pour chaque joueur de la partie, ajoute les transactions au ledger
+                    game.players.forEach(playerInGame => {
+                        const summary = playerSummariesMap.get(playerInGame.id);
+                        if (!summary) return;
+
+                        // CORRECTION: Ajouter le coût du Buy-in seulement si le joueur n'a pas contribué au pot
+                        const hasPaidToPot = usesPotSystem && potContributorIds.includes(playerInGame.id);
+                        
+                        if (!hasPaidToPot) {
+                            // Non-contributeur : ajouter le buy-in
+                            summary.ledger.push({
+                                gameId: game.id,
+                                type: 'buy_in_cost',
+                                amount: -tournament.buyin,
+                                description: `Buy-in (Partie ${gameNumber})`,
+                            });
+                        } else {
+                            // Contributeur : le buy-in a déjà été payé au pot, pas besoin de l'ajouter
+                            console.log(`[DetailedSettlement] ${playerInGame.nickname || playerInGame.name} a contribué au pot, buy-in non ajouté au ledger pour la partie ${gameNumber}`);
+                        }
+
+                        // Ajoute les coûts des Rebuys
+                        for (let i = 0; i < (playerInGame.rebuysMade || 0); i++) {
+                            summary.ledger.push({
+                                gameId: game.id,
+                                type: 'rebuy_cost',
+                                amount: -(game.rebuyAmount || tournament.buyin),
+                                description: `Rebuy ${i + 1} (Partie ${gameNumber})`,
+                            });
+                        }
+
+                        // Récupère les gains du pot principal depuis game.results
+                        const result = game.results?.find(r => r.playerId === playerInGame.id);
+                        const mainPotWinnings = result?.winnings || 0;
+
+                        if (mainPotWinnings > 0) {
+                            // LOGIQUE CORRIGÉE : Utiliser les montants réels au lieu de la répartition proportionnelle
+                            
+                            // 1. Gains sur le pot de base = winnings prévus pour le 1er (game.winnings.first ou équivalent)
+                            // Récupérer les winnings du pot de base depuis la configuration du jeu
+                            const gameWinnings = game.winnings || { first: 0, second: 0, third: 0 };
+                            let baseWinnings = 0;
+                            
+                            // Déterminer les gains du pot de base selon le rang
+                            if (result?.rank === 1) {
+                                baseWinnings = gameWinnings.first;
+                            } else if (result?.rank === 2) {
+                                baseWinnings = gameWinnings.second;
+                            } else if (result?.rank === 3) {
+                                baseWinnings = gameWinnings.third;
+                            }
+                            
+                            // Ajouter les gains du pot de base (montant réel, pas proportionnel)
+                            if (baseWinnings > 0) {
+                                summary.ledger.push({
+                                    gameId: game.id,
+                                    type: 'winnings',
+                                    amount: baseWinnings,
+                                    description: `Gains sur le pot de base (Partie ${gameNumber})`,
+                                });
+                            }
+
+                            // 2. Gains par rebuy = montant du buy-in (tournament.buyin = 10€)
+                            // CORRECTION: Seul le 1er joueur récupère TOUS les rebuys
+                            if (result?.rank === 1) {
+                                // Collecte tous les rebuys faits dans cette partie avec les noms des joueurs
+                                const rebuyDetails: Array<{playerId: string, playerName: string}> = [];
+                                game.players.forEach(p => {
+                                    for (let i = 0; i < (p.rebuysMade || 0); i++) {
+                                        rebuyDetails.push({
+                                            playerId: p.id,
+                                            playerName: p.nickname || p.name || 'Joueur inconnu'
+                                        });
+                                    }
+                                });
+
+                                // Ajouter les gains pour chaque rebuy (montant réel = buy-in, pas proportionnel)
+                                if (rebuyDetails.length > 0) {
+                                    rebuyDetails.forEach(rebuy => {
+                                        const rebuyWinnings = tournament.buyin; // Montant réel du buy-in
+                                        summary.ledger.push({
+                                            gameId: game.id,
+                                            type: 'winnings',
+                                            amount: rebuyWinnings,
+                                            description: `Gains sur rebuy de ${rebuy.playerName} (Partie ${gameNumber})`,
+                                        });
+                                    });
+                                }
+                            }
+                        }
+                    });
+
+                });
+
+
+                playerSummariesMap.forEach(summary => {
+                    // Les totaux et le résultat net sont maintenant dérivés du ledger
+                    summary.totalBuyIn = summary.ledger
+                        .filter(t => t.type === 'buy_in_cost' || t.type === 'rebuy_cost')
+                        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+                    summary.totalWinnings = summary.ledger
+                        .filter(t => t.type === 'winnings')
+                        .reduce((sum, t) => sum + t.amount, 0);
+                    
+                    summary.netResult = summary.totalWinnings - summary.totalBuyIn;
+                });
+
+                detailedSettlementData = {
+                    playerSummaries: Array.from(playerSummariesMap.values())
+                };
+                console.log("Generated detailed settlement:", detailedSettlementData);
             } else {
-                 console.log(`[calculateAndStoreSettlement Transaction - ${tournamentId}] Scheduling update for settlementTransactions only.`);
+                console.log("Existing detailed settlement found. Skipping generation.");
             }
+
+
+            // 3. Update Firestore within the transaction
+            const updateData: {
+              status: 'ended';
+              settlementTransactions: Transaction[];
+              games?: Game[];
+              detailedSettlement?: DetailedSettlement;
+            } = {
+              status: 'ended',
+              settlementTransactions: transactions,
+            };
+
+            if (detailedSettlementData) {
+              updateData.detailedSettlement = detailedSettlementData;
+            }
+            if (needsUpdate) {
+              // Only include games if results were calculated
+              updateData.games = gamesWithResults.map(g => cleanGameForFirestore(g));
+            }
+
+            console.log(`[calculateAndStoreSettlement Transaction - ${tournamentId}] Scheduling update with data:`, updateData);
             transaction.update(tournamentRef, updateData);
 
             // 4. Update Local State (after scheduling transaction)
-            set((state) => ({
-                tournaments: state.tournaments.map((t) =>
-                  t.id === tournamentId
-                    ? { ...t, games: needsUpdate ? gamesWithResults : t.games, settlementTransactions: transactions } // Update games only if needed
-                    : t
-                ),
+            set(state => ({
+              tournaments: state.tournaments.map(t =>
+                t.id === tournamentId
+                  ? {
+                      ...t,
+                      status: 'ended',
+                      settlementTransactions: transactions,
+                      ...(needsUpdate && { games: gamesWithResults }),
+                      ...(detailedSettlementData && { detailedSettlement: detailedSettlementData }),
+                    }
+                  : t
+              ),
             }));
         }); // End of runTransaction
 

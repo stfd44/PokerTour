@@ -127,11 +127,12 @@ export const createPlayerActionSlice: StateCreator<
         return player;
       });
 
-      const updatedGameData: Game = cleanGameForFirestore({
+      const updatedGameData: Game = {
         ...game,
         players: updatedPlayers,
-        totalRebuys: (game.totalRebuys || 0) + 1, // Increment total game rebuy count
-      });
+        totalRebuys: (game.totalRebuys || 0) + 1,
+      };
+      
 
       const updatedGames = [
         ...tournamentData.games.slice(0, gameIndex),
