@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
+import { useTestDb, canUseTestDb } from '../lib/firebase';
 
 const Profile: React.FC = () => {
   const { user, setNickname, isLoading: authLoading } = useAuthStore();
@@ -96,8 +97,7 @@ const Profile: React.FC = () => {
             <button
               id="testDbToggle"
               onClick={() => {
-                const currentlyUsingTest = localStorage.getItem('useTestDb') === 'true';
-                if (currentlyUsingTest) {
+                if (useTestDb) {
                   localStorage.removeItem('useTestDb');
                   console.log("Switching to PRODUCTION database on next reload.");
                 } else {
@@ -106,20 +106,21 @@ const Profile: React.FC = () => {
                 }
                 window.location.reload();
               }}
+              disabled={!canUseTestDb}
               className={`px-4 py-2 rounded font-semibold transition-colors ${
-                localStorage.getItem('useTestDb') === 'true'
+                useTestDb
                   ? 'bg-red-500 hover:bg-red-600 text-white'
                   : 'bg-green-500 hover:bg-green-600 text-white'
-              }`}
+              } ${!canUseTestDb ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {localStorage.getItem('useTestDb') === 'true' ? 'Passer en Prod' : 'Passer en Test'}
+              {useTestDb ? 'Passer en Prod' : 'Passer en Test'}
             </button>
             <span className="text-sm text-gray-600">
               (Rechargement de la page requis)
             </span>
           </div>
            <p className="text-sm mt-2 text-gray-700">
-             Actuellement connecté à : <span className="font-bold">{localStorage.getItem('useTestDb') === 'true' ? 'TEST (pokertourdev)' : 'PRODUCTION'}</span>
+             Actuellement connecté à : <span className="font-bold">{useTestDb ? 'TEST (pokertourdev)' : 'PRODUCTION'}</span>
            </p>
         </div>
       )}

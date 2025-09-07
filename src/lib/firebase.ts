@@ -25,15 +25,17 @@ const testConfig = {
 
 // --- Select Config based on localStorage ---
 // Check if all necessary test keys are present before allowing switch
-const canUseTestDb =
-  testConfig.apiKey &&
-  testConfig.authDomain &&
-  testConfig.projectId &&
-  testConfig.storageBucket &&
-  testConfig.messagingSenderId &&
-  testConfig.appId;
+// --- Select Config based on localStorage ---
+// Check if all necessary test keys are present before allowing switch
+export const canUseTestDb =
+  !!testConfig.apiKey &&
+  !!testConfig.authDomain &&
+  !!testConfig.projectId &&
+  !!testConfig.storageBucket &&
+  !!testConfig.messagingSenderId &&
+  !!testConfig.appId;
 
-const useTestDb = canUseTestDb && localStorage.getItem('useTestDb') === 'true';
+export const useTestDb = canUseTestDb && localStorage.getItem('useTestDb') === 'true';
 
 const selectedConfig = useTestDb ? testConfig : prodConfig;
 
