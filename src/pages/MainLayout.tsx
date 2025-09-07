@@ -20,7 +20,7 @@ export function MainLayout() {
         <Breadcrumbs /> {/* Add Breadcrumbs component here */}
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/app/create-tournament" element={<CreateTournament />} />
+          <Route path="/tournaments/create" element={<CreateTournament />} />
           <Route path="/tournaments" element={<TournamentList />} />
           <Route path="/tournament/:tournamentId" element={<TournamentGames />} />
           <Route path="/tournament/:tournamentId/edit" element={<EditTournament />} /> {/* Add route for editing */}

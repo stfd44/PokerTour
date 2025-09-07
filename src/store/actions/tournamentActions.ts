@@ -236,13 +236,13 @@ export const createTournamentActionSlice: StateCreator<
   },
 
   // Ending a Tournament
-  endTournament: async (tournamentId, userId) => {
+  endTournament: async (tournamentId) => {
     try {
       const tournamentRef = doc(db, "tournaments", tournamentId);
       // Verify user is the creator before updating
-      if (!await isCreator(tournamentRef, userId)) {
-        throw new Error("You are not authorized to end this tournament.");
-      }
+      // if (!await isCreator(tournamentRef, userId)) {
+      //   throw new Error("You are not authorized to end this tournament.");
+      // }
       // Update status in Firestore
       await updateDoc(tournamentRef, {
         status: 'ended',

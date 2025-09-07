@@ -160,7 +160,7 @@ function SettleAccounts() {
         Retour à la liste des tournois
       </Link>
 
-      <h2 className="text-2xl font-bold text-poker-black mb-4">Règlement des comptes : {tournament?.name}</h2>
+      <h2 className="text-2xl font-bold text-poker-black mb-4">Bilan du tournoi : {tournament?.name}</h2>
 
       {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
 

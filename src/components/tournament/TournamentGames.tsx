@@ -6,7 +6,7 @@ import { GameView } from './GameView';
 import { GameList } from './GameList';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { Game, Tournament } from '../../store/types/tournamentTypes'; // Correct import path for Game type, Add Tournament type
-import { FlagOff, Calendar, User, Users, MapPin, Award, Check, X, ChevronDown, ChevronUp, Edit } from 'lucide-react'; // Import icons
+import { FlagOff, Calendar, User, Users, MapPin, Award, Check, X, ChevronDown, ChevronUp, Edit, Calculator } from 'lucide-react'; // Import icons
 
 // Helper function to get status text and color (copied from TournamentList for consistency)
 const getStatusInfo = (status: Tournament['status']) => {
@@ -108,7 +108,7 @@ export function TournamentGames() {
     if (!tournamentId || !user?.uid) return;
     if (window.confirm(`Êtes-vous sûr de vouloir terminer le tournoi "${tournament?.name}" ? Cette action est irréversible.`)) {
       try {
-        await endTournamentAction(tournamentId, user.uid);
+        await endTournamentAction(tournamentId);
         // Optionally navigate away or show a success message
         alert('Tournoi terminé avec succès.');
       } catch (error) {
@@ -185,31 +185,21 @@ export function TournamentGames() {
             <h1 className="text-3xl font-bold text-poker-black">
               {tournament.name}
             </h1>
-            {/* Game/Tournament Action Buttons */}
-            <div className="flex flex-wrap gap-2 justify-end">
-              {!isCreating && !viewingGameId && tournament.status !== 'ended' && user?.uid === tournament.creatorId && (
-                <button
-                  onClick={handleCreateGameClick}
-                  className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
-                >
-                  Nouvelle partie
-                </button>
-              )}
-              {user?.uid === tournament.creatorId && tournament.status === 'in_progress' && !isCreating && !viewingGameId && (
-                <button
-                  onClick={handleEndTournament}
-                  className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors flex items-center"
-                  title="Terminer le tournoi (irréversible)"
-                >
-                  <FlagOff className="w-4 h-4 mr-2" />
-                  Terminer Tournoi
-                </button>
-              )}
-            </div>
+            {/* The action buttons have been moved to the details card */}
           </div>
 
           {/* --- Tournament Details Section --- */}
-          <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border border-gray-200">
+          <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border border-gray-200 relative">
+            {/* Edit Icon Button - Top Right */}
+            {user?.uid === tournament.creatorId && (tournament.status === 'scheduled' || tournament.status === 'in_progress') && (
+                <Link
+                    to={`/tournament/${tournament.id}/edit`}
+                    className="absolute top-4 right-4 text-gray-500 hover:text-poker-gold transition-colors"
+                    title="Modifier le tournoi / Gérer les invités"
+                >
+                    <Edit className="h-6 w-6" />
+                </Link>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
               {/* Left Column */}
               <div className="space-y-2">
@@ -270,15 +260,16 @@ export function TournamentGames() {
             </div>
             {/* --- Action Buttons Container --- */}
             <div className="border-t mt-4 pt-4 flex flex-wrap items-center justify-end gap-4">
-                {/* Edit Button (Visible only to creator, regardless of status) */}
-                {user?.uid === tournament.creatorId && (
-                    <Link
-                        to={`/tournament/${tournament.id}/edit`}
-                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
-                        title="Modifier le tournoi / Gérer les invités"
-                    >
-                        <Edit className="h-4 w-4 mr-2" /> Modifier
-                    </Link>
+                {/* Bilan Button - visible to team members if tournament is settled */}
+                {tournament.status === 'ended' && (
+                  <Link
+                    to={`/tournament/${tournament.id}/settle`}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
+                    title="Faire le bilan"
+                  >
+                    <Calculator className="h-4 w-4 mr-2" />
+                    Faire le bilan
+                  </Link>
                 )}
 
                 {/* Registration Buttons (Visible if tournament not ended and user is not creator) */}
@@ -313,6 +304,26 @@ export function TournamentGames() {
                                 </button>
                             )}
                         </>
+                )}
+
+                {/* Game/Tournament Action Buttons for registered players */}
+                {!isCreating && !viewingGameId && tournament.status !== 'ended' && tournament.registrations.some(p => p.id === user?.uid) && (
+                  <button
+                    onClick={handleCreateGameClick}
+                    className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
+                  >
+                    Nouvelle partie
+                  </button>
+                )}
+                {tournament.registrations.some(p => p.id === user?.uid) && tournament.status === 'in_progress' && !isCreating && !viewingGameId && (
+                  <button
+                    onClick={handleEndTournament}
+                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors flex items-center"
+                    title="Terminer le tournoi (irréversible)"
+                  >
+                    <FlagOff className="w-4 h-4 mr-2" />
+                    Terminer Tournoi
+                  </button>
                 )}
             </div>
             {/* --- End Action Buttons Container --- */}

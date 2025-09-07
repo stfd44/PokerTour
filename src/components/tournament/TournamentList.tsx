@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom'; // Import Link
+import { Link, useNavigate } from 'react-router-dom';
 import { useTournamentStore } from '../../store/tournamentStore';
 import { useTeamStore } from '../../store/useTeamStore'; // Import useTeamStore
 import type { Tournament } from '../../store/types/tournamentTypes'; // Correct import path for Tournament type
-import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2, Edit, User, Info, Calculator, Award } from 'lucide-react'; // Added Edit, User, Info, Calculator, Award icons
+import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2, Edit, User, Info, Award, PlusCircle } from 'lucide-react'; // Added Edit, User, Info, Award icons
 import { useAuthStore } from '../../store/useAuthStore';
 
 // Helper function to get status text and color
@@ -127,7 +127,18 @@ export function TournamentList() {
     .map(item => item.tournament);
 
   return (
-    <div className="grid gap-6">
+    <div className="space-y-6">
+        <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-poker-black">Tournois</h2>
+            <Link
+                to="/tournaments/create"
+                className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
+            >
+                <PlusCircle className="w-5 h-5 mr-2" />
+                Créer un tournoi
+            </Link>
+        </div>
+        <div className="grid gap-6">
       {sortedTournaments.map((tournament) => {
         const isRegistered = user ? tournament.registrations.some(p => p.id === user.uid) : false;
         const registrationState = registrationStates[tournament.id];
@@ -219,15 +230,6 @@ export function TournamentList() {
                       {isEnded ? 'Voir le résumé' : 'Accéder au tournoi'}
                     </button>
                   )}
-                  {isEnded && (
-                    <Link
-                      to={`/tournament/${tournament.id}/settle`}
-                      className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors flex items-center justify-center" // Added w-full sm:w-auto justify-center
-                    >
-                      <Calculator className="w-5 h-5 mr-2" />
-                      Faire les comptes
-                    </Link>
-                  )}
                   {!isStarted && !isEnded && isCreator && canStart && (
                     <button
                       onClick={() => handleStartTournament(tournament.id)}
@@ -302,6 +304,7 @@ export function TournamentList() {
           </div>
         );
       })}
+        </div>
     </div>
   );
 }
