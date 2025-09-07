@@ -80,7 +80,9 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       const querySnapshot = await getDocs(q);
       const fetchedTeams: Team[] = [];
       querySnapshot.forEach((doc) => {
-        fetchedTeams.push({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt.toDate() } as Team); // Convert the Timestamp to a Date object
+        const data = doc.data();
+        const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(); // Fallback to a new Date if not available
+        fetchedTeams.push({ id: doc.id, ...data, createdAt } as Team);
       });
       set({ teams: fetchedTeams });
     } catch (error) {
