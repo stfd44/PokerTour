@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 import { db, handleDatabaseError, isCreator, getUserData } from '../../lib/firebase';
-import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, getDoc, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, getDoc, query, where, onSnapshot } from 'firebase/firestore';
 import { useTeamStore } from '../useTeamStore';
 // Removed unused TournamentStoreState
 import { Tournament, Player, TournamentStore, TournamentStoreActions } from '../types/tournamentTypes';
@@ -258,5 +258,49 @@ export const createTournamentActionSlice: StateCreator<
     } catch (error) {
       handleDatabaseError(error); // Use existing error handler
     }
+  },
+  
+  // Real-time Subscription to a single tournament
+  subscribeToTournament: (tournamentId: string) => {
+    const tournamentRef = doc(db, "tournaments", tournamentId);
+    
+    // Set up the real-time listener
+    const unsubscribe = onSnapshot(tournamentRef, async (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as Omit<Tournament, 'id' | 'creatorNickname'>;
+        
+        // We might want to fetch the creator nickname if it's not already in local state
+        // To keep it simple, we'll first update the basic data and then optionally fetch nickname
+        const currentTournaments = get().tournaments;
+        const existingTournament = currentTournaments.find(t => t.id === tournamentId);
+        
+        const updatedTournament: Tournament = {
+          id: docSnap.id,
+          ...data,
+          creatorNickname: existingTournament?.creatorNickname // Preserve existing nickname if available
+        };
+        
+        // Update local state
+        set((state) => ({
+          tournaments: state.tournaments.map(t => t.id === tournamentId ? updatedTournament : t)
+        }));
+        
+        // If nickname is missing, fetch it (rare since it's usually set on initial fetch or creation)
+        if (!updatedTournament.creatorNickname && data.creatorId) {
+          const creatorData = await getUserData(data.creatorId);
+          if (creatorData?.nickname) {
+            set((state) => ({
+              tournaments: state.tournaments.map(t => 
+                t.id === tournamentId ? { ...t, creatorNickname: creatorData.nickname || undefined } : t
+              )
+            }));
+          }
+        }
+      }
+    }, (error) => {
+      console.error(`Error in tournament subscription for ${tournamentId}:`, error);
+    });
+    
+    return unsubscribe;
   },
 });

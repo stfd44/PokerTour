@@ -37,6 +37,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
   const [winnerName, setWinnerName] = useState<string | null>(null);
   const [animationEndTime, setAnimationEndTime] = useState<number | null>(null);
   const [isFadingOut, setIsFadingOut] = useState(false);
+  const [showConfirmEndGame, setShowConfirmEndGame] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
@@ -181,7 +182,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
 
   const handleEndGame = () => {
     if (!game || game.status === 'ended') return;
-    endGame(tournamentId, gameId);
+    setShowConfirmEndGame(true);
   };
 
   const handleUpdateBlinds = () => {
@@ -446,6 +447,35 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
           })}
         </div>
       </div>
+
+      {showConfirmEndGame && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-auto shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Arrêter la partie ?</h3>
+            <p className="text-gray-600 mb-6 flex flex-col gap-2">
+              <span>Voulez-vous vraiment arrêter cette partie en cours ?</span>
+              <span className="bg-orange-50 text-orange-800 p-2 rounded text-sm">⚠️ Les joueurs restants seront classés à égalité et se partageront les gains restants.</span>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowConfirmEndGame(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  setShowConfirmEndGame(false);
+                  endGame(tournamentId, gameId);
+                }}
+                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium"
+              >
+                Oui, l'arrêter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

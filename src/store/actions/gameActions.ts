@@ -90,13 +90,7 @@ export const createGameActionSlice: StateCreator<
       await updateDoc(tournamentRef, {
         games: arrayUnion(cleanNewGame), // Add the cleaned game object
       });
-      set((state) => ({
-        tournaments: state.tournaments.map((t) =>
-          t.id === tournamentId
-            ? { ...t, games: [...t.games, newGame as Game] } // Type assertion to ensure correct type
-            : t
-        ),
-      }));
+      // The local state update is now handled entirely by the onSnapshot listener in subscribeToTournament
     } catch (error) {
       handleDatabaseError(error);
     }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTournamentStore } from '../../store/tournamentStore';
 import { Users, Timer, Coins, PlayCircle, Edit2, Eye, StopCircle, Trash2, CheckCircle } from 'lucide-react'; // Added CheckCircle
 import type { Game, Tournament, Player } from '../../store/types/tournamentTypes'; // Corrected import path and added Player
@@ -14,13 +14,15 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
   const startGame = useTournamentStore(state => state.startGame);
   const endGame = useTournamentStore(state => state.endGame);
   const deleteGame = useTournamentStore(state => state.deleteGame);
+  
+  const [confirmEndGameId, setConfirmEndGameId] = useState<string | null>(null);
 
   const handleEditGame = (game: Game) => {
     onEditGame(game);
   };
 
   const handleEndGame = (gameId: string) => {
-    endGame(tournament.id, gameId);
+    setConfirmEndGameId(gameId);
   };
 
   const handleDeleteGame = (gameId: string) => {
@@ -30,10 +32,11 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
   };
 
   return (
-    <div className="grid gap-6">
-      {tournament.games.map((game: Game) => ( // Added Game type
-        <div key={game.id} className="bg-white rounded-lg shadow-md p-6">
-          {/* Use flex-col on small screens, flex-row on larger screens */}
+    <>
+      <div className="grid gap-6">
+        {tournament.games.map((game: Game) => ( // Added Game type
+          <div key={game.id} className="bg-white rounded-lg shadow-md p-6">
+            {/* Use flex-col on small screens, flex-row on larger screens */}
           <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-4 sm:gap-0">
             {/* Info Section */}
             <div className="space-y-2 w-full sm:w-auto"> {/* Take full width on small screens */}
@@ -159,5 +162,35 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
         </div>
       )}
     </div>
+
+    {confirmEndGameId && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+        <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-auto shadow-xl">
+          <h3 className="text-lg font-bold text-gray-900 mb-2">Arrêter la partie ?</h3>
+          <p className="text-gray-600 mb-6 flex flex-col gap-2">
+            <span>Voulez-vous vraiment arrêter cette partie en cours ?</span>
+            <span className="bg-orange-50 text-orange-800 p-2 rounded text-sm">⚠️ Les joueurs restants seront classés à égalité et se partageront les gains restants.</span>
+          </p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setConfirmEndGameId(null)}
+              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={() => {
+                endGame(tournament.id, confirmEndGameId);
+                setConfirmEndGameId(null);
+              }}
+              className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium"
+            >
+              Oui, l'arrêter
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

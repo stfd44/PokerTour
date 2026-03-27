@@ -18,7 +18,7 @@ const formatTimestamp = (timestamp: number | null | undefined): string => {
 };
 
 // Helper function to calculate duration
-const calculateDuration = (start: number | undefined, end: number | null | undefined): string => {
+const calculateDuration = (start: number | null | undefined, end: number | null | undefined): string => {
   if (start == null || end == null) return 'N/A';
   const durationMs = end - start;
   if (durationMs < 0) return 'N/A';
@@ -77,7 +77,7 @@ export function GameSummary({ game }: GameSummaryProps) {
         </div>
         <div>
           <p className="text-sm font-medium text-gray-500">Durée</p>
-          <p className="text-lg font-semibold text-gray-800">{calculateDuration(game.startedAt, game.endedAt ?? undefined)}</p>
+          <p className="text-lg font-semibold text-gray-800">{calculateDuration(game.startedAt, game.endedAt)}</p>
         </div>
       </div>
 
@@ -85,9 +85,10 @@ export function GameSummary({ game }: GameSummaryProps) {
         <h3 className="text-xl font-semibold text-gray-800 mb-3">Classement</h3>
         <div className="space-y-3">
           {rankedPlayers.map((player: Player, index: number) => {
-            const rank = index + 1;
-            let winningsDisplay = null;
             const playerResult = game.results?.find(r => r.playerId === player.id);
+            const rank = playerResult?.rank || index + 1;
+            
+            let winningsDisplay = null;
             const mainPotWinnings = playerResult?.winnings || 0;
 
             const playerRebuyWinnings = calculatePlayerRebuyWinnings(player.id);

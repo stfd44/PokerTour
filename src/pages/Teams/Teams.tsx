@@ -16,6 +16,7 @@ const Teams: React.FC = () => {
   const [joinMessage, setJoinMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [memberDetails, setMemberDetails] = useState<{ [userId: string]: { name: string } }>({});
   const [loadingMemberDetails, setLoadingMemberDetails] = useState<boolean>(false);
+  const [confirmDeleteTeamId, setConfirmDeleteTeamId] = useState<string | null>(null);
 
   const fetchMemberDetails = useCallback(async (memberIds: string[]) => {
     setLoadingMemberDetails(true);
@@ -106,13 +107,21 @@ const Teams: React.FC = () => {
     }
   };
 
-  const handleDeleteTeam = async (teamId: string) => {
-    if (user && window.confirm("Êtes-vous sûr de vouloir supprimer cette équipe ?")) {
+  const handleDeleteTeam = (teamId: string) => {
+    if (user) {
+      setConfirmDeleteTeamId(teamId);
+    }
+  };
+
+  const confirmDeleteTeam = async () => {
+    if (user && confirmDeleteTeamId) {
       try {
-        await deleteTeam(teamId, user.uid);
+        await deleteTeam(confirmDeleteTeamId, user.uid);
       } catch (error) {
         console.error('Error deleting team:', error);
         alert((error as Error).message);
+      } finally {
+        setConfirmDeleteTeamId(null);
       }
     }
   };
@@ -268,6 +277,32 @@ const Teams: React.FC = () => {
         </ul>
       ) : (
         <p className="text-gray-600 italic">Vous n'êtes membre d'aucune équipe pour le moment.</p>
+      )}
+
+      {/* Confirmation Modal for Deleting Team */}
+      {confirmDeleteTeamId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-auto shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Supprimer l'équipe ?</h3>
+            <p className="text-gray-600 mb-6">
+              Êtes-vous sûr de vouloir supprimer cette équipe ? Cette action est irréversible.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDeleteTeamId(null)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmDeleteTeam}
+                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium"
+              >
+                Oui, supprimer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -159,6 +159,7 @@ export interface TournamentStoreActions {
   rebuyPlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
   calculateAndStoreSettlement: (tournamentId: string) => Promise<void>;
   updateSettlementTransaction: (tournamentId: string, transactionIndex: number, completed: boolean) => Promise<void>;
+  subscribeToTournament: (tournamentId: string) => () => void;
 }
 
 // Combine state and actions for the final store type

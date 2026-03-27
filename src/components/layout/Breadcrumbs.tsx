@@ -53,13 +53,9 @@ const generateBreadcrumbs = (pathname: string, tournaments: Tournament[]): Bread
         name = 'Tournament';
         path = '/tournaments'; // Link back to list
       }
-    } else if (segment === 'create-tournament') {
+    } else if (segment === 'create' && pathSegments[index - 1] === 'tournaments') {
       name = 'Create Tournament';
-      path = '/app/create-tournament';
-       // Add "Tournaments" link first if not already present
-       if (!breadcrumbs.some(b => b.path === '/tournaments')) {
-            breadcrumbs.push({ name: 'Tournaments', path: '/tournaments' });
-        }
+      path = '/tournaments/create';
     } else if (segment === 'edit') {
       name = 'Edit';
       // Path is already correct as it builds upon the tournament path
@@ -128,7 +124,7 @@ export const Breadcrumbs: React.FC = () => {
                                          location.pathname === '/teams' ||
                                          location.pathname === '/stats' ||
                                          location.pathname === '/profile' ||
-                                         location.pathname === '/app/create-tournament';
+                                         location.pathname === '/tournaments/create';
               const renderAsText = isLastCrumb && pathMatches && isSpecificEndpoint;
 
               return renderAsText ? (

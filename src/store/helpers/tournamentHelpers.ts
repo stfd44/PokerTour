@@ -81,17 +81,50 @@ export const calculateResultsForGame = (game: Game): { results: PlayerResult[], 
     }
 
     const players = game.players;
-    const sortedPlayers = [...players].sort((a, b) => {
-        if (!a.eliminated && b.eliminated) return -1;
-        if (a.eliminated && !b.eliminated) return 1;
-        if (!a.eliminated && !b.eliminated) return 0;
-        return (b.eliminationTime ?? 0) - (a.eliminationTime ?? 0);
-    });
+    const activePlayers = players.filter(p => !p.eliminated);
+    const eliminatedPlayers = players.filter(p => p.eliminated)
+        .sort((a, b) => (b.eliminationTime ?? 0) - (a.eliminationTime ?? 0));
 
-    const results: PlayerResult[] = sortedPlayers.map((player, index) => {
-        const rank = index + 1;
+    const totalActive = activePlayers.length;
+    
+    // Assign results
+    const results: PlayerResult[] = [];
+    
+    // 1. Handle Active Players (Equal Ranking)
+    if (totalActive > 0) {
+        // Calculate total winnings for the ranks occupied by active players (up to 3)
+        let totalActiveWinnings = 0;
+        if (game.winnings) {
+            if (totalActive >= 1) totalActiveWinnings += game.winnings.first ?? 0;
+            if (totalActive >= 2) totalActiveWinnings += game.winnings.second ?? 0;
+            if (totalActive >= 3) totalActiveWinnings += game.winnings.third ?? 0;
+        }
+        
+        const winningsPerActive = totalActiveWinnings / totalActive;
+        
+        // Points calculation: can use the average or the top points
+        // The user says "égale position", usually means they share the same rank and points
+        const pointsPerActive = 10; // Give top points to all or average? Let's give top points as they are all winners.
+        // Actually, let's use a similar logic to winnings if we want to be strict about "total points available"
+        // But usually in casual poker, tied winners get the same points.
+        
+        activePlayers.forEach(player => {
+            results.push({
+                playerId: player.id,
+                name: player.nickname || player.name,
+                rank: 1, // All share Rank 1
+                points: pointsPerActive,
+                winnings: winningsPerActive
+            });
+        });
+    }
+    
+    // 2. Handle Eliminated Players
+    eliminatedPlayers.forEach((player, index) => {
+        const rank = totalActive + index + 1;
         let points = 0;
         let winnings = 0;
+        
         switch (rank) {
           case 1: points = 10; break;
           case 2: points = 7; break;
@@ -100,12 +133,20 @@ export const calculateResultsForGame = (game: Game): { results: PlayerResult[], 
           case 5: points = 2; break;
           default: points = 1; break;
         }
+        
         if (game.winnings) {
           if (rank === 1) winnings = game.winnings.first ?? 0;
           else if (rank === 2) winnings = game.winnings.second ?? 0;
           else if (rank === 3) winnings = game.winnings.third ?? 0;
         }
-        return { playerId: player.id, name: player.nickname || player.name, rank, points, winnings };
+        
+        results.push({
+            playerId: player.id,
+            name: player.nickname || player.name,
+            rank,
+            points,
+            winnings
+        });
     });
 
     const totalRebuyAmount = (game.totalRebuys || 0) * (game.rebuyAmount || 0);
@@ -117,11 +158,16 @@ export const calculateResultsForGame = (game: Game): { results: PlayerResult[], 
         console.log(`[calculateResultsForGame] Game ${game.id} - Applying rebuy rule: ${rebuyDistributionRule}, Total rebuy amount: ${totalRebuyAmount}€`);
         
         if (rebuyDistributionRule === 'winner_takes_all') {
-            // Règle actuelle: tous les rebuy au vainqueur
-            const winnerIndex = results.findIndex(r => r.rank === 1);
-            if (winnerIndex !== -1) {
-                results[winnerIndex].winnings += totalRebuyAmount;
-                console.log(`[calculateResultsForGame] Winner takes all rebuy: ${totalRebuyAmount}€ to ${results[winnerIndex].name}`);
+            // Règle actuelle: tous les rebuy au vainqueur (ou partagés si ex-aequo)
+            const winners = results.filter(r => r.rank === 1);
+            if (winners.length > 0) {
+                const rebuyPerWinner = totalRebuyAmount / winners.length;
+                results.forEach(r => {
+                    if (r.rank === 1) {
+                        r.winnings += rebuyPerWinner;
+                    }
+                });
+                console.log(`[calculateResultsForGame] Winner takes all rebuy: ${totalRebuyAmount}€ split among ${winners.length} winners (${rebuyPerWinner}€ each)`);
             }
         } else if (rebuyDistributionRule === 'cyclic_distribution') {
             // NOUVELLE RÈGLE: Distribution cyclique des rebuy

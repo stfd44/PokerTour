@@ -28,6 +28,7 @@ export function TournamentGames() {
   const {
     tournaments,
     fetchTournamentById, // Added action
+    subscribeToTournament, // Added action
     isLoadingTournament, // Added loading state
     endTournament: endTournamentAction,
     registerToTournament,
@@ -35,6 +36,7 @@ export function TournamentGames() {
   } = useTournamentStore(state => ({
     tournaments: state.tournaments,
     fetchTournamentById: state.fetchTournamentById, // Get the action
+    subscribeToTournament: state.subscribeToTournament, // Get the action
     isLoadingTournament: state.isLoadingTournament, // Get the loading state
     endTournament: state.endTournament,
     registerToTournament: state.registerToTournament,
@@ -51,6 +53,7 @@ export function TournamentGames() {
   const [registrationStates, setRegistrationStates] = useState<{[key: string]: 'pending' | 'confirmed' | 'none'}>({}); // State for reg buttons
   const location = useLocation();
   const navigate = useNavigate();
+  const [showConfirmEndTournament, setShowConfirmEndTournament] = useState(false);
 
   // Effect to reset view state when navigating back via breadcrumb with state
   useEffect(() => {
@@ -66,15 +69,23 @@ export function TournamentGames() {
     // Dependency array includes location.state
   }, [location.state, navigate]); // Add navigate to dependency array
 
-  // Effect to fetch tournament data if not already loaded
+  // Effect to subscribe to tournament data for real-time updates
   useEffect(() => {
-    if (tournamentId && !tournament && !isLoadingTournament) {
-      // Only fetch if ID exists, tournament is not found in store, and not already loading
-      console.log(`Tournament ${tournamentId} not found in store. Fetching...`); // Debug log
+    if (!tournamentId) return;
+
+    console.log(`Subscribing to tournament ${tournamentId} for real-time updates...`);
+    const unsubscribe = subscribeToTournament(tournamentId);
+
+    // Initial fetch if not in store (optional as onSnapshot will fire immediately)
+    if (!tournament && !isLoadingTournament) {
       fetchTournamentById(tournamentId);
     }
-    // Dependencies: tournamentId, the tournament object itself (to re-check if it loads), fetch action, and loading state
-  }, [tournamentId, tournament, fetchTournamentById, isLoadingTournament]);
+
+    return () => {
+      console.log(`Unsubscribing from tournament ${tournamentId}.`);
+      unsubscribe();
+    };
+  }, [tournamentId, subscribeToTournament, fetchTournamentById, !!tournament, isLoadingTournament]);
 
   const handleCreateGameClick = () => {
     setIsCreating(true);
@@ -104,17 +115,18 @@ export function TournamentGames() {
   };
 
   // Handler for ending the tournament
-  const handleEndTournament = async () => {
+  const handleEndTournament = () => {
     if (!tournamentId || !user?.uid) return;
-    if (window.confirm(`Êtes-vous sûr de vouloir terminer le tournoi "${tournament?.name}" ? Cette action est irréversible.`)) {
-      try {
-        await endTournamentAction(tournamentId);
-        // Optionally navigate away or show a success message
-        alert('Tournoi terminé avec succès.');
-      } catch (error) {
-        // Error handling is done within the store action, but you could add specific UI feedback here
-        console.error("Error ending tournament from component:", error);
-      }
+    setShowConfirmEndTournament(true);
+  };
+
+  const confirmEndTournament = async () => {
+    if (!tournamentId || !user?.uid) return;
+    setShowConfirmEndTournament(false);
+    try {
+      await endTournamentAction(tournamentId);
+    } catch (error) {
+      console.error("Error ending tournament from component:", error);
     }
   };
 
@@ -344,7 +356,6 @@ export function TournamentGames() {
             />
           )}
 
-          {/* Pass handlers for viewing and editing to GameList */}
           <GameList
             tournament={tournament}
             onViewGame={handleViewGame}
@@ -352,6 +363,32 @@ export function TournamentGames() {
             userId={user?.uid} // Pass potentially undefined userId
           />
         </>
+      )}
+
+      {/* Confirmation Modal for Ending Tournament */}
+      {showConfirmEndTournament && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-auto shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Terminer le tournoi ?</h3>
+            <p className="text-gray-600 mb-6">
+              Êtes-vous sûr de vouloir terminer le tournoi "{tournament?.name}" ? Cette action est irréversible.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowConfirmEndTournament(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmEndTournament}
+                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium"
+              >
+                Oui, terminer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

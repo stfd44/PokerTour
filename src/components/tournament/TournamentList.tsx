@@ -28,6 +28,7 @@ export function TournamentList() {
   const { teams } = useTeamStore(); // Get teams state
   const [registrationStates, setRegistrationStates] = useState<{[key: string]: 'pending' | 'confirmed' | 'none'}>({});
   const [expandedTournaments, setExpandedTournaments] = useState<Set<string>>(new Set());
+  const [confirmDeleteTournamentId, setConfirmDeleteTournamentId] = useState<string | null>(null);
 
   useEffect(() => {
     // Fetch tournaments if user is logged in.
@@ -84,13 +85,21 @@ export function TournamentList() {
     });
   };
 
-  const handleDeleteTournament = async (tournamentId: string) => {
-    if (user && window.confirm("Êtes-vous sûr de vouloir supprimer ce tournoi ?")) {
+  const handleDeleteTournament = (tournamentId: string) => {
+    if (user) {
+      setConfirmDeleteTournamentId(tournamentId);
+    }
+  };
+
+  const confirmDeleteTournament = async () => {
+    if (user && confirmDeleteTournamentId) {
       try {
-        await deleteTournament(tournamentId, user.uid);
+        await deleteTournament(confirmDeleteTournamentId, user.uid);
       } catch (error) {
         console.error('Error deleting tournament:', error);
         alert((error as Error).message);
+      } finally {
+        setConfirmDeleteTournamentId(null);
       }
     }
   };
@@ -305,6 +314,31 @@ export function TournamentList() {
         );
       })}
         </div>
+
+        {confirmDeleteTournamentId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-auto shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Supprimer le tournoi ?</h3>
+            <p className="text-gray-600 mb-6">
+              Êtes-vous sûr de vouloir supprimer ce tournoi ? Cette action est irréversible.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDeleteTournamentId(null)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmDeleteTournament}
+                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium"
+              >
+                Oui, supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

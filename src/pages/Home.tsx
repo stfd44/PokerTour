@@ -49,7 +49,7 @@ const Home: React.FC = () => {
     // Removed handleDeleteTournament function as it's no longer used here
 
     const handleCreateTournament = () => {
-        navigate('/app/create-tournament', { state: { userId: user?.uid } });
+        navigate('/tournaments/create', { state: { userId: user?.uid } });
     };
 
     const TournamentCard = ({ tournament }: { tournament: Tournament }) => {
