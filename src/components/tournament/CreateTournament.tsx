@@ -1,12 +1,18 @@
 // src/components/tournament/CreateTournament.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, X, UserPlus } from 'lucide-react'; // Import X and UserPlus icons
+import { X, UserPlus, AlertCircle } from 'lucide-react';
 import { useTournamentStore } from '../../store/tournamentStore';
 import { useTeamStore } from '../../store/useTeamStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { cn } from '../../lib/utils';
 
-export function CreateTournament() {
+interface CreateTournamentProps {
+    onClose?: () => void;
+    onSuccess?: () => void;
+}
+
+export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) {
     const { user } = useAuthStore();
     const navigate = useNavigate();
     const { addTournament, fetchTournaments } = useTournamentStore();
@@ -17,10 +23,12 @@ export function CreateTournament() {
         buyin: '',
         maxPlayers: '',
         location: '',
-        teamId: '', // Add teamId to formData
+        teamId: '',
     });
-    const [currentGuest, setCurrentGuest] = useState(''); // State for guest input
-    const [guests, setGuests] = useState<string[]>([]); // State for list of guests
+    const [currentGuest, setCurrentGuest] = useState('');
+    const [guests, setGuests] = useState<string[]>([]);
+    const [error, setError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         fetchTeams();
@@ -29,9 +37,10 @@ export function CreateTournament() {
     const handleAddGuest = () => {
         if (currentGuest.trim() && !guests.includes(currentGuest.trim())) {
             setGuests([...guests, currentGuest.trim()]);
-            setCurrentGuest(''); // Clear input after adding
+            setCurrentGuest('');
+            setError(null);
         } else if (guests.includes(currentGuest.trim())) {
-            alert('Ce nom est déjà dans la liste des invités.');
+            setError('Ce nom est déjà dans la liste des invités.');
         }
     };
 
@@ -39,32 +48,54 @@ export function CreateTournament() {
         setGuests(guests.filter(guest => guest !== guestToRemove));
     };
 
-    // Ensure guests are passed correctly in handleSubmit
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.teamId) {
-            alert("Veuillez sélectionner une équipe.");
+        setError(null);
+
+        // Validation: Ensure date is provided and valid
+        if (!formData.date || isNaN(new Date(formData.date).getTime())) {
+            setError("Veuillez sélectionner une date et heure valides.");
+            setIsSubmitting(false);
             return;
         }
+
+        if (!formData.teamId) {
+            setError("Veuillez sélectionner une équipe.");
+            return;
+        }
+
         if (user) {
-            addTournament(
-                {
-                  name: formData.name,
-                  date: formData.date,
-                  buyin: Number(formData.buyin),
-                  maxPlayers: Number(formData.maxPlayers),
-                  location: formData.location,
-                  teamId: formData.teamId,
-                },
-                user.uid,
-                formData.teamId, // Pass teamId to addTournament
-                guests // Pass the list of guests
-            ).then(() => {
-                fetchTournaments(user.uid); // Fetch tournaments for the specific user might be incorrect if based on teams? Check fetchTournaments logic. Assuming it fetches based on teams now.
-                navigate('/tournaments'); // Navigate back to the list
-            });
-          }
-      };
+            setIsSubmitting(true);
+            try {
+                await addTournament(
+                    {
+                        name: formData.name,
+                        date: formData.date,
+                        buyin: Number(formData.buyin),
+                        maxPlayers: Number(formData.maxPlayers),
+                        location: formData.location,
+                        teamId: formData.teamId,
+                    },
+                    user.uid,
+                    formData.teamId,
+                    guests
+                );
+                
+                await fetchTournaments(user.uid);
+                
+                if (onSuccess) {
+                    onSuccess();
+                } else {
+                    navigate('/tournaments');
+                }
+            } catch (err) {
+                console.error('Error creating tournament:', err);
+                setError('Une erreur est survenue lors de la création du tournoi.');
+            } finally {
+                setIsSubmitting(false);
+            }
+        }
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { id, value } = e.target;
@@ -75,23 +106,18 @@ export function CreateTournament() {
     };
 
     return (
-        <div className="max-w-2xl mx-auto">
-            <button
-                onClick={() => navigate('/tournaments')}
-                className="flex items-center text-poker-black hover:text-poker-red mb-6 transition-colors"
-            >
-                <ArrowLeft className="w-5 h-5 mr-2" />
-                Retour
-            </button>
+        <div className="w-full">
+            {error && (
+                <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 flex items-center">
+                    <AlertCircle className="w-5 h-5 mr-2" />
+                    {error}
+                </div>
+            )}
 
-            <div className="bg-white rounded-lg shadow-md p-8">
-                <h1 className="text-3xl font-bold text-poker-black mb-6">
-                    Créer un nouveau tournoi
-                </h1>
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+            <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-5">
+                    <div className="col-span-1 md:col-span-2">
+                        <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-1.5">
                             Nom du tournoi
                         </label>
                         <input
@@ -100,14 +126,14 @@ export function CreateTournament() {
                             value={formData.name}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
-                            placeholder="Ex: Tournoi du Vendredi"
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none"
+                            placeholder="Ex: Main Event Friday"
                         />
                     </div>
 
                     <div>
-                        <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
-                            Date
+                        <label htmlFor="date" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                            Date et Heure
                         </label>
                         <input
                             type="datetime-local"
@@ -115,69 +141,20 @@ export function CreateTournament() {
                             value={formData.date}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none"
                         />
                     </div>
 
                     <div>
-                        <label htmlFor="buyin" className="block text-sm font-medium text-gray-700 mb-1">
-                            Buy-in (€)
-                        </label>
-                        <input
-                            type="number"
-                            id="buyin"
-                            value={formData.buyin}
-                            onChange={handleChange}
-                            required
-                            min="0"
-                            step="5"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
-                            placeholder="20"
-                        />
-                    </div>
-
-                    <div>
-                        <label htmlFor="maxPlayers" className="block text-sm font-medium text-gray-700 mb-1">
-                            Nombre maximum de joueurs
-                        </label>
-                        <input
-                            type="number"
-                            id="maxPlayers"
-                            value={formData.maxPlayers}
-                            onChange={handleChange}
-                            required
-                            min="2"
-                            max="100"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
-                            placeholder="9"
-                        />
-                    </div>
-
-                    <div>
-                        <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
-                            Lieu
-                        </label>
-                        <input
-                            type="text"
-                            id="location"
-                            value={formData.location}
-                            onChange={handleChange}
-                            required
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
-                            placeholder="Ex: 123 rue du Poker"
-                        />
-                    </div>
-
-                    <div>
-                        <label htmlFor="teamId" className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor="teamId" className="block text-sm font-semibold text-gray-700 mb-1.5">
                             Équipe
                         </label>
                         <select
                             id="teamId"
                             value={formData.teamId}
                             onChange={handleChange}
-                            required // Make team selection required
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+                            required
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none bg-white"
                         >
                             <option value="">Sélectionner une équipe</option>
                             {teams.map((team) => (
@@ -188,66 +165,122 @@ export function CreateTournament() {
                         </select>
                     </div>
 
-                    {/* Guest Management Section */}
-                    <div className="border-t pt-6 mt-6">
-                        <label htmlFor="guestName" className="block text-sm font-medium text-gray-700 mb-1">
-                            Ajouter un invité (optionnel)
+                    <div>
+                        <label htmlFor="buyin" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                            Buy-in (€)
                         </label>
-                        {/* Responsive input and button: stack on small screens */}
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                            <input
-                                type="text"
-                                id="guestName"
-                                value={currentGuest}
-                                onChange={(e) => setCurrentGuest(e.target.value)}
-                                className="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
-                                placeholder="Nom de l'invité"
-                            />
-                            {/* Button container */}
-                            <div className="self-stretch sm:self-center"> {/* Ensure button stretches or centers */}
-                                <button
-                                    type="button"
-                                    onClick={handleAddGuest}
-                                    // Apply consistent button styling and full width on small screens
-                                    className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-2 rounded transition-colors flex items-center justify-center sm:justify-start" // Adjusted padding and added justify-center for small screens
-                                    aria-label="Ajouter l'invité"
-                                >
-                                    <UserPlus className="h-5 w-5" /> {/* Slightly larger icon */}
-                                    <span className="sm:hidden ml-2">Ajouter</span> {/* Text visible only on small screens */}
-                                </button>
-                            </div>
-                        </div>
-                        {guests.length > 0 && (
-                            <div className="mt-4 space-y-2">
-                                <h3 className="text-xs font-medium text-gray-500 uppercase">Invités ajoutés :</h3>
-                                <ul className="list-none p-0 m-0 space-y-1">
-                                    {guests.map((guest, index) => (
-                                        <li key={index} className="flex justify-between items-center bg-gray-100 px-3 py-1 rounded text-sm">
-                                            <span>{guest}</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRemoveGuest(guest)}
-                                                className="text-red-500 hover:text-red-700"
-                                                aria-label={`Retirer ${guest}`}
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
+                        <input
+                            type="number"
+                            id="buyin"
+                            value={formData.buyin}
+                            onChange={handleChange}
+                            required
+                            min="0"
+                            step="5"
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none"
+                            placeholder="20"
+                        />
                     </div>
 
+                    <div>
+                        <label htmlFor="maxPlayers" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                            Joueurs Max
+                        </label>
+                        <input
+                            type="number"
+                            id="maxPlayers"
+                            value={formData.maxPlayers}
+                            onChange={handleChange}
+                            required
+                            min="2"
+                            max="100"
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none"
+                            placeholder="9"
+                        />
+                    </div>
 
+                    <div className="col-span-1 md:col-span-2">
+                        <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                            Lieu
+                        </label>
+                        <input
+                            type="text"
+                            id="location"
+                            value={formData.location}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none"
+                            placeholder="Ex: Chez Alex"
+                        />
+                    </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-100">
+                    <label htmlFor="guestName" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        Ajouter des invités (optionnel)
+                    </label>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            id="guestName"
+                            value={currentGuest}
+                            onChange={(e) => setCurrentGuest(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddGuest())}
+                            className="flex-grow px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none"
+                            placeholder="Nom de l'invité"
+                        />
+                        <button
+                            type="button"
+                            onClick={handleAddGuest}
+                            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl transition-colors flex items-center shrink-0"
+                        >
+                            <UserPlus className="h-5 w-5" />
+                        </button>
+                    </div>
+
+                    {guests.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {guests.map((guest, index) => (
+                                <span 
+                                    key={index} 
+                                    className="inline-flex items-center gap-1 bg-poker-gold/10 text-poker-gold border border-poker-gold/20 px-3 py-1 rounded-full text-sm font-medium"
+                                >
+                                    {guest}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveGuest(guest)}
+                                        className="hover:text-poker-red transition-colors"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="pt-4 mt-2 flex gap-3 border-t border-gray-100 pb-8">
+                    {onClose && (
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-semibold"
+                        >
+                            Annuler
+                        </button>
+                    )}
                     <button
                         type="submit"
-                        className="w-full bg-poker-red text-white py-3 rounded-md hover:bg-red-700 transition-colors font-medium"
+                        disabled={isSubmitting}
+                        className={cn(
+                            "flex-[2] bg-poker-red text-white py-3 rounded-xl hover:bg-red-700 transition-all font-bold shadow-lg shadow-poker-red/20",
+                            isSubmitting && "opacity-70 cursor-not-allowed"
+                        )}
                     >
-                        Créer le tournoi
+                        {isSubmitting ? 'Création...' : 'Créer le tournoi'}
                     </button>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     );
 }

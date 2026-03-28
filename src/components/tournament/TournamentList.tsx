@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTournamentStore } from '../../store/tournamentStore';
-import { useTeamStore } from '../../store/useTeamStore'; // Import useTeamStore
-import type { Tournament } from '../../store/types/tournamentTypes'; // Correct import path for Tournament type
-import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2, Edit, User, Info, Award, PlusCircle } from 'lucide-react'; // Added Edit, User, Info, Award icons
+import { useTeamStore } from '../../store/useTeamStore'; 
+import type { Tournament } from '../../store/types/tournamentTypes'; 
+import { Calendar, Users, MapPin, Check, X, ChevronDown, ChevronUp, PlayCircle, Trash2, Edit, User, Info, Award, PlusCircle } from 'lucide-react'; 
 import { useAuthStore } from '../../store/useAuthStore';
+import { Modal } from '../common/Modal';
+import { CreateTournament } from './CreateTournament';
 
 // Helper function to get status text and color
 const getStatusInfo = (status: Tournament['status']) => {
@@ -24,10 +26,12 @@ const getStatusInfo = (status: Tournament['status']) => {
 export function TournamentList() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { tournaments, registerToTournament, unregisterFromTournament, startTournament, fetchTournaments, deleteTournament } = useTournamentStore();
   const { teams } = useTeamStore(); // Get teams state
   const [registrationStates, setRegistrationStates] = useState<{[key: string]: 'pending' | 'confirmed' | 'none'}>({});
   const [expandedTournaments, setExpandedTournaments] = useState<Set<string>>(new Set());
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [confirmDeleteTournamentId, setConfirmDeleteTournamentId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,6 +43,16 @@ export function TournamentList() {
         fetchTournaments(user.uid);
     }
   }, [fetchTournaments, user, teams]); // Depend on user and teams
+ 
+  useEffect(() => {
+    if (searchParams.get('create') === 'true') {
+      setIsCreateModalOpen(true);
+      // Remove the parameter from URL without refreshing
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('create');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleRegistration = async (tournamentId: string) => {
       if (user) {
@@ -139,13 +153,13 @@ export function TournamentList() {
     <div className="space-y-6">
         <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-poker-black">Tournois</h2>
-            <Link
-                to="/tournaments/create"
+            <button
+                onClick={() => setIsCreateModalOpen(true)}
                 className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
             >
                 <PlusCircle className="w-5 h-5 mr-2" />
                 Créer un tournoi
-            </Link>
+            </button>
         </div>
         <div className="grid gap-6">
       {sortedTournaments.map((tournament) => {
@@ -182,7 +196,12 @@ export function TournamentList() {
               <div className="space-y-2 text-gray-600 flex-grow min-w-0">
                 <div className="flex items-center">
                   <Calendar className="w-5 h-5 mr-2 text-poker-gold shrink-0" />
-                  <span>{new Date(tournament.date).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}</span>
+                  <span>
+                    {tournament.date && !isNaN(new Date(tournament.date).getTime()) 
+                      ? new Date(tournament.date).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })
+                      : 'Date à définir'
+                    }
+                  </span>
                 </div>
                 <div
                   className="flex items-center cursor-pointer hover:text-poker-gold transition-colors"
@@ -339,6 +358,16 @@ export function TournamentList() {
           </div>
         </div>
       )}
+        <Modal 
+          isOpen={isCreateModalOpen} 
+          onClose={() => setIsCreateModalOpen(false)}
+          title="Nouveau Tournoi"
+        >
+          <CreateTournament 
+            onClose={() => setIsCreateModalOpen(false)} 
+            onSuccess={() => setIsCreateModalOpen(false)} 
+          />
+        </Modal>
     </div>
   );
 }

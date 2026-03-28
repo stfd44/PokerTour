@@ -159,11 +159,16 @@ export const createSettlementActionSlice: StateCreator<
                     game.results.forEach(result => {
                         const currentPlayerData = playerBalancesMap.get(result.playerId);
                         if (currentPlayerData) {
+                            const totalActive = game.players.filter(p => !p.eliminated).length;
                             let winningsForPlayer = 0;
                             
                             // Main pot winnings based on rank (pour les logs de debug)
                             if (result.rank === 1) {
-                                winningsForPlayer = mainPotWinnings.first;
+                                // SOMME DES PRIX OCCUPÉS PAR LES SURVIVANTS
+                                const sumOfPrizes = (mainPotWinnings.first || 0) + 
+                                                   (totalActive >= 2 ? (mainPotWinnings.second || 0) : 0) + 
+                                                   (totalActive >= 3 ? (mainPotWinnings.third || 0) : 0);
+                                winningsForPlayer = sumOfPrizes / totalActive;
                             } else if (result.rank === 2) {
                                 winningsForPlayer = mainPotWinnings.second;
                             } else if (result.rank === 3) {
@@ -329,19 +334,23 @@ export const createSettlementActionSlice: StateCreator<
 
                         // Récupère les gains du pot principal depuis game.results
                         const result = game.results?.find(r => r.playerId === playerInGame.id);
-                        const mainPotWinnings = result?.winnings || 0;
+                        const totalActive = game.players.filter(p => !p.eliminated).length;
+                        const mainPotWinningsResult = result?.winnings || 0;
 
-                        if (mainPotWinnings > 0) {
+                        if (mainPotWinningsResult > 0) {
                             // LOGIQUE CORRIGÉE : Utiliser les montants réels au lieu de la répartition proportionnelle
                             
-                            // 1. Gains sur le pot de base = winnings prévus pour le 1er (game.winnings.first ou équivalent)
-                            // Récupérer les winnings du pot de base depuis la configuration du jeu
+                            // 1. Gains sur le pot de base = winnings prévus (divisés si ex-aequo)
                             const gameWinnings = game.winnings || { first: 0, second: 0, third: 0 };
                             let baseWinnings = 0;
                             
                             // Déterminer les gains du pot de base selon le rang
                             if (result?.rank === 1) {
-                                baseWinnings = gameWinnings.first;
+                                // RÉPARTITION CORRIGÉE : Sommer les prix occupés par les survivants et diviser
+                                const sumOfPrizes = (gameWinnings.first || 0) + 
+                                                   (totalActive >= 2 ? (gameWinnings.second || 0) : 0) + 
+                                                   (totalActive >= 3 ? (gameWinnings.third || 0) : 0);
+                                baseWinnings = sumOfPrizes / totalActive;
                             } else if (result?.rank === 2) {
                                 baseWinnings = gameWinnings.second;
                             } else if (result?.rank === 3) {
@@ -360,7 +369,7 @@ export const createSettlementActionSlice: StateCreator<
 
                             // CORRECTION : Les gains de rebuy sont déjà inclus dans result.winnings par calculateResultsForGame
                             // On calcule la différence entre les gains totaux et les gains du pot de base
-                            if (result && mainPotWinnings > 0) {
+                            if (result && mainPotWinningsResult > 0) {
                                 const rebuyGainsForPlayer = result.winnings - baseWinnings;
                                 
                                 if (rebuyGainsForPlayer > 0) {

@@ -1,4 +1,3 @@
-import React from 'react';
 import type { Game, Player } from '../../store/types/tournamentTypes';
 import { format } from 'date-fns'; // Using date-fns for formatting, will need installation
 
@@ -81,8 +80,24 @@ export function GameSummary({ game }: GameSummaryProps) {
         </div>
       </div>
 
+      {rankedPlayers.filter(p => !p.eliminated).length > 1 && (
+        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-orange-800 flex items-center justify-center">
+          <span className="font-bold text-center">
+            ⚠️ Partie arrêtée avec {rankedPlayers.filter(p => !p.eliminated).length} joueurs restants.
+            Les gains ont été partagés et aucun point n'est attribué aux vainqueurs.
+          </span>
+        </div>
+      )}
+
       <div className="space-y-4">
-        <h3 className="text-xl font-semibold text-gray-800 mb-3">Classement</h3>
+        <div className="flex items-center gap-2 mb-3">
+          <h3 className="text-xl font-semibold text-gray-800">Classement</h3>
+          {rankedPlayers.filter(p => !p.eliminated).length > 1 && (
+            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full border border-orange-200 font-medium animate-pulse">
+              Partie arrêtée
+            </span>
+          )}
+        </div>
         <div className="space-y-3">
           {rankedPlayers.map((player: Player, index: number) => {
             const playerResult = game.results?.find(r => r.playerId === player.id);

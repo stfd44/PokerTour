@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react'; // Import useEffect
+import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate, Link } from 'react-router-dom'; // Import useLocation, useNavigate, Link
 import { useTournamentStore } from '../../store/tournamentStore';
 import { GameForm } from './GameForm';
 import { GameView } from './GameView';
 import { GameList } from './GameList';
 import { useAuthStore } from '../../store/useAuthStore';
-import type { Game, Tournament } from '../../store/types/tournamentTypes'; // Correct import path for Game type, Add Tournament type
-import { FlagOff, Calendar, User, Users, MapPin, Award, Check, X, ChevronDown, ChevronUp, Edit, Calculator } from 'lucide-react'; // Import icons
+import type { Game, Tournament } from '../../store/types/tournamentTypes';
+import { FlagOff, Calendar, User, Users, MapPin, Award, Check, X, ChevronDown, ChevronUp, Edit, Calculator } from 'lucide-react';
+import { Modal } from '../common/Modal';
 
 // Helper function to get status text and color (copied from TournamentList for consistency)
 const getStatusInfo = (status: Tournament['status']) => {
@@ -343,18 +344,19 @@ export function TournamentGames() {
           {/* --- End Tournament Details Section --- */}
 
 
-          {/* Show GameForm if creating or editing */}
-          {isCreating && (
+          {/* Show GameForm in a Modal if creating or editing */}
+          <Modal
+            isOpen={isCreating}
+            onClose={handleCloseFormOrView}
+            title={editingGame ? 'Modifier la partie' : 'Nouvelle partie'}
+          >
             <GameForm
               tournament={tournament}
-              // setIsCreating={setIsCreating} // Removed
               editingGame={editingGame}
-              // setEditingGame={setEditingGame} // Removed
               tournamentId={tournamentId}
-              // userId prop removed from GameForm
-              onClose={handleCloseFormOrView} // Pass close handler
+              onClose={handleCloseFormOrView}
             />
-          )}
+          </Modal>
 
           <GameList
             tournament={tournament}

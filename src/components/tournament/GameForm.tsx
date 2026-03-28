@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Added useMemo, useCallback
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTournamentStore } from '../../store/tournamentStore';
-import { UserCheck, X, Minus, Plus } from 'lucide-react'; // Added Minus, Plus icons (Removed Percent)
-import type { Game, Player, Tournament, PotContribution } from '../../store/types/tournamentTypes'; // Added PotContribution import
-import { calculatePrizePool, calculateWinnings } from '../../lib/utils'; // Import calculation functions
+import { UserCheck, Minus, Plus } from 'lucide-react';
+import type { Game, Player, Tournament, PotContribution } from '../../store/types/tournamentTypes';
+import { calculatePrizePool, calculateWinnings } from '../../lib/utils';
 
 interface GameFormProps {
   tournament: Tournament;
@@ -224,16 +224,8 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
   }, []);
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6 max-h-[80vh] overflow-y-auto">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-poker-black">
-          {editingGame ? 'Modifier la partie' : 'Créer une nouvelle partie'}
-        </h2>
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X size={24} />
-        </button>
-      </div>
-      <form onSubmit={handleCreateGame} className="space-y-6">
+    <div className="space-y-6">
+      <form onSubmit={handleCreateGame} className="space-y-6 pb-4">
         <div>
           <label htmlFor="startingStack" className="block text-sm font-medium text-gray-700 mb-1">
             Stack de départ

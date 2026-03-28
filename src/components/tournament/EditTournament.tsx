@@ -61,7 +61,9 @@ export function EditTournament() {
       setTournamentData({
         name: currentTournament.name,
         // Format date for input type="datetime-local" (YYYY-MM-DDTHH:mm)
-        date: currentTournament.date ? new Date(currentTournament.date).toISOString().slice(0, 16) : '',
+        date: currentTournament.date && !isNaN(new Date(currentTournament.date).getTime()) 
+          ? new Date(currentTournament.date).toISOString().slice(0, 16) 
+          : '',
         buyin: currentTournament.buyin,
         maxPlayers: currentTournament.maxPlayers,
         location: currentTournament.location,

@@ -102,11 +102,9 @@ export const calculateResultsForGame = (game: Game): { results: PlayerResult[], 
         
         const winningsPerActive = totalActiveWinnings / totalActive;
         
-        // Points calculation: can use the average or the top points
-        // The user says "égale position", usually means they share the same rank and points
-        const pointsPerActive = 10; // Give top points to all or average? Let's give top points as they are all winners.
-        // Actually, let's use a similar logic to winnings if we want to be strict about "total points available"
-        // But usually in casual poker, tied winners get the same points.
+        // CORRECTION: Si la partie est arrêtée avec plusieurs joueurs, ils ont 0 points.
+        // Un gagnant unique (totalActive === 1) garde ses 10 points.
+        const pointsPerActive = totalActive > 1 ? 0 : 10;
         
         activePlayers.forEach(player => {
             results.push({

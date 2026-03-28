@@ -1,8 +1,5 @@
-// src/pages/MainLayout.tsx
-import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Breadcrumbs } from '../components/layout/Breadcrumbs'; // Import Breadcrumbs
-import { CreateTournament } from '../components/tournament/CreateTournament';
 import { TournamentList } from '../components/tournament/TournamentList';
 import { TournamentGames } from '../components/tournament/TournamentGames';
 import { EditTournament } from '../components/tournament/EditTournament'; // Import EditTournament
@@ -20,7 +17,6 @@ export function MainLayout() {
         <Breadcrumbs /> {/* Add Breadcrumbs component here */}
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/tournaments/create" element={<CreateTournament />} />
           <Route path="/tournaments" element={<TournamentList />} />
           <Route path="/tournament/:tournamentId" element={<TournamentGames />} />
           <Route path="/tournament/:tournamentId/edit" element={<EditTournament />} /> {/* Add route for editing */}
