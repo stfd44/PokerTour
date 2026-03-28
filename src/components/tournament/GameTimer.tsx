@@ -3,6 +3,25 @@ import { Clock, Play, Pause, SkipForward } from 'lucide-react';
 import type { Game } from '../../store/types/tournamentTypes'; // Corrected import path for types
 import { useTournamentStore } from '../../store/tournamentStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import {
+  initializeTimerAlarmUnlock,
+  isTimerAlarmReady,
+  isTimerAlarmSupported,
+  playTimerCompleteAlarm,
+  subscribeToTimerAlarmReady,
+  unlockTimerAudio,
+} from '../../lib/timerAlarm';
+import {
+  isTimerNotificationSupported,
+  showTimerCompleteNotification,
+} from '../../lib/timerNotifications';
+import {
+  enablePushNotifications,
+  getOrCreatePushDeviceId,
+  getPushNotificationPermission,
+  isPushConfigured,
+  sendTimerLevelCompletePush,
+} from '../../lib/pushNotifications';
 // Removed incorrect Button import
 
 interface GameTimerProps {
@@ -56,9 +75,17 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
 
   const [displayTime, setDisplayTime] = useState<string>('--:--');
   const [isLevelComplete, setIsLevelComplete] = useState<boolean>(false);
+  const [isAlarmReady, setIsAlarmReady] = useState<boolean>(() => isTimerAlarmReady());
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>(
+    () => getPushNotificationPermission()
+  );
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const completedLevelRef = useRef<number | null>(null);
   // Calculate levelDurationMs based on selected state
   const levelDurationMs = useMemo(() => (levelDurations[currentLevel] ?? 10) * 60 * 1000, [levelDurations, currentLevel]);
+  const alarmSupported = isTimerAlarmSupported();
+  const notificationSupported = isTimerNotificationSupported();
+  const pushConfigured = isPushConfigured();
 
   // Get blinds directly from the new structure
   const currentBlinds = useMemo(() => {
@@ -69,6 +96,13 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
     // The next level's blinds are either already defined or will be created by advanceBlindLevel
     return blindStructure[currentLevel + 1] ?? { small: 'Auto', big: 'Auto' };
   }, [blindStructure, currentLevel]);
+
+  useEffect(() => {
+    initializeTimerAlarmUnlock();
+    setNotificationPermission(getPushNotificationPermission());
+
+    return subscribeToTimerAlarmReady(setIsAlarmReady);
+  }, []);
 
   useEffect(() => {
     // Use selected state values in logs and logic
@@ -90,6 +124,25 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
       if (timeRemaining <= 0) {
         setDisplayTime('0:00');
         setIsLevelComplete(true);
+
+        if (completedLevelRef.current !== currentLevel) {
+          completedLevelRef.current = currentLevel;
+          void playTimerCompleteAlarm();
+
+          if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+            void showTimerCompleteNotification(game.tournamentId, currentLevel + 1);
+          }
+
+          void sendTimerLevelCompletePush({
+            tournamentId: game.tournamentId,
+            gameId: game.id,
+            levelNumber: currentLevel + 1,
+            excludeDeviceId: getOrCreatePushDeviceId(),
+          }).catch((error) => {
+            console.warn('Unable to send remote timer push notification.', error);
+          });
+        }
+
         stopInterval(); // Stop interval when level completes
       } else {
         setDisplayTime(formatTime(timeRemaining));
@@ -144,6 +197,7 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
       console.log(`[Effect Logic] Game ${game.id} is not paused (Status: ${status}). Starting timer.`);
       // Timer should be running
       setIsLevelComplete(false); // Reset completion state if resuming
+      completedLevelRef.current = null;
       startInterval(); // Start the interval
     }
 
@@ -165,20 +219,32 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
   // Event handlers remain the same, using game prop for IDs
   const handlePause = () => {
     if (!user) return;
+    void unlockTimerAudio();
     console.log(`[HandlePause] Clicked for Game ID: ${game.id}`);
     pauseTimer(game.tournamentId, game.id, user.uid);
   };
   const handleResume = () => {
     if (!user) return;
+    void unlockTimerAudio();
     console.log(`[HandleResume] Clicked for Game ID: ${game.id}`);
     resumeTimer(game.tournamentId, game.id, user.uid);
   };
   const handleAdvanceLevel = () => {
     if (!user) return;
+    void unlockTimerAudio();
     console.log(`[HandleAdvanceLevel] Clicked for Game ID: ${game.id}`);
     advanceBlindLevel(game.tournamentId, game.id, user.uid);
     // Reset local state immediately for better UX, store will catch up
     setIsLevelComplete(false);
+  };
+
+  const handleEnableNotifications = async () => {
+    if (!user) {
+      return;
+    }
+
+    const permission = await enablePushNotifications(user.uid);
+    setNotificationPermission(permission);
   };
 
   // Use selected status for conditional rendering
@@ -241,6 +307,38 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
           </div>
         </div>
       </div>
+
+      {alarmSupported && !isAlarmReady && (
+        <div className="border-t pt-3 text-xs text-amber-700">
+          Touchez l'ecran une fois pour activer l'alerte sonore sur mobile.
+        </div>
+      )}
+
+      {notificationSupported && !pushConfigured && (
+        <div className="border-t pt-3 text-xs text-amber-700">
+          Ajoutez `VITE_FIREBASE_VAPID_KEY` dans votre configuration Firebase pour activer le web push.
+        </div>
+      )}
+
+      {notificationSupported && pushConfigured && notificationPermission === 'default' && (
+        <div className="border-t pt-3 flex items-center justify-between gap-3">
+          <div className="text-xs text-gray-600">
+            Activez les notifications pour recevoir une alerte push si l'app passe en arriere-plan.
+          </div>
+          <button
+            onClick={handleEnableNotifications}
+            className="shrink-0 rounded bg-poker-gold px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+          >
+            Activer
+          </button>
+        </div>
+      )}
+
+      {notificationSupported && pushConfigured && notificationPermission === 'denied' && (
+        <div className="border-t pt-3 text-xs text-red-600">
+          Les notifications sont bloquees pour cette app. Il faut les reautoriser dans les reglages du navigateur ou de la PWA.
+        </div>
+      )}
     </div>
   );
 }

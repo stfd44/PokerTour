@@ -3,6 +3,7 @@ import { User } from 'firebase/auth';
 // Removed unused signInWithGoogle import
 import { auth, getUserData, saveUserData } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
+import { removePushRegistration } from '../lib/pushNotifications';
 
 // Define a type for our user data, including the nickname
 export interface AppUser {
@@ -106,6 +107,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   // We keep logout.
   logout: async () => {
     try {
+      const currentUser = get().user;
+      if (currentUser?.uid) {
+        await removePushRegistration(currentUser.uid);
+      }
       await signOut(auth);
       set({ user: null, isLoading: false, requiresNickname: false }); // Reset state on logout
     } catch (error) {

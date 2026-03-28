@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "pokertour-bf6b4",
+    "dev": "pokertourdev"
+  },
+  "targets": {},
+  "etags": {}
+}

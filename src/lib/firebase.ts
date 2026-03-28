@@ -50,6 +50,7 @@ const app = initializeApp(selectedConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
+export { app, selectedConfig };
 
 export const signInWithGoogle = async () => {
   try {

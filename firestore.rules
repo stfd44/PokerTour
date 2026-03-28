@@ -49,6 +49,10 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuth();
       allow create, update: if isUser(userId);
+
+      match /devices/{deviceId} {
+        allow read, create, update, delete: if isUser(userId);
+      }
     }
   }
 }

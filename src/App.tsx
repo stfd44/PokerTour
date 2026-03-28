@@ -13,11 +13,28 @@ import { useAuthStore } from './store/useAuthStore';
 import { useTeamStore } from './store/useTeamStore';
 import { useTournamentStore } from './store/tournamentStore'; // Import tournament store
 import { NicknamePrompt } from './components/NicknamePrompt';
+import { initializeTimerAlarmUnlock } from './lib/timerAlarm';
+import { registerTimerNotificationServiceWorker } from './lib/timerNotifications';
+import { ensurePushRegistration, getPushNotificationPermission, initializeForegroundPushListener } from './lib/pushNotifications';
 
 function App() {
   // Get user, setUser, isLoading, and requiresNickname from the store
   const { user, setUser, isLoading, requiresNickname } = useAuthStore();
   const { fetchTeams } = useTeamStore();
+
+  useEffect(() => {
+    initializeTimerAlarmUnlock();
+    void registerTimerNotificationServiceWorker();
+    void initializeForegroundPushListener();
+  }, []);
+
+  useEffect(() => {
+    if (!user?.uid || getPushNotificationPermission() !== 'granted') {
+      return;
+    }
+
+    void ensurePushRegistration(user.uid);
+  }, [user?.uid]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser: User | null) => {

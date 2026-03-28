@@ -2,6 +2,7 @@
   "name": "PokerTour",
   "short_name": "PokerTour",
   "description": "Gestion de tournois de poker entre amis",
+  "id": "/",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

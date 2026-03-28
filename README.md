@@ -9,6 +9,45 @@ Application de gestion de tournois de poker.
 - Gestion des parties
 - Suivi des statistiques
 - Gestion des équipes
+- Alertes sonores et notifications push pour les timers
+
+## Web Push
+
+L'application inclut maintenant une architecture de notifications push pour les fins de niveau:
+
+- le client enregistre un device FCM par utilisateur dans `users/{userId}/devices/{deviceId}`
+- un service worker web est genere automatiquement avant `npm run dev` et `npm run build`
+- une Cloud Function `sendTimerLevelCompletePush` envoie les notifications aux appareils des participants
+
+### Variables d'environnement
+
+Ajoutez ces variables dans votre `.env` en plus de la configuration Firebase existante:
+
+```bash
+VITE_FIREBASE_VAPID_KEY=
+VITE_FIREBASE_VAPID_KEY_TEST=
+```
+
+La cle publique VAPID se genere dans Firebase Console > Project settings > Cloud Messaging > Web Push certificates.
+
+### Backend Firebase Functions
+
+Le squelette backend est dans `functions/`.
+
+Pour le deployer:
+
+1. installer les dependances dans `functions/`
+2. deployer la fonction `sendTimerLevelCompletePush`
+3. publier aussi les regles Firestore mises a jour
+
+Exemple:
+
+```bash
+cd functions
+npm install
+cd ..
+firebase deploy --only functions:sendTimerLevelCompletePush,firestore:rules
+```
 
 ## Versionnement automatique
 

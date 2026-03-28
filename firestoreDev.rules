@@ -30,6 +30,10 @@ service cloud.firestore {
       allow create, update: if request.auth != null;
       // If you prefer stricter user profile updates even in dev, change the above line back to:
       // allow create, update: if request.auth != null && request.auth.uid == userId;
+
+      match /devices/{deviceId} {
+        allow read, create, update, delete: if request.auth != null;
+      }
     }
 
     // Add rules for any other collections if they exist
