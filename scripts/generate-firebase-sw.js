@@ -22,9 +22,14 @@ const parseEnvFile = (content) =>
       return accumulator;
     }, {});
 
-const env = fs.existsSync(envPath)
+const fileEnv = fs.existsSync(envPath)
   ? parseEnvFile(fs.readFileSync(envPath, 'utf8'))
   : {};
+
+const env = {
+  ...fileEnv,
+  ...process.env,
+};
 
 const buildConfig = (prefix = '') => ({
   apiKey: env[`VITE_FIREBASE_API_KEY${prefix}`] || '',
