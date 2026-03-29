@@ -107,6 +107,7 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
     if (lastPushStatus) {
       const statusMessages: Record<string, string> = {
         registered: 'Notifications actives sur cet appareil.',
+        activation_pending: "Activation des notifications en cours sur cet appareil.",
         unsupported: "Le web push n'est pas pris en charge sur cet appareil.",
         not_configured: "La cle web push de l'application est absente.",
         permission_not_granted: "L'autorisation de notification n'a pas ete accordee.",
@@ -265,6 +266,7 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
       return;
     }
 
+    setPushActivationMessage("Activation des notifications en cours sur cet appareil.");
     const result = await enablePushNotifications(user.uid);
     setNotificationPermission(result.permission);
 
@@ -274,6 +276,7 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
     }
 
     const reasonMessages: Record<string, string> = {
+      activation_pending: "Activation des notifications en cours sur cet appareil.",
       unsupported: "Le web push n'est pas pris en charge sur cet appareil.",
       not_configured: "La cle web push de l'application est absente.",
       permission_not_granted: "L'autorisation de notification n'a pas ete accordee.",

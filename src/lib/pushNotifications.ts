@@ -33,6 +33,23 @@ export type PushRegistrationStatus = {
 
 const getPushMode = (): 'prod' | 'test' => (useTestDb ? 'test' : 'prod');
 
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, reason: string): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(reason)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+};
+
 const persistPushRegistrationStatus = ({
   ok,
   reason,
@@ -206,7 +223,11 @@ const ensurePushRegistrationDetailed = async (userId: string): Promise<PushRegis
     return { ok: false, endpoint: null, reason: 'permission_not_granted' };
   }
 
-  const serviceWorkerRegistration = await registerPushServiceWorker().catch((error) => {
+  const serviceWorkerRegistration = await withTimeout(
+    registerPushServiceWorker(),
+    10000,
+    'sw_registration_timeout'
+  ).catch((error) => {
     console.warn('Unable to register push service worker.', error);
     return null;
   });
@@ -216,16 +237,24 @@ const ensurePushRegistrationDetailed = async (userId: string): Promise<PushRegis
     return { ok: false, endpoint: null, reason: 'sw_registration_failed' };
   }
 
-  let subscription = await serviceWorkerRegistration.pushManager.getSubscription().catch((error) => {
+  let subscription = await withTimeout(
+    serviceWorkerRegistration.pushManager.getSubscription(),
+    10000,
+    'get_subscription_timeout'
+  ).catch((error) => {
     console.warn('Unable to read existing push subscription.', error);
     return null;
   });
 
   if (!subscription) {
-    subscription = await serviceWorkerRegistration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(getVapidKey()),
-    }).catch((error) => {
+    subscription = await withTimeout(
+      serviceWorkerRegistration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(getVapidKey()),
+      }),
+      10000,
+      'subscribe_timeout'
+    ).catch((error) => {
       console.warn('Unable to create push subscription.', error);
       return null;
     });
@@ -266,6 +295,7 @@ export const enablePushNotifications = async (userId: string): Promise<PushEnabl
     };
   }
 
+  persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'activation_pending' });
   const permission = await requestPushPermission();
   if (permission === 'granted') {
     const result = await ensurePushRegistrationDetailed(userId);
