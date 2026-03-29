@@ -286,13 +286,18 @@ const ensurePushRegistrationDetailed = async (userId: string): Promise<PushRegis
   }
 
   try {
-    await savePushSubscription(userId, subscription);
+    await withTimeout(savePushSubscription(userId, subscription), 10000, 'save_subscription_timeout');
     persistPushRegistrationStatus({ ok: true, endpoint: subscription.endpoint, reason: 'registered' });
     return { ok: true, endpoint: subscription.endpoint };
   } catch (error) {
     console.warn('Unable to save push subscription.', error);
-    persistPushRegistrationStatus({ ok: false, endpoint: subscription.endpoint, reason: 'save_failed' });
-    return { ok: false, endpoint: subscription.endpoint, reason: 'save_failed' };
+    const reason =
+      error instanceof Error && error.message === 'save_subscription_timeout'
+        ? 'save_timeout'
+        : 'save_failed';
+
+    persistPushRegistrationStatus({ ok: false, endpoint: subscription.endpoint, reason });
+    return { ok: false, endpoint: subscription.endpoint, reason };
   }
 };
 
@@ -316,7 +321,12 @@ export const enablePushNotifications = async (userId: string): Promise<PushEnabl
   }
 
   persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'activation_pending' });
-  const permission = await requestPushPermission();
+  const existingPermission = getPushNotificationPermission();
+  const permission =
+    existingPermission === 'granted'
+      ? existingPermission
+      : await requestPushPermission();
+
   if (permission === 'granted') {
     const result = await ensurePushRegistrationDetailed(userId);
     if (!result.ok) {

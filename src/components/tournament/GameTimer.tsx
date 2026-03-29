@@ -115,6 +115,7 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
         permission_denied: "Les notifications sont bloquees pour cette app.",
         sw_registration_failed: "Le service worker de notification n'a pas pu etre initialise.",
         subscribe_failed: "L'abonnement push a echoue sur cet iPhone.",
+        save_timeout: "L'abonnement push a ete cree, mais l'enregistrement Firestore ne repond pas.",
         save_failed: "L'abonnement push a ete cree mais n'a pas pu etre enregistre dans Firestore.",
         unexpected_error: "Une erreur inconnue a empeche l'activation du push.",
       };
@@ -285,6 +286,7 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
       permission_denied: "Les notifications sont bloquees pour cette app.",
       sw_registration_failed: "Le service worker de notification n'a pas pu etre initialise.",
       subscribe_failed: "L'abonnement push a echoue sur cet iPhone.",
+      save_timeout: "L'abonnement push a ete cree, mais l'enregistrement Firestore ne repond pas.",
       save_failed: "L'abonnement push a ete cree mais n'a pas pu etre enregistre dans Firestore.",
       unexpected_error: "Une erreur inconnue a empeche l'activation du push.",
     };
