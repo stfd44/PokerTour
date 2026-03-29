@@ -16,6 +16,7 @@ import { playTimerCompleteAlarm } from './timerAlarm';
 const DEVICE_ID_STORAGE_KEY = 'pokertour_push_device_id';
 const FOREGROUND_LISTENER_KEY = '__pokertour_push_listener__';
 const PUSH_REGISTRATION_STATUS_KEY = 'pokertour_push_registration_status';
+const TIMER_PUSH_STATUS_KEY = 'pokertour_timer_push_status';
 
 type TimerPushPayload = {
   tournamentId: string;
@@ -27,6 +28,17 @@ type TimerPushPayload = {
 type PushTestResult = {
   successCount: number;
   failureCount: number;
+};
+
+export type TimerPushStatus = {
+  status: 'pending' | 'sent' | 'failed';
+  successCount?: number;
+  failureCount?: number;
+  message?: string;
+  tournamentId: string;
+  gameId: string;
+  levelNumber: number;
+  updatedAt: number;
 };
 
 type PushRegistrationResult = {
@@ -118,6 +130,18 @@ const persistPushRegistrationStatus = ({
 
 const loadFunctionsModule = async () => import('firebase/functions');
 
+const persistTimerPushStatus = (status: TimerPushStatus) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    localStorage.setItem(TIMER_PUSH_STATUS_KEY, JSON.stringify(status));
+  } catch (error) {
+    console.warn('Unable to persist timer push status.', error);
+  }
+};
+
 const getVapidKey = (): string => {
   return useTestDb
     ? import.meta.env.VITE_FIREBASE_VAPID_KEY_TEST || ''
@@ -140,6 +164,24 @@ export const getLastPushRegistrationStatus = (): PushRegistrationStatus | null =
     return JSON.parse(rawStatus) as PushRegistrationStatus;
   } catch (error) {
     console.warn('Unable to read persisted push registration status.', error);
+    return null;
+  }
+};
+
+export const getLastTimerPushStatus = (): TimerPushStatus | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const rawStatus = localStorage.getItem(TIMER_PUSH_STATUS_KEY);
+    if (!rawStatus) {
+      return null;
+    }
+
+    return JSON.parse(rawStatus) as TimerPushStatus;
+  } catch (error) {
+    console.warn('Unable to read persisted timer push status.', error);
     return null;
   }
 };
@@ -530,20 +572,49 @@ export const sendTimerLevelCompletePush = async ({
   levelNumber,
   excludeDeviceId,
 }: TimerPushPayload) => {
+  persistTimerPushStatus({
+    status: 'pending',
+    tournamentId,
+    gameId,
+    levelNumber,
+    updatedAt: Date.now(),
+  });
+
   try {
     const { getFunctions, httpsCallable } = await loadFunctionsModule();
     const functions = getFunctions(app);
     const sendPush = httpsCallable(functions, 'sendTimerLevelCompletePush');
-
-    return sendPush({
+    const result = await sendPush({
       tournamentId,
       gameId,
       levelNumber,
       excludeDeviceId,
       mode: getPushMode(),
     });
+
+    const data = result.data as { successCount?: number; failureCount?: number } | undefined;
+    persistTimerPushStatus({
+      status: 'sent',
+      tournamentId,
+      gameId,
+      levelNumber,
+      successCount: data?.successCount ?? 0,
+      failureCount: data?.failureCount ?? 0,
+      updatedAt: Date.now(),
+    });
+
+    return result;
   } catch (error) {
     console.warn('Unable to call timer push function.', error);
+    const message = error instanceof Error ? error.message : 'unknown_error';
+    persistTimerPushStatus({
+      status: 'failed',
+      tournamentId,
+      gameId,
+      levelNumber,
+      message,
+      updatedAt: Date.now(),
+    });
     throw error;
   }
 };

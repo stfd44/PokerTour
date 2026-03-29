@@ -133,14 +133,16 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
             void showTimerCompleteNotification(game.tournamentId, currentLevel + 1);
           }
 
-          void sendTimerLevelCompletePush({
-            tournamentId: game.tournamentId,
-            gameId: game.id,
-            levelNumber: currentLevel + 1,
-            excludeDeviceId: getOrCreatePushDeviceId(),
-          }).catch((error) => {
-            console.warn('Unable to send remote timer push notification.', error);
-          });
+          if (user && isCurrentUserParticipant) {
+            void sendTimerLevelCompletePush({
+              tournamentId: game.tournamentId,
+              gameId: game.id,
+              levelNumber: currentLevel + 1,
+              excludeDeviceId: getOrCreatePushDeviceId(),
+            }).catch((error) => {
+              console.warn('Unable to send remote timer push notification.', error);
+            });
+          }
         }
 
         stopInterval(); // Stop interval when level completes

@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useTestDb, canUseTestDb } from '../lib/firebase';
 import {
   enablePushNotifications,
+  getLastTimerPushStatus,
   getPushDebugState,
   removePushRegistration,
   sendPushTestToCurrentDevice,
@@ -26,6 +27,7 @@ const Profile: React.FC = () => {
   const [isRefreshingPushDebug, setIsRefreshingPushDebug] = useState<boolean>(false);
   const [isRunningPushTest, setIsRunningPushTest] = useState<boolean>(false);
   const [isSendingPushNotificationTest, setIsSendingPushNotificationTest] = useState<boolean>(false);
+  const [lastTimerPushMessage, setLastTimerPushMessage] = useState<string | null>(null);
 
   // Initialize nickname input when user data is available
   useEffect(() => {
@@ -46,6 +48,27 @@ const Profile: React.FC = () => {
       const nextState = await getPushDebugState(user.uid).catch(() => null);
       if (!cancelled && nextState) {
         setPushDebugState(nextState);
+      }
+      if (!cancelled) {
+        const timerPushStatus = getLastTimerPushStatus();
+        if (timerPushStatus) {
+          const parts = [
+            `Timer push ${timerPushStatus.status}`,
+            `niveau ${timerPushStatus.levelNumber}`,
+          ];
+          if (typeof timerPushStatus.successCount === 'number') {
+            parts.push(`success=${timerPushStatus.successCount}`);
+          }
+          if (typeof timerPushStatus.failureCount === 'number') {
+            parts.push(`failure=${timerPushStatus.failureCount}`);
+          }
+          if (timerPushStatus.message) {
+            parts.push(timerPushStatus.message);
+          }
+          setLastTimerPushMessage(parts.join(' | '));
+        } else {
+          setLastTimerPushMessage(null);
+        }
       }
     })();
 
@@ -85,6 +108,25 @@ const Profile: React.FC = () => {
     try {
       const nextState = await getPushDebugState(user.uid);
       setPushDebugState(nextState);
+      const timerPushStatus = getLastTimerPushStatus();
+      if (timerPushStatus) {
+        const parts = [
+          `Timer push ${timerPushStatus.status}`,
+          `niveau ${timerPushStatus.levelNumber}`,
+        ];
+        if (typeof timerPushStatus.successCount === 'number') {
+          parts.push(`success=${timerPushStatus.successCount}`);
+        }
+        if (typeof timerPushStatus.failureCount === 'number') {
+          parts.push(`failure=${timerPushStatus.failureCount}`);
+        }
+        if (timerPushStatus.message) {
+          parts.push(timerPushStatus.message);
+        }
+        setLastTimerPushMessage(parts.join(' | '));
+      } else {
+        setLastTimerPushMessage(null);
+      }
     } catch (error) {
       console.error('Error refreshing push debug state:', error);
       setPushTestMessage("Impossible d'actualiser le diagnostic push.");
@@ -349,6 +391,10 @@ const Profile: React.FC = () => {
 
             {pushTestMessage && (
               <p className="text-sm text-gray-700">{pushTestMessage}</p>
+            )}
+
+            {lastTimerPushMessage && (
+              <p className="text-sm text-gray-700">{lastTimerPushMessage}</p>
             )}
 
             {pushDebugState && (
