@@ -65,7 +65,7 @@ const sendWebPushPayload = async ({
   return { successCount, failureCount };
 };
 
-exports.sendTimerLevelCompletePush = onCall({ secrets: [webPushPrivateKey] }, async (request) => {
+const sendTimerLevelCompletePushHandler = onCall({ secrets: [webPushPrivateKey] }, async (request) => {
   if (!request.auth?.uid) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
   }
@@ -185,6 +185,9 @@ exports.sendTimerLevelCompletePush = onCall({ secrets: [webPushPrivateKey] }, as
     failureCount,
   };
 });
+
+exports.sendTimerLevelCompletePush = sendTimerLevelCompletePushHandler;
+exports.sendTimerLevelCompletePushV2 = sendTimerLevelCompletePushHandler;
 
 exports.sendPushTestToCurrentDevice = onCall({ secrets: [webPushPrivateKey] }, async (request) => {
   if (!request.auth?.uid) {

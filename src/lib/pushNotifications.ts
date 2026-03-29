@@ -583,7 +583,7 @@ export const sendTimerLevelCompletePush = async ({
   try {
     const { getFunctions, httpsCallable } = await loadFunctionsModule();
     const functions = getFunctions(app);
-    const sendPush = httpsCallable(functions, 'sendTimerLevelCompletePush');
+    const sendPush = httpsCallable(functions, 'sendTimerLevelCompletePushV2');
     const result = await sendPush({
       tournamentId,
       gameId,
