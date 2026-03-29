@@ -5,6 +5,7 @@ import {
   enablePushNotifications,
   getPushDebugState,
   removePushRegistration,
+  sendPushTestToCurrentDevice,
   type PushDebugState,
 } from '../lib/pushNotifications';
 
@@ -19,6 +20,7 @@ const Profile: React.FC = () => {
   const [pushTestMessage, setPushTestMessage] = useState<string | null>(null);
   const [isRefreshingPushDebug, setIsRefreshingPushDebug] = useState<boolean>(false);
   const [isRunningPushTest, setIsRunningPushTest] = useState<boolean>(false);
+  const [isSendingPushNotificationTest, setIsSendingPushNotificationTest] = useState<boolean>(false);
 
   // Initialize nickname input when user data is available
   useEffect(() => {
@@ -158,6 +160,36 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleSendPushNotificationTest = async () => {
+    if (!user?.uid) {
+      return;
+    }
+
+    setIsSendingPushNotificationTest(true);
+    setPushTestMessage("Envoi d'un push test a cet appareil...");
+
+    try {
+      const result = await sendPushTestToCurrentDevice();
+      const nextState = await getPushDebugState(user.uid).catch(() => null);
+      if (nextState) {
+        setPushDebugState(nextState);
+      }
+
+      if (result.successCount > 0) {
+        setPushTestMessage(
+          "Push test envoye. Verrouillez l'iPhone juste apres le clic pour verifier l'arrivee sur l'ecran verrouille."
+        );
+      } else {
+        setPushTestMessage("Aucun push test n'a pu etre envoye a cet appareil.");
+      }
+    } catch (error) {
+      console.error('Error sending push notification test:', error);
+      setPushTestMessage("Impossible d'envoyer un push test a cet appareil.");
+    } finally {
+      setIsSendingPushNotificationTest(false);
+    }
+  };
+
   // Removed statistics calculation logic (useMemo hook)
 
   // Simplified isLoading logic: only rely on authLoading
@@ -248,26 +280,48 @@ const Profile: React.FC = () => {
               <p className="mt-1">
                 Ce panneau permet de verifier la permission web, la souscription navigateur et la presence du device dans Firestore.
               </p>
+              {useTestDb && (
+                <p className="mt-2 text-amber-700">
+                  Ces tests ne sont fiables qu'en production HTTPS. La base de test locale/dev ne doit pas etre utilisee pour valider le web push iPhone.
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={refreshPushDebugState}
-                disabled={isRefreshingPushDebug || isRunningPushTest}
+                disabled={useTestDb || isRefreshingPushDebug || isRunningPushTest}
                 className="rounded bg-slate-700 px-4 py-2 font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isRefreshingPushDebug ? 'Actualisation...' : 'Actualiser le diagnostic'}
               </button>
               <button
                 onClick={handleRunPushActivationTest}
-                disabled={isRunningPushTest || isRefreshingPushDebug}
+                disabled={useTestDb || isRunningPushTest || isRefreshingPushDebug || isSendingPushNotificationTest}
                 className="rounded bg-poker-gold px-4 py-2 font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isRunningPushTest ? 'Test en cours...' : "Tester l'activation push"}
               </button>
               <button
+                onClick={handleSendPushNotificationTest}
+                disabled={
+                  useTestDb ||
+                  isRunningPushTest ||
+                  isRefreshingPushDebug ||
+                  isSendingPushNotificationTest
+                }
+                className="rounded bg-blue-600 px-4 py-2 font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSendingPushNotificationTest ? 'Envoi...' : 'Envoyer un push test'}
+              </button>
+              <button
                 onClick={handleRemoveLocalPushRegistration}
-                disabled={isRunningPushTest || isRefreshingPushDebug}
+                disabled={
+                  useTestDb ||
+                  isRunningPushTest ||
+                  isRefreshingPushDebug ||
+                  isSendingPushNotificationTest
+                }
                 className="rounded bg-red-500 px-4 py-2 font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Supprimer l'abonnement local

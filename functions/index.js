@@ -15,6 +15,56 @@ const webPushPrivateKey = defineSecret('WEB_PUSH_PRIVATE_KEY');
 
 const isSubscriptionGone = (error) => error?.statusCode === 404 || error?.statusCode === 410;
 
+const configureWebPush = () => {
+  const publicKey = webPushPublicKey.value();
+  const subject = webPushSubject.value();
+  const privateKey = webPushPrivateKey.value();
+
+  if (!publicKey || !subject || !privateKey) {
+    throw new HttpsError('failed-precondition', 'Web Push VAPID configuration is incomplete.');
+  }
+
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+};
+
+const sendWebPushPayload = async ({
+  entries,
+  payload,
+  logContext,
+}) => {
+  const cleanupOperations = [];
+  let successCount = 0;
+  let failureCount = 0;
+
+  await Promise.all(entries.map(async (entry) => {
+    try {
+      await webpush.sendNotification(entry.subscription, payload, {
+        urgency: 'high',
+        TTL: 60,
+      });
+      successCount += 1;
+    } catch (error) {
+      failureCount += 1;
+
+      if (isSubscriptionGone(error)) {
+        cleanupOperations.push(
+          entry.ref.delete().catch((deleteError) => {
+            logger.error('Failed to delete invalid push subscription', deleteError);
+          })
+        );
+      }
+
+      logger.error('Failed to send web push notification', error, logContext(entry));
+    }
+  }));
+
+  if (cleanupOperations.length > 0) {
+    await Promise.all(cleanupOperations);
+  }
+
+  return { successCount, failureCount };
+};
+
 exports.sendTimerLevelCompletePush = onCall({ secrets: [webPushPrivateKey] }, async (request) => {
   if (!request.auth?.uid) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
@@ -39,15 +89,7 @@ exports.sendTimerLevelCompletePush = onCall({ secrets: [webPushPrivateKey] }, as
     throw new HttpsError('not-found', 'Tournament not found.');
   }
 
-  const publicKey = webPushPublicKey.value();
-  const subject = webPushSubject.value();
-  const privateKey = webPushPrivateKey.value();
-
-  if (!publicKey || !subject || !privateKey) {
-    throw new HttpsError('failed-precondition', 'Web Push VAPID configuration is incomplete.');
-  }
-
-  webpush.setVapidDetails(subject, publicKey, privateKey);
+  configureWebPush();
 
   const tournament = tournamentSnap.data();
   const game = Array.isArray(tournament.games)
@@ -116,39 +158,15 @@ exports.sendTimerLevelCompletePush = onCall({ secrets: [webPushPrivateKey] }, as
     tag,
   });
 
-  const cleanupOperations = [];
-  let successCount = 0;
-  let failureCount = 0;
-
-  await Promise.all(uniqueEntries.map(async (entry) => {
-    try {
-      await webpush.sendNotification(entry.subscription, payload, {
-        urgency: 'high',
-        TTL: 60,
-      });
-      successCount += 1;
-    } catch (error) {
-      failureCount += 1;
-
-      if (isSubscriptionGone(error)) {
-        cleanupOperations.push(
-          entry.ref.delete().catch((deleteError) => {
-            logger.error('Failed to delete invalid push subscription', deleteError);
-          })
-        );
-      }
-
-      logger.error('Failed to send web push notification', error, {
-        tournamentId,
-        gameId,
-        endpoint: entry.endpoint,
-      });
-    }
-  }));
-
-  if (cleanupOperations.length > 0) {
-    await Promise.all(cleanupOperations);
-  }
+  const { successCount, failureCount } = await sendWebPushPayload({
+    entries: uniqueEntries,
+    payload,
+    logContext: (entry) => ({
+      tournamentId,
+      gameId,
+      endpoint: entry.endpoint,
+    }),
+  });
 
   await tournamentRef.set({
     lastTimerNotificationAt: FieldValue.serverTimestamp(),
@@ -158,6 +176,84 @@ exports.sendTimerLevelCompletePush = onCall({ secrets: [webPushPrivateKey] }, as
     tournamentId,
     gameId,
     levelNumber,
+    successCount,
+    failureCount,
+  });
+
+  return {
+    successCount,
+    failureCount,
+  };
+});
+
+exports.sendPushTestToCurrentDevice = onCall({ secrets: [webPushPrivateKey] }, async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const {
+    deviceId,
+    mode = 'prod',
+  } = request.data || {};
+
+  if (!deviceId || typeof deviceId !== 'string') {
+    throw new HttpsError('invalid-argument', 'deviceId is required.');
+  }
+
+  configureWebPush();
+
+  const deviceRef = db.collection('users').doc(request.auth.uid).collection('devices').doc(deviceId);
+  const deviceSnap = await deviceRef.get();
+
+  if (!deviceSnap.exists) {
+    throw new HttpsError('not-found', 'Push device not found for current user.');
+  }
+
+  const device = deviceSnap.data();
+
+  if (!device?.subscription) {
+    throw new HttpsError('failed-precondition', 'Push device does not have a stored subscription.');
+  }
+
+  if (device.notificationsEnabled === false) {
+    throw new HttpsError('failed-precondition', 'Push notifications are disabled for this device.');
+  }
+
+  if (device.mode && device.mode !== mode) {
+    throw new HttpsError('failed-precondition', 'Push device belongs to a different environment.');
+  }
+
+  const sentAt = new Date().toLocaleString('fr-FR', {
+    timeZone: 'Europe/Paris',
+    dateStyle: 'short',
+    timeStyle: 'medium',
+  });
+
+  const payload = JSON.stringify({
+    type: 'push_test',
+    title: 'PokerTour',
+    body: `Push test envoye a ${sentAt}. Si l'iPhone est verrouille, cette notification doit apparaitre sur l'ecran verrouille.`,
+    url: '/profile',
+    tag: `push-test-${deviceId}`,
+  });
+
+  const { successCount, failureCount } = await sendWebPushPayload({
+    entries: [{
+      ref: deviceRef,
+      endpoint: device.endpoint,
+      subscription: device.subscription,
+    }],
+    payload,
+    logContext: (entry) => ({
+      deviceId,
+      endpoint: entry.endpoint,
+      userId: request.auth.uid,
+    }),
+  });
+
+  logger.info('Push test notification sent', {
+    userId: request.auth.uid,
+    deviceId,
     successCount,
     failureCount,
   });

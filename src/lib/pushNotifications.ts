@@ -13,6 +13,11 @@ type TimerPushPayload = {
   excludeDeviceId?: string;
 };
 
+type PushTestResult = {
+  successCount: number;
+  failureCount: number;
+};
+
 type PushRegistrationResult = {
   ok: boolean;
   endpoint: string | null;
@@ -513,6 +518,29 @@ export const sendTimerLevelCompletePush = async ({
     });
   } catch (error) {
     console.warn('Unable to call timer push function.', error);
+    throw error;
+  }
+};
+
+export const sendPushTestToCurrentDevice = async (): Promise<PushTestResult> => {
+  const deviceId = getOrCreatePushDeviceId();
+
+  try {
+    const { getFunctions, httpsCallable } = await loadFunctionsModule();
+    const functions = getFunctions(app);
+    const sendPushTest = httpsCallable<{ deviceId: string; mode: 'prod' | 'test' }, PushTestResult>(
+      functions,
+      'sendPushTestToCurrentDevice'
+    );
+
+    const result = await sendPushTest({
+      deviceId,
+      mode: getPushMode(),
+    });
+
+    return result.data;
+  } catch (error) {
+    console.warn('Unable to call push test function.', error);
     throw error;
   }
 };

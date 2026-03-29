@@ -62,12 +62,14 @@ self.addEventListener('push', (event) => {
     Promise.all([
       self.registration.showNotification(title, notificationOptions),
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-        clients.forEach((client) => {
-          client.postMessage({
-            type: 'timer_complete_push',
-            payload,
+        if (payload.type === 'timer_complete') {
+          clients.forEach((client) => {
+            client.postMessage({
+              type: 'timer_complete_push',
+              payload,
+            });
           });
-        });
+        }
       }),
     ])
   );
