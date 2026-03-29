@@ -13,11 +13,23 @@ Application de gestion de tournois de poker.
 
 ## Web Push
 
-L'application inclut maintenant une architecture de notifications push Web Push standard pour les fins de niveau:
+L'application utilise Web Push standard pour les fins de niveau du timer.
 
-- le client enregistre une `PushSubscription` par appareil dans `users/{userId}/devices/{deviceId}`
-- le service worker web gere les evenements `push` standards
-- une Cloud Function `sendTimerLevelCompletePush` envoie les notifications via `web-push`
+### Fonctionnement
+
+- chaque navigateur ou PWA autorise enregistre une `PushSubscription` dans `users/{userId}/devices/{deviceId}`
+- le service worker web recoit les evenements `push` et affiche la notification systeme
+- le trigger Firestore `syncTimerPushSchedule` observe les changements de partie dans `tournaments/{tournamentId}`
+- une tache Cloud Tasks est planifiee pour l'heure exacte de fin du niveau courant
+- la fonction `dispatchScheduledTimerPush` s'execute a l'heure prevue, reverifie l'etat reel de la table, puis envoie la notification via `web-push`
+- les notifications sont envoyees aux joueurs de la table disposant d'un appareil enregistre, y compris les joueurs elimines
+- le son de fin de niveau reste gere localement dans l'application quand la page de table est ouverte
+
+### Conditions d'utilisation
+
+- HTTPS obligatoire pour le Web Push
+- sur iPhone, les notifications push web necessitent l'app ajoutee a l'ecran d'accueil
+- la cle publique VAPID frontend doit correspondre a la cle publique VAPID utilisee par Firebase Functions
 
 ### Variables d'environnement frontend
 
@@ -32,15 +44,13 @@ La cle publique VAPID est la cle publique Web Push utilisee par le navigateur.
 
 ### Backend Firebase Functions
 
-Le squelette backend est dans `functions/`.
-
 Generez une paire VAPID une seule fois:
 
 ```bash
 npx web-push generate-vapid-keys --json
 ```
 
-Avant le deploy, configurez les parametres / secrets Firebase utilises par la function:
+Avant le deploy, configurez les parametres / secrets Firebase utilises par les functions:
 
 ```bash
 firebase functions:secrets:set WEB_PUSH_PRIVATE_KEY
@@ -56,11 +66,11 @@ Important:
 - `WEB_PUSH_PUBLIC_KEY` doit correspondre a `VITE_FIREBASE_VAPID_KEY` pour le meme environnement
 - utilisez un vrai `mailto:` ou une vraie URL publique pour `WEB_PUSH_SUBJECT`
 
-Pour le deployer:
+Fonctions impliquees:
 
-1. installer les dependances dans `functions/`
-2. deployer la fonction `sendTimerLevelCompletePush`
-3. publier aussi les regles Firestore mises a jour
+- `syncTimerPushSchedule` : cree, remplace ou annule la tache Cloud Tasks du niveau courant
+- `dispatchScheduledTimerPush` : envoie la notification de fin de niveau a l'heure planifiee
+- `sendPushTestToCurrentDevice` : envoie un push de test a l'appareil courant depuis la page Profil
 
 Exemple:
 
@@ -68,7 +78,7 @@ Exemple:
 cd functions
 npm install
 cd ..
-firebase deploy --only functions:sendTimerLevelCompletePush,firestore:rules
+firebase deploy --only functions:syncTimerPushSchedule,functions:dispatchScheduledTimerPush,functions:sendPushTestToCurrentDevice,firestore:rules
 ```
 
 ## Versionnement automatique
