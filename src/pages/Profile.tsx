@@ -9,6 +9,11 @@ import {
   type PushDebugState,
 } from '../lib/pushNotifications';
 
+type FirebaseLikeError = Error & {
+  code?: string;
+  details?: unknown;
+};
+
 const Profile: React.FC = () => {
   const { user, setNickname, isLoading: authLoading } = useAuthStore();
   // Removed tournament and team store hooks as they are no longer needed for stats
@@ -184,7 +189,21 @@ const Profile: React.FC = () => {
       }
     } catch (error) {
       console.error('Error sending push notification test:', error);
-      setPushTestMessage("Impossible d'envoyer un push test a cet appareil.");
+      const firebaseError = error as FirebaseLikeError;
+      const errorCode = firebaseError?.code ?? '';
+      const errorMessage = firebaseError?.message ?? '';
+
+      if (errorCode.includes('not-found')) {
+        setPushTestMessage("La function de push test n'est probablement pas encore deployee en production.");
+      } else if (errorCode.includes('failed-precondition')) {
+        setPushTestMessage("Le device existe, mais sa souscription push n'est pas exploitable cote backend.");
+      } else if (errorCode.includes('permission-denied')) {
+        setPushTestMessage("La function push test a refuse l'appel. Verifiez que vous etes bien connecte.");
+      } else if (errorMessage) {
+        setPushTestMessage(`Impossible d'envoyer un push test a cet appareil. ${errorMessage}`);
+      } else {
+        setPushTestMessage("Impossible d'envoyer un push test a cet appareil.");
+      }
     } finally {
       setIsSendingPushNotificationTest(false);
     }

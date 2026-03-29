@@ -1,4 +1,15 @@
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
 import { app, db, useTestDb } from './firebase';
 import { playTimerCompleteAlarm } from './timerAlarm';
 
@@ -276,6 +287,7 @@ export const registerPushServiceWorker = async (): Promise<ServiceWorkerRegistra
 const savePushSubscription = async (userId: string, subscription: PushSubscription) => {
   const deviceId = getOrCreatePushDeviceId();
   const deviceRef = doc(db, 'users', userId, 'devices', deviceId);
+  const devicesCollectionRef = collection(db, 'users', userId, 'devices');
   const serializedSubscription = subscription.toJSON();
 
   await setDoc(deviceRef, {
@@ -291,6 +303,20 @@ const savePushSubscription = async (userId: string, subscription: PushSubscripti
     userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
     platform: typeof navigator !== 'undefined' ? navigator.platform : null,
   }, { merge: true });
+
+  // Keep only one document per push endpoint for the same user to avoid stale
+  // duplicates after PWA reinstalls or localStorage resets on iPhone.
+  const duplicateDocsSnap = await getDocs(
+    query(devicesCollectionRef, where('endpoint', '==', subscription.endpoint))
+  );
+
+  const duplicates = duplicateDocsSnap.docs.filter((entry) => entry.id !== deviceId);
+
+  if (duplicates.length > 0) {
+    const batch = writeBatch(db);
+    duplicates.forEach((entry) => batch.delete(entry.ref));
+    await batch.commit();
+  }
 };
 
 export const requestPushPermission = async (): Promise<NotificationPermission | 'unsupported'> => {
