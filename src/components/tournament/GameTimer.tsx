@@ -17,12 +17,9 @@ import {
 } from '../../lib/timerNotifications';
 import {
   enablePushNotifications,
-  getPushDebugState,
-  getLastPushRegistrationStatus,
   getOrCreatePushDeviceId,
   getPushNotificationPermission,
   isPushConfigured,
-  type PushDebugState,
   sendTimerLevelCompletePush,
 } from '../../lib/pushNotifications';
 // Removed incorrect Button import
@@ -82,8 +79,6 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>(
     () => getPushNotificationPermission()
   );
-  const [pushActivationMessage, setPushActivationMessage] = useState<string | null>(null);
-  const [pushDebugState, setPushDebugState] = useState<PushDebugState | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const completedLevelRef = useRef<number | null>(null);
   // Calculate levelDurationMs based on selected state
@@ -106,50 +101,8 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
     initializeTimerAlarmUnlock();
     setNotificationPermission(getPushNotificationPermission());
 
-    const lastPushStatus = getLastPushRegistrationStatus();
-    if (lastPushStatus) {
-      const statusMessages: Record<string, string> = {
-        registered: 'Notifications actives sur cet appareil.',
-        activation_pending: "Activation des notifications en cours sur cet appareil.",
-        unsupported: "Le web push n'est pas pris en charge sur cet appareil.",
-        not_configured: "La cle web push de l'application est absente.",
-        permission_timeout: "L'iPhone a affiche la demande, mais Safari n'a pas confirme l'autorisation a l'app.",
-        permission_not_granted: "L'autorisation de notification n'a pas ete accordee.",
-        permission_denied: "Les notifications sont bloquees pour cette app.",
-        sw_registration_failed: "Le service worker de notification n'a pas pu etre initialise.",
-        subscribe_failed: "L'abonnement push a echoue sur cet iPhone.",
-        save_timeout: "L'abonnement push a ete cree, mais l'enregistrement Firestore ne repond pas.",
-        save_failed: "L'abonnement push a ete cree mais n'a pas pu etre enregistre dans Firestore.",
-        unexpected_error: "Une erreur inconnue a empeche l'activation du push.",
-      };
-
-      setPushActivationMessage(
-        statusMessages[lastPushStatus.reason] ??
-          "Une erreur inconnue a empeche l'activation du push."
-      );
-    }
-
     return subscribeToTimerAlarmReady(setIsAlarmReady);
   }, []);
-
-  useEffect(() => {
-    if (!user?.uid) {
-      setPushDebugState(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    void getPushDebugState(user.uid).then((state) => {
-      if (!cancelled) {
-        setPushDebugState(state);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.uid, notificationPermission, pushActivationMessage]);
 
   useEffect(() => {
     // Use selected state values in logs and logic
@@ -290,38 +243,8 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
       return;
     }
 
-    setPushActivationMessage("Activation des notifications en cours sur cet appareil.");
     const result = await enablePushNotifications(user.uid);
     setNotificationPermission(result.permission);
-
-    if (result.ok) {
-      setPushActivationMessage('Notifications activees sur cet appareil.');
-      return;
-    }
-
-    const reasonMessages: Record<string, string> = {
-      activation_pending: "Activation des notifications en cours sur cet appareil.",
-      unsupported: "Le web push n'est pas pris en charge sur cet appareil.",
-      not_configured: "La cle web push de l'application est absente.",
-      permission_timeout: "L'iPhone a affiche la demande, mais Safari n'a pas confirme l'autorisation a l'app.",
-      permission_not_granted: "L'autorisation de notification n'a pas ete accordee.",
-      permission_denied: "Les notifications sont bloquees pour cette app.",
-      sw_registration_failed: "Le service worker de notification n'a pas pu etre initialise.",
-      subscribe_failed: "L'abonnement push a echoue sur cet iPhone.",
-      save_timeout: "L'abonnement push a ete cree, mais l'enregistrement Firestore ne repond pas.",
-      save_failed: "L'abonnement push a ete cree mais n'a pas pu etre enregistre dans Firestore.",
-      unexpected_error: "Une erreur inconnue a empeche l'activation du push.",
-    };
-
-    setPushActivationMessage(
-      reasonMessages[result.reason ?? 'unexpected_error'] ??
-        "Une erreur inconnue a empeche l'activation du push."
-    );
-
-    const debugState = await getPushDebugState(user.uid).catch(() => null);
-    if (debugState) {
-      setPushDebugState(debugState);
-    }
   };
 
   // Use selected status for conditional rendering
@@ -408,28 +331,6 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
           >
             Activer
           </button>
-        </div>
-      )}
-
-      {pushActivationMessage && (
-        <div className="border-t pt-3 text-xs text-gray-700">
-          {pushActivationMessage}
-        </div>
-      )}
-
-      {user?.isDev && pushDebugState && (
-        <div className="border-t pt-3 text-xs text-gray-500 space-y-1">
-          <div>Debug push: mode `{pushDebugState.mode}`</div>
-          <div>Permission: `{pushDebugState.permission}`</div>
-          <div>Support: `{pushDebugState.supported ? 'yes' : 'no'}`</div>
-          <div>Config VAPID: `{pushDebugState.configured ? 'yes' : 'no'}`</div>
-          <div>Standalone: `{pushDebugState.standalone ? 'yes' : 'no'}`</div>
-          <div>Origin: `{pushDebugState.origin ?? 'unknown'}`</div>
-          <div>SW scope: `{pushDebugState.serviceWorkerScope ?? 'none'}`</div>
-          <div>SW pret: `{pushDebugState.serviceWorkerReady ? 'yes' : 'no'}`</div>
-          <div>Subscription navigateur: `{pushDebugState.subscriptionFound ? 'yes' : 'no'}`</div>
-          <div>Device Firestore: `{pushDebugState.firestoreDeviceDocFound ? 'yes' : 'no'}`</div>
-          <div>Dernier statut: `{pushDebugState.lastStatus?.reason ?? 'none'}`</div>
         </div>
       )}
 

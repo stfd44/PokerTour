@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useTestDb, canUseTestDb } from '../lib/firebase';
+import {
+  enablePushNotifications,
+  getPushDebugState,
+  removePushRegistration,
+  type PushDebugState,
+} from '../lib/pushNotifications';
 
 const Profile: React.FC = () => {
   const { user, setNickname, isLoading: authLoading } = useAuthStore();
@@ -9,6 +15,10 @@ const Profile: React.FC = () => {
   const [nicknameInput, setNicknameInput] = useState<string>('');
   const [isSavingNickname, setIsSavingNickname] = useState<boolean>(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [pushDebugState, setPushDebugState] = useState<PushDebugState | null>(null);
+  const [pushTestMessage, setPushTestMessage] = useState<string | null>(null);
+  const [isRefreshingPushDebug, setIsRefreshingPushDebug] = useState<boolean>(false);
+  const [isRunningPushTest, setIsRunningPushTest] = useState<boolean>(false);
 
   // Initialize nickname input when user data is available
   useEffect(() => {
@@ -16,6 +26,26 @@ const Profile: React.FC = () => {
       setNicknameInput(user.nickname);
     }
   }, [user?.nickname]);
+
+  useEffect(() => {
+    if (!user?.isDev || !user.uid) {
+      setPushDebugState(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const nextState = await getPushDebugState(user.uid).catch(() => null);
+      if (!cancelled && nextState) {
+        setPushDebugState(nextState);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.isDev, user?.uid]);
 
   // Removed useEffect for fetching tournament/team data as it's no longer needed here
 
@@ -36,6 +66,90 @@ const Profile: React.FC = () => {
     } finally {
       setIsSavingNickname(false);
       setTimeout(() => setSaveMessage(null), 3000);
+    }
+  };
+
+  const refreshPushDebugState = async () => {
+    if (!user?.uid) {
+      return;
+    }
+
+    setIsRefreshingPushDebug(true);
+    try {
+      const nextState = await getPushDebugState(user.uid);
+      setPushDebugState(nextState);
+    } catch (error) {
+      console.error('Error refreshing push debug state:', error);
+      setPushTestMessage("Impossible d'actualiser le diagnostic push.");
+    } finally {
+      setIsRefreshingPushDebug(false);
+    }
+  };
+
+  const handleRunPushActivationTest = async () => {
+    if (!user?.uid) {
+      return;
+    }
+
+    setIsRunningPushTest(true);
+    setPushTestMessage("Test d'activation en cours...");
+
+    try {
+      const result = await enablePushNotifications(user.uid);
+      const nextState = await getPushDebugState(user.uid).catch(() => null);
+      if (nextState) {
+        setPushDebugState(nextState);
+      }
+
+      const messageByReason: Record<string, string> = {
+        registered: 'Notifications actives sur cet appareil.',
+        activation_pending: "Activation des notifications toujours en attente dans l'app.",
+        unsupported: "Le web push n'est pas pris en charge sur cet appareil.",
+        not_configured: "La cle web push n'est pas configuree.",
+        permission_timeout: "La permission iOS reste a l'etat default apres la demande.",
+        permission_not_granted: "La permission n'a pas ete accordee.",
+        permission_denied: "Les notifications sont refusees sur cet appareil.",
+        sw_registration_failed: "Le service worker push n'a pas pu etre initialise.",
+        subscribe_failed: "Le navigateur n'a pas cree de PushSubscription.",
+        save_timeout: "La souscription existe peut-etre, mais Firestore ne repond pas.",
+        save_failed: "L'ecriture du device dans Firestore a echoue.",
+        unexpected_error: "Une erreur inconnue est survenue pendant le test push.",
+      };
+
+      setPushTestMessage(
+        result.ok
+          ? 'Notifications actives sur cet appareil.'
+          : messageByReason[result.reason ?? 'unexpected_error'] ??
+              "Une erreur inconnue est survenue pendant le test push."
+      );
+    } catch (error) {
+      console.error('Error running push activation test:', error);
+      setPushTestMessage("Le test push a echoue de facon inattendue.");
+    } finally {
+      setIsRunningPushTest(false);
+    }
+  };
+
+  const handleRemoveLocalPushRegistration = async () => {
+    if (!user?.uid) {
+      return;
+    }
+
+    setIsRunningPushTest(true);
+    setPushTestMessage("Suppression de l'abonnement local...");
+
+    try {
+      await removePushRegistration(user.uid);
+      const nextState = await getPushDebugState(user.uid).catch(() => null);
+      if (nextState) {
+        setPushDebugState(nextState);
+      }
+      setPushTestMessage("Abonnement local supprime sur cet appareil.");
+    } catch (error) {
+      console.error('Error removing local push registration:', error);
+      setPushTestMessage("Impossible de supprimer l'abonnement local.");
+    } finally {
+      setIsRunningPushTest(false);
     }
   };
 
@@ -88,7 +202,7 @@ const Profile: React.FC = () => {
 
       {/* Developer Section - Conditionally Rendered */}
       {user?.isDev && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg shadow mt-8">
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg shadow mt-8 space-y-6">
           <h2 className="text-xl font-semibold text-poker-black mb-4">Options Développeur</h2>
           <div className="flex items-center space-x-4">
             <label htmlFor="testDbToggle" className="font-medium">
@@ -122,6 +236,59 @@ const Profile: React.FC = () => {
            <p className="text-sm mt-2 text-gray-700">
              Actuellement connecté à : <span className="font-bold">{useTestDb ? 'TEST (pokertourdev)' : 'PRODUCTION'}</span>
            </p>
+
+          <div className="bg-white border border-yellow-300 rounded-lg p-4 text-sm text-gray-700 space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold text-poker-black">Tests Push iPhone</h3>
+              <p className="mt-1">
+                Ce panneau permet de verifier la permission web, la souscription navigateur et la presence du device dans Firestore.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={refreshPushDebugState}
+                disabled={isRefreshingPushDebug || isRunningPushTest}
+                className="rounded bg-slate-700 px-4 py-2 font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isRefreshingPushDebug ? 'Actualisation...' : 'Actualiser le diagnostic'}
+              </button>
+              <button
+                onClick={handleRunPushActivationTest}
+                disabled={isRunningPushTest || isRefreshingPushDebug}
+                className="rounded bg-poker-gold px-4 py-2 font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isRunningPushTest ? 'Test en cours...' : "Tester l'activation push"}
+              </button>
+              <button
+                onClick={handleRemoveLocalPushRegistration}
+                disabled={isRunningPushTest || isRefreshingPushDebug}
+                className="rounded bg-red-500 px-4 py-2 font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Supprimer l'abonnement local
+              </button>
+            </div>
+
+            {pushTestMessage && (
+              <p className="text-sm text-gray-700">{pushTestMessage}</p>
+            )}
+
+            {pushDebugState && (
+              <div className="space-y-1 font-mono text-xs text-gray-600">
+                <div>mode: {pushDebugState.mode}</div>
+                <div>permission: {pushDebugState.permission}</div>
+                <div>supported: {pushDebugState.supported ? 'yes' : 'no'}</div>
+                <div>configured: {pushDebugState.configured ? 'yes' : 'no'}</div>
+                <div>standalone: {pushDebugState.standalone ? 'yes' : 'no'}</div>
+                <div>origin: {pushDebugState.origin ?? 'unknown'}</div>
+                <div>sw_scope: {pushDebugState.serviceWorkerScope ?? 'none'}</div>
+                <div>sw_ready: {pushDebugState.serviceWorkerReady ? 'yes' : 'no'}</div>
+                <div>subscription_found: {pushDebugState.subscriptionFound ? 'yes' : 'no'}</div>
+                <div>firestore_device: {pushDebugState.firestoreDeviceDocFound ? 'yes' : 'no'}</div>
+                <div>last_status: {pushDebugState.lastStatus?.reason ?? 'none'}</div>
+              </div>
+            )}
+          </div>
         </div>
       )}
       {/* Removed Statistics Section */}
