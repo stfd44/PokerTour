@@ -87,7 +87,14 @@ export const registerPushServiceWorker = async (): Promise<ServiceWorkerRegistra
     return null;
   }
 
-  return navigator.serviceWorker.register('/sw.js');
+  const registration = await navigator.serviceWorker.register('/sw.js');
+
+  try {
+    return await navigator.serviceWorker.ready;
+  } catch (error) {
+    console.warn('Service worker registered but did not become ready.', error);
+    return registration;
+  }
 };
 
 const savePushSubscription = async (userId: string, subscription: PushSubscription) => {
@@ -160,7 +167,10 @@ export const enablePushNotifications = async (userId: string): Promise<Notificat
 
   const permission = await requestPushPermission();
   if (permission === 'granted') {
-    await ensurePushRegistration(userId);
+    const endpoint = await ensurePushRegistration(userId);
+    if (!endpoint) {
+      console.warn('Push permission granted, but no web push subscription could be stored.');
+    }
   }
 
   return permission;
