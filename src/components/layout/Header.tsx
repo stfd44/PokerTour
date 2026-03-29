@@ -1,5 +1,5 @@
 // src/components/layout/Header.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Menu, X, UserCheck as PokerChip } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
@@ -41,12 +41,12 @@ export const Header = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden lg:flex items-center space-x-4 xl:space-x-8">
             {menuItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
-                className="text-gray-300 hover:text-poker-gold transition-colors"
+                className="text-gray-300 hover:text-poker-gold transition-colors whitespace-nowrap"
               >
                 {item.label}
               </Link>
@@ -59,7 +59,7 @@ export const Header = () => {
                   alt="Profil"
                   className="w-8 h-8 rounded-full object-cover"
                 />
-                <span className="font-medium">
+                <span className="font-medium truncate max-w-[150px] whitespace-nowrap">
                   {user.nickname || user.displayName || 'Utilisateur'}
                 </span>
                 <button className='bg-red-500 p-2 rounded-md' onClick={handleSignOut}>
@@ -71,7 +71,7 @@ export const Header = () => {
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2"
+            className="lg:hidden p-2"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Menu"
           >
@@ -87,7 +87,7 @@ export const Header = () => {
       {/* Mobile Navigation */}
       <div
         className={cn(
-          'md:hidden fixed inset-y-0 right-0 transform w-64 bg-poker-dark shadow-lg transition-transform duration-300 ease-in-out z-50',
+          'lg:hidden fixed inset-y-0 right-0 transform w-64 bg-poker-dark shadow-lg transition-transform duration-300 ease-in-out z-50',
           isMenuOpen ? 'translate-x-0' : 'translate-x-full'
         )}
       >
