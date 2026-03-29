@@ -36,8 +36,12 @@ export type PushDebugState = {
   permission: NotificationPermission | 'unsupported';
   supported: boolean;
   configured: boolean;
+  origin: string | null;
+  href: string | null;
+  standalone: boolean;
   deviceId: string | null;
   serviceWorkerReady: boolean;
+  serviceWorkerScope: string | null;
   subscriptionFound: boolean;
   subscriptionEndpoint: string | null;
   firestoreDeviceDocFound: boolean;
@@ -129,6 +133,14 @@ export const getPushDebugState = async (userId: string): Promise<PushDebugState>
   const permission = getPushNotificationPermission();
   const supported = isPushSupported();
   const configured = isPushConfigured();
+  const origin = typeof window === 'undefined' ? null : window.location.origin;
+  const href = typeof window === 'undefined' ? null : window.location.href;
+  const standalone =
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches ||
+      (typeof navigator !== 'undefined' &&
+        'standalone' in navigator &&
+        Boolean((navigator as Navigator & { standalone?: boolean }).standalone)));
   const deviceId =
     typeof window === 'undefined'
       ? null
@@ -141,6 +153,7 @@ export const getPushDebugState = async (userId: string): Promise<PushDebugState>
         })();
 
   let serviceWorkerReady = false;
+  let serviceWorkerScope: string | null = null;
   let subscriptionFound = false;
   let subscriptionEndpoint: string | null = null;
 
@@ -148,6 +161,7 @@ export const getPushDebugState = async (userId: string): Promise<PushDebugState>
     const registration = await registerPushServiceWorker().catch(() => null);
     if (registration) {
       serviceWorkerReady = true;
+      serviceWorkerScope = registration.scope ?? null;
       const subscription = await registration.pushManager.getSubscription().catch(() => null);
       if (subscription) {
         subscriptionFound = true;
@@ -168,8 +182,12 @@ export const getPushDebugState = async (userId: string): Promise<PushDebugState>
     permission,
     supported,
     configured,
+    origin,
+    href,
+    standalone,
     deviceId,
     serviceWorkerReady,
+    serviceWorkerScope,
     subscriptionFound,
     subscriptionEndpoint,
     firestoreDeviceDocFound,

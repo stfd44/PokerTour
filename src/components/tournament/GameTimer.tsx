@@ -423,6 +423,9 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
           <div>Permission: `{pushDebugState.permission}`</div>
           <div>Support: `{pushDebugState.supported ? 'yes' : 'no'}`</div>
           <div>Config VAPID: `{pushDebugState.configured ? 'yes' : 'no'}`</div>
+          <div>Standalone: `{pushDebugState.standalone ? 'yes' : 'no'}`</div>
+          <div>Origin: `{pushDebugState.origin ?? 'unknown'}`</div>
+          <div>SW scope: `{pushDebugState.serviceWorkerScope ?? 'none'}`</div>
           <div>SW pret: `{pushDebugState.serviceWorkerReady ? 'yes' : 'no'}`</div>
           <div>Subscription navigateur: `{pushDebugState.subscriptionFound ? 'yes' : 'no'}`</div>
           <div>Device Firestore: `{pushDebugState.firestoreDeviceDocFound ? 'yes' : 'no'}`</div>
