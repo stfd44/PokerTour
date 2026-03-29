@@ -209,22 +209,25 @@ export const requestPushPermission = async (): Promise<NotificationPermission | 
     return 'unsupported';
   }
 
-  try {
-    return await withTimeout(Notification.requestPermission(), 10000, 'permission_timeout');
-  } catch (error) {
-    console.warn('Notification permission request timed out, checking current permission state.', error);
-
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      const currentPermission = Notification.permission;
-      if (currentPermission !== 'default') {
-        return currentPermission;
-      }
-
-      await wait(500);
-    }
-
+  if (Notification.permission !== 'default') {
     return Notification.permission;
   }
+
+  // On iOS PWAs, the permission prompt can be shown while the returned promise
+  // never settles. We therefore observe Notification.permission directly.
+  void Notification.requestPermission().catch((error) => {
+    console.warn('Notification permission request rejected.', error);
+  });
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await wait(500);
+    const currentPermission = Notification.permission;
+    if (currentPermission !== 'default') {
+      return currentPermission;
+    }
+  }
+
+  return Notification.permission;
 };
 
 const ensurePushRegistrationDetailed = async (userId: string): Promise<PushRegistrationResult> => {
