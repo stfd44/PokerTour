@@ -50,6 +50,11 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, reason: st
   }
 };
 
+const wait = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
 const persistPushRegistrationStatus = ({
   ok,
   reason,
@@ -204,7 +209,22 @@ export const requestPushPermission = async (): Promise<NotificationPermission | 
     return 'unsupported';
   }
 
-  return Notification.requestPermission();
+  try {
+    return await withTimeout(Notification.requestPermission(), 10000, 'permission_timeout');
+  } catch (error) {
+    console.warn('Notification permission request timed out, checking current permission state.', error);
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const currentPermission = Notification.permission;
+      if (currentPermission !== 'default') {
+        return currentPermission;
+      }
+
+      await wait(500);
+    }
+
+    return Notification.permission;
+  }
 };
 
 const ensurePushRegistrationDetailed = async (userId: string): Promise<PushRegistrationResult> => {
@@ -313,7 +333,12 @@ export const enablePushNotifications = async (userId: string): Promise<PushEnabl
     ok: false,
     endpoint: null,
     permission,
-    reason: permission === 'denied' ? 'permission_denied' : 'permission_not_granted',
+    reason:
+      permission === 'denied'
+        ? 'permission_denied'
+        : permission === 'default'
+          ? 'permission_timeout'
+          : 'permission_not_granted',
   };
 };
 
