@@ -105,6 +105,11 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
   }, []);
 
   useEffect(() => {
+    completedLevelRef.current = null;
+    setIsLevelComplete(false);
+  }, [game.id, currentLevel, status]);
+
+  useEffect(() => {
     // Use selected state values in logs and logic
     console.log(`[Effect Run] Game ID: ${game.id}, Status: ${status}, Paused: ${isPaused}, StartTime: ${levelStartTime}, RemainingOnPause: ${remainingTimeOnPause}`);
 
@@ -199,7 +204,6 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
       console.log(`[Effect Logic] Game ${game.id} is not paused (Status: ${status}). Starting timer.`);
       // Timer should be running
       setIsLevelComplete(false); // Reset completion state if resuming
-      completedLevelRef.current = null;
       startInterval(); // Start the interval
     }
 

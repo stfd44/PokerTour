@@ -108,6 +108,58 @@ const sendTimerLevelCompletePushHandler = onCall({ secrets: [webPushPrivateKey] 
     throw new HttpsError('permission-denied', 'Only game participants can trigger timer notifications.');
   }
 
+  const timerGate = await db.runTransaction(async (transaction) => {
+    const freshTournamentSnap = await transaction.get(tournamentRef);
+
+    if (!freshTournamentSnap.exists) {
+      throw new HttpsError('not-found', 'Tournament not found.');
+    }
+
+    const freshTournament = freshTournamentSnap.data();
+    const freshGames = Array.isArray(freshTournament.games) ? freshTournament.games : [];
+    const freshGameIndex = freshGames.findIndex((entry) => entry.id === gameId);
+
+    if (freshGameIndex === -1) {
+      throw new HttpsError('not-found', 'Game not found.');
+    }
+
+    const freshGame = freshGames[freshGameIndex];
+    if (freshGame?.lastTimerPushLevel === levelNumber) {
+      return { skipped: true };
+    }
+
+    const updatedGames = freshGames.map((entry, index) => (
+      index === freshGameIndex
+        ? {
+            ...entry,
+            lastTimerPushLevel: levelNumber,
+            lastTimerPushSentAt: Date.now(),
+          }
+        : entry
+    ));
+
+    transaction.update(tournamentRef, {
+      games: updatedGames,
+    });
+
+    return { skipped: false };
+  });
+
+  if (timerGate.skipped) {
+    logger.info('Timer notification skipped because this level was already sent', {
+      tournamentId,
+      gameId,
+      levelNumber,
+      triggeredBy: request.auth.uid,
+    });
+
+    return {
+      successCount: 0,
+      failureCount: 0,
+      skipped: true,
+    };
+  }
+
   const deviceEntries = [];
 
   for (const participantId of participantIds) {
