@@ -4,6 +4,7 @@ import { playTimerCompleteAlarm } from './timerAlarm';
 
 const DEVICE_ID_STORAGE_KEY = 'pokertour_push_device_id';
 const FOREGROUND_LISTENER_KEY = '__pokertour_push_listener__';
+const PUSH_REGISTRATION_STATUS_KEY = 'pokertour_push_registration_status';
 
 type TimerPushPayload = {
   tournamentId: string;
@@ -22,7 +23,43 @@ export type PushEnableResult = PushRegistrationResult & {
   permission: NotificationPermission | 'unsupported';
 };
 
+export type PushRegistrationStatus = {
+  ok: boolean;
+  reason: string;
+  endpoint: string | null;
+  updatedAt: number;
+  mode: 'prod' | 'test';
+};
+
 const getPushMode = (): 'prod' | 'test' => (useTestDb ? 'test' : 'prod');
+
+const persistPushRegistrationStatus = ({
+  ok,
+  reason,
+  endpoint,
+}: {
+  ok: boolean;
+  reason: string;
+  endpoint: string | null;
+}) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    const status: PushRegistrationStatus = {
+      ok,
+      reason,
+      endpoint,
+      updatedAt: Date.now(),
+      mode: getPushMode(),
+    };
+
+    localStorage.setItem(PUSH_REGISTRATION_STATUS_KEY, JSON.stringify(status));
+  } catch (error) {
+    console.warn('Unable to persist push registration status.', error);
+  }
+};
 
 const loadFunctionsModule = async () => import('firebase/functions');
 
@@ -33,6 +70,24 @@ const getVapidKey = (): string => {
 };
 
 export const isPushConfigured = (): boolean => Boolean(getVapidKey());
+
+export const getLastPushRegistrationStatus = (): PushRegistrationStatus | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const rawStatus = localStorage.getItem(PUSH_REGISTRATION_STATUS_KEY);
+    if (!rawStatus) {
+      return null;
+    }
+
+    return JSON.parse(rawStatus) as PushRegistrationStatus;
+  } catch (error) {
+    console.warn('Unable to read persisted push registration status.', error);
+    return null;
+  }
+};
 
 export const getPushNotificationPermission = (): NotificationPermission | 'unsupported' => {
   if (typeof window === 'undefined' || !('Notification' in window)) {
@@ -137,14 +192,17 @@ export const requestPushPermission = async (): Promise<NotificationPermission | 
 
 const ensurePushRegistrationDetailed = async (userId: string): Promise<PushRegistrationResult> => {
   if (!isPushSupported()) {
+    persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'unsupported' });
     return { ok: false, endpoint: null, reason: 'unsupported' };
   }
 
   if (!isPushConfigured()) {
+    persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'not_configured' });
     return { ok: false, endpoint: null, reason: 'not_configured' };
   }
 
   if (getPushNotificationPermission() !== 'granted') {
+    persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'permission_not_granted' });
     return { ok: false, endpoint: null, reason: 'permission_not_granted' };
   }
 
@@ -154,6 +212,7 @@ const ensurePushRegistrationDetailed = async (userId: string): Promise<PushRegis
   });
 
   if (!serviceWorkerRegistration) {
+    persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'sw_registration_failed' });
     return { ok: false, endpoint: null, reason: 'sw_registration_failed' };
   }
 
@@ -173,14 +232,17 @@ const ensurePushRegistrationDetailed = async (userId: string): Promise<PushRegis
   }
 
   if (!subscription) {
+    persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'subscribe_failed' });
     return { ok: false, endpoint: null, reason: 'subscribe_failed' };
   }
 
   try {
     await savePushSubscription(userId, subscription);
+    persistPushRegistrationStatus({ ok: true, endpoint: subscription.endpoint, reason: 'registered' });
     return { ok: true, endpoint: subscription.endpoint };
   } catch (error) {
     console.warn('Unable to save push subscription.', error);
+    persistPushRegistrationStatus({ ok: false, endpoint: subscription.endpoint, reason: 'save_failed' });
     return { ok: false, endpoint: subscription.endpoint, reason: 'save_failed' };
   }
 };

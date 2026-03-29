@@ -17,6 +17,7 @@ import {
 } from '../../lib/timerNotifications';
 import {
   enablePushNotifications,
+  getLastPushRegistrationStatus,
   getOrCreatePushDeviceId,
   getPushNotificationPermission,
   isPushConfigured,
@@ -101,6 +102,26 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
   useEffect(() => {
     initializeTimerAlarmUnlock();
     setNotificationPermission(getPushNotificationPermission());
+
+    const lastPushStatus = getLastPushRegistrationStatus();
+    if (lastPushStatus) {
+      const statusMessages: Record<string, string> = {
+        registered: 'Notifications actives sur cet appareil.',
+        unsupported: "Le web push n'est pas pris en charge sur cet appareil.",
+        not_configured: "La cle web push de l'application est absente.",
+        permission_not_granted: "L'autorisation de notification n'a pas ete accordee.",
+        permission_denied: "Les notifications sont bloquees pour cette app.",
+        sw_registration_failed: "Le service worker de notification n'a pas pu etre initialise.",
+        subscribe_failed: "L'abonnement push a echoue sur cet iPhone.",
+        save_failed: "L'abonnement push a ete cree mais n'a pas pu etre enregistre dans Firestore.",
+        unexpected_error: "Une erreur inconnue a empeche l'activation du push.",
+      };
+
+      setPushActivationMessage(
+        statusMessages[lastPushStatus.reason] ??
+          "Une erreur inconnue a empeche l'activation du push."
+      );
+    }
 
     return subscribeToTimerAlarmReady(setIsAlarmReady);
   }, []);
