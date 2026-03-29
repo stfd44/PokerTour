@@ -79,6 +79,7 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>(
     () => getPushNotificationPermission()
   );
+  const [pushActivationMessage, setPushActivationMessage] = useState<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const completedLevelRef = useRef<number | null>(null);
   // Calculate levelDurationMs based on selected state
@@ -243,8 +244,29 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
       return;
     }
 
-    const permission = await enablePushNotifications(user.uid);
-    setNotificationPermission(permission);
+    const result = await enablePushNotifications(user.uid);
+    setNotificationPermission(result.permission);
+
+    if (result.ok) {
+      setPushActivationMessage('Notifications activees sur cet appareil.');
+      return;
+    }
+
+    const reasonMessages: Record<string, string> = {
+      unsupported: "Le web push n'est pas pris en charge sur cet appareil.",
+      not_configured: "La cle web push de l'application est absente.",
+      permission_not_granted: "L'autorisation de notification n'a pas ete accordee.",
+      permission_denied: "Les notifications sont bloquees pour cette app.",
+      sw_registration_failed: "Le service worker de notification n'a pas pu etre initialise.",
+      subscribe_failed: "L'abonnement push a echoue sur cet iPhone.",
+      save_failed: "L'abonnement push a ete cree mais n'a pas pu etre enregistre dans Firestore.",
+      unexpected_error: "Une erreur inconnue a empeche l'activation du push.",
+    };
+
+    setPushActivationMessage(
+      reasonMessages[result.reason ?? 'unexpected_error'] ??
+        "Une erreur inconnue a empeche l'activation du push."
+    );
   };
 
   // Use selected status for conditional rendering
@@ -331,6 +353,12 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
           >
             Activer
           </button>
+        </div>
+      )}
+
+      {pushActivationMessage && (
+        <div className="border-t pt-3 text-xs text-gray-700">
+          {pushActivationMessage}
         </div>
       )}
 

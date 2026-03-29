@@ -12,6 +12,16 @@ type TimerPushPayload = {
   excludeDeviceId?: string;
 };
 
+type PushRegistrationResult = {
+  ok: boolean;
+  endpoint: string | null;
+  reason?: string;
+};
+
+export type PushEnableResult = PushRegistrationResult & {
+  permission: NotificationPermission | 'unsupported';
+};
+
 const getPushMode = (): 'prod' | 'test' => (useTestDb ? 'test' : 'prod');
 
 const loadFunctionsModule = async () => import('firebase/functions');
@@ -125,55 +135,94 @@ export const requestPushPermission = async (): Promise<NotificationPermission | 
   return Notification.requestPermission();
 };
 
-export const ensurePushRegistration = async (userId: string): Promise<string | null> => {
-  try {
-    if (!isPushSupported() || !isPushConfigured()) {
-      return null;
-    }
+const ensurePushRegistrationDetailed = async (userId: string): Promise<PushRegistrationResult> => {
+  if (!isPushSupported()) {
+    return { ok: false, endpoint: null, reason: 'unsupported' };
+  }
 
-    if (getPushNotificationPermission() !== 'granted') {
-      return null;
-    }
+  if (!isPushConfigured()) {
+    return { ok: false, endpoint: null, reason: 'not_configured' };
+  }
 
-    const serviceWorkerRegistration = await registerPushServiceWorker();
-    if (!serviceWorkerRegistration) {
-      return null;
-    }
+  if (getPushNotificationPermission() !== 'granted') {
+    return { ok: false, endpoint: null, reason: 'permission_not_granted' };
+  }
 
-    let subscription = await serviceWorkerRegistration.pushManager.getSubscription();
-    if (!subscription) {
-      subscription = await serviceWorkerRegistration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(getVapidKey()),
-      });
-    }
-
-    if (!subscription) {
-      return null;
-    }
-
-    await savePushSubscription(userId, subscription);
-    return subscription.endpoint;
-  } catch (error) {
-    console.warn('Unable to ensure push registration.', error);
+  const serviceWorkerRegistration = await registerPushServiceWorker().catch((error) => {
+    console.warn('Unable to register push service worker.', error);
     return null;
+  });
+
+  if (!serviceWorkerRegistration) {
+    return { ok: false, endpoint: null, reason: 'sw_registration_failed' };
+  }
+
+  let subscription = await serviceWorkerRegistration.pushManager.getSubscription().catch((error) => {
+    console.warn('Unable to read existing push subscription.', error);
+    return null;
+  });
+
+  if (!subscription) {
+    subscription = await serviceWorkerRegistration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(getVapidKey()),
+    }).catch((error) => {
+      console.warn('Unable to create push subscription.', error);
+      return null;
+    });
+  }
+
+  if (!subscription) {
+    return { ok: false, endpoint: null, reason: 'subscribe_failed' };
+  }
+
+  try {
+    await savePushSubscription(userId, subscription);
+    return { ok: true, endpoint: subscription.endpoint };
+  } catch (error) {
+    console.warn('Unable to save push subscription.', error);
+    return { ok: false, endpoint: subscription.endpoint, reason: 'save_failed' };
   }
 };
 
-export const enablePushNotifications = async (userId: string): Promise<NotificationPermission | 'unsupported'> => {
+export const ensurePushRegistration = async (userId: string): Promise<string | null> => {
+  const result = await ensurePushRegistrationDetailed(userId).catch((error) => {
+    console.warn('Unable to ensure push registration.', error);
+    return { ok: false, endpoint: null, reason: 'unexpected_error' } as PushRegistrationResult;
+  });
+
+  return result.ok ? result.endpoint : null;
+};
+
+export const enablePushNotifications = async (userId: string): Promise<PushEnableResult> => {
   if (!isPushSupported() || !isPushConfigured()) {
-    return 'unsupported';
+    return {
+      ok: false,
+      endpoint: null,
+      permission: 'unsupported',
+      reason: !isPushSupported() ? 'unsupported' : 'not_configured',
+    };
   }
 
   const permission = await requestPushPermission();
   if (permission === 'granted') {
-    const endpoint = await ensurePushRegistration(userId);
-    if (!endpoint) {
+    const result = await ensurePushRegistrationDetailed(userId);
+    if (!result.ok) {
       console.warn('Push permission granted, but no web push subscription could be stored.');
     }
+
+    return {
+      ...result,
+      permission,
+    };
   }
 
-  return permission;
+  return {
+    ok: false,
+    endpoint: null,
+    permission,
+    reason: permission === 'denied' ? 'permission_denied' : 'permission_not_granted',
+  };
 };
 
 export const removePushRegistration = async (userId: string) => {

@@ -11,11 +11,6 @@ service cloud.firestore {
       return isAuth() && request.auth.uid == userId;
     }
 
-    function isTournamentParticipant(tournamentData) {
-      // Ensure registrations list exists before checking
-      return 'registrations' in tournamentData && tournamentData.registrations.exists(p => p.id == request.auth.uid);
-    }
-    
     function onlyGamesChanged() {
       // Checks that the only field being modified is the 'games' array.
       // All other fields must remain identical.
@@ -37,10 +32,9 @@ service cloud.firestore {
       allow update: if isAuth() && (
         // Rule 1: The creator can always update the tournament.
         isUser(resource.data.creatorId) ||
-        // Rule 2: A registered participant can modify ONLY the 'games' array.
-        // This allows players to start, pause, change blinds, etc., without being able
-        // to change tournament-level details like name, buy-in, or status.
-        (isTournamentParticipant(resource.data) && onlyGamesChanged())
+        // Rule 2: Any authenticated user can modify ONLY the 'games' array.
+        // This keeps tournament metadata protected while allowing synced game actions.
+        onlyGamesChanged()
       );
       
       allow delete: if isUser(resource.data.creatorId);
