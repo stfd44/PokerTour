@@ -17,10 +17,12 @@ import {
 } from '../../lib/timerNotifications';
 import {
   enablePushNotifications,
+  getPushDebugState,
   getLastPushRegistrationStatus,
   getOrCreatePushDeviceId,
   getPushNotificationPermission,
   isPushConfigured,
+  type PushDebugState,
   sendTimerLevelCompletePush,
 } from '../../lib/pushNotifications';
 // Removed incorrect Button import
@@ -81,6 +83,7 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
     () => getPushNotificationPermission()
   );
   const [pushActivationMessage, setPushActivationMessage] = useState<string | null>(null);
+  const [pushDebugState, setPushDebugState] = useState<PushDebugState | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const completedLevelRef = useRef<number | null>(null);
   // Calculate levelDurationMs based on selected state
@@ -128,6 +131,25 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
 
     return subscribeToTimerAlarmReady(setIsAlarmReady);
   }, []);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setPushDebugState(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    void getPushDebugState(user.uid).then((state) => {
+      if (!cancelled) {
+        setPushDebugState(state);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, notificationPermission, pushActivationMessage]);
 
   useEffect(() => {
     // Use selected state values in logs and logic
@@ -295,6 +317,11 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
       reasonMessages[result.reason ?? 'unexpected_error'] ??
         "Une erreur inconnue a empeche l'activation du push."
     );
+
+    const debugState = await getPushDebugState(user.uid).catch(() => null);
+    if (debugState) {
+      setPushDebugState(debugState);
+    }
   };
 
   // Use selected status for conditional rendering
@@ -387,6 +414,19 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
       {pushActivationMessage && (
         <div className="border-t pt-3 text-xs text-gray-700">
           {pushActivationMessage}
+        </div>
+      )}
+
+      {user?.isDev && pushDebugState && (
+        <div className="border-t pt-3 text-xs text-gray-500 space-y-1">
+          <div>Debug push: mode `{pushDebugState.mode}`</div>
+          <div>Permission: `{pushDebugState.permission}`</div>
+          <div>Support: `{pushDebugState.supported ? 'yes' : 'no'}`</div>
+          <div>Config VAPID: `{pushDebugState.configured ? 'yes' : 'no'}`</div>
+          <div>SW pret: `{pushDebugState.serviceWorkerReady ? 'yes' : 'no'}`</div>
+          <div>Subscription navigateur: `{pushDebugState.subscriptionFound ? 'yes' : 'no'}`</div>
+          <div>Device Firestore: `{pushDebugState.firestoreDeviceDocFound ? 'yes' : 'no'}`</div>
+          <div>Dernier statut: `{pushDebugState.lastStatus?.reason ?? 'none'}`</div>
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { app, db, useTestDb } from './firebase';
 import { playTimerCompleteAlarm } from './timerAlarm';
 
@@ -29,6 +29,19 @@ export type PushRegistrationStatus = {
   endpoint: string | null;
   updatedAt: number;
   mode: 'prod' | 'test';
+};
+
+export type PushDebugState = {
+  mode: 'prod' | 'test';
+  permission: NotificationPermission | 'unsupported';
+  supported: boolean;
+  configured: boolean;
+  deviceId: string | null;
+  serviceWorkerReady: boolean;
+  subscriptionFound: boolean;
+  subscriptionEndpoint: string | null;
+  firestoreDeviceDocFound: boolean;
+  lastStatus: PushRegistrationStatus | null;
 };
 
 const getPushMode = (): 'prod' | 'test' => (useTestDb ? 'test' : 'prod');
@@ -109,6 +122,59 @@ export const getLastPushRegistrationStatus = (): PushRegistrationStatus | null =
     console.warn('Unable to read persisted push registration status.', error);
     return null;
   }
+};
+
+export const getPushDebugState = async (userId: string): Promise<PushDebugState> => {
+  const mode = getPushMode();
+  const permission = getPushNotificationPermission();
+  const supported = isPushSupported();
+  const configured = isPushConfigured();
+  const deviceId =
+    typeof window === 'undefined'
+      ? null
+      : (() => {
+          try {
+            return localStorage.getItem(DEVICE_ID_STORAGE_KEY);
+          } catch {
+            return null;
+          }
+        })();
+
+  let serviceWorkerReady = false;
+  let subscriptionFound = false;
+  let subscriptionEndpoint: string | null = null;
+
+  if (supported) {
+    const registration = await registerPushServiceWorker().catch(() => null);
+    if (registration) {
+      serviceWorkerReady = true;
+      const subscription = await registration.pushManager.getSubscription().catch(() => null);
+      if (subscription) {
+        subscriptionFound = true;
+        subscriptionEndpoint = subscription.endpoint;
+      }
+    }
+  }
+
+  let firestoreDeviceDocFound = false;
+  if (userId && deviceId) {
+    const deviceRef = doc(db, 'users', userId, 'devices', deviceId);
+    const deviceSnap = await getDoc(deviceRef).catch(() => null);
+    firestoreDeviceDocFound = Boolean(deviceSnap?.exists());
+  }
+
+  return {
+    mode,
+    permission,
+    supported,
+    configured,
+    deviceId,
+    serviceWorkerReady,
+    subscriptionFound,
+    subscriptionEndpoint,
+    firestoreDeviceDocFound,
+    lastStatus: getLastPushRegistrationStatus(),
+  };
 };
 
 export const getPushNotificationPermission = (): NotificationPermission | 'unsupported' => {
