@@ -15,7 +15,7 @@ import { useTournamentStore } from './store/tournamentStore'; // Import tourname
 import { NicknamePrompt } from './components/NicknamePrompt';
 import { initializeTimerAlarmUnlock } from './lib/timerAlarm';
 import { registerTimerNotificationServiceWorker } from './lib/timerNotifications';
-import { ensurePushRegistration, getPushNotificationPermission, initializeForegroundPushListener } from './lib/pushNotifications';
+import { ensurePushRegistration, getPushNotificationPermission, initializeForegroundPushListener, isPushSupported } from './lib/pushNotifications';
 
 function App() {
   // Get user, setUser, isLoading, and requiresNickname from the store
@@ -24,7 +24,9 @@ function App() {
 
   useEffect(() => {
     initializeTimerAlarmUnlock();
-    void registerTimerNotificationServiceWorker();
+    if (isPushSupported()) {
+      void registerTimerNotificationServiceWorker();
+    }
     void initializeForegroundPushListener();
   }, []);
 

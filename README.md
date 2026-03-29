@@ -13,13 +13,13 @@ Application de gestion de tournois de poker.
 
 ## Web Push
 
-L'application inclut maintenant une architecture de notifications push pour les fins de niveau:
+L'application inclut maintenant une architecture de notifications push Web Push standard pour les fins de niveau:
 
-- le client enregistre un device FCM par utilisateur dans `users/{userId}/devices/{deviceId}`
-- un service worker web est genere automatiquement avant `npm run dev` et `npm run build`
-- une Cloud Function `sendTimerLevelCompletePush` envoie les notifications aux appareils des participants
+- le client enregistre une `PushSubscription` par appareil dans `users/{userId}/devices/{deviceId}`
+- le service worker web gere les evenements `push` standards
+- une Cloud Function `sendTimerLevelCompletePush` envoie les notifications via `web-push`
 
-### Variables d'environnement
+### Variables d'environnement frontend
 
 Ajoutez ces variables dans votre `.env` en plus de la configuration Firebase existante:
 
@@ -28,11 +28,33 @@ VITE_FIREBASE_VAPID_KEY=
 VITE_FIREBASE_VAPID_KEY_TEST=
 ```
 
-La cle publique VAPID se genere dans Firebase Console > Project settings > Cloud Messaging > Web Push certificates.
+La cle publique VAPID est la cle publique Web Push utilisee par le navigateur.
 
 ### Backend Firebase Functions
 
 Le squelette backend est dans `functions/`.
+
+Generez une paire VAPID une seule fois:
+
+```bash
+npx web-push generate-vapid-keys --json
+```
+
+Avant le deploy, configurez les parametres / secrets Firebase utilises par la function:
+
+```bash
+firebase functions:secrets:set WEB_PUSH_PRIVATE_KEY
+```
+
+Lors du premier deploy, Firebase vous demandera aussi:
+
+- `WEB_PUSH_PUBLIC_KEY`
+- `WEB_PUSH_SUBJECT` par exemple `mailto:contact@votredomaine.com`
+
+Important:
+
+- `WEB_PUSH_PUBLIC_KEY` doit correspondre a `VITE_FIREBASE_VAPID_KEY` pour le meme environnement
+- utilisez un vrai `mailto:` ou une vraie URL publique pour `WEB_PUSH_SUBJECT`
 
 Pour le deployer:
 

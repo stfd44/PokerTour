@@ -1,19 +1,21 @@
 const { initializeApp } = require('firebase-admin/app');
 const { FieldValue, getFirestore } = require('firebase-admin/firestore');
-const { getMessaging } = require('firebase-admin/messaging');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret, defineString } = require('firebase-functions/params');
 const logger = require('firebase-functions/logger');
+const webpush = require('web-push');
 
 initializeApp();
 
 const db = getFirestore();
 
-const INVALID_TOKEN_ERRORS = new Set([
-  'messaging/invalid-registration-token',
-  'messaging/registration-token-not-registered',
-]);
+const webPushPublicKey = defineString('WEB_PUSH_PUBLIC_KEY');
+const webPushSubject = defineString('WEB_PUSH_SUBJECT');
+const webPushPrivateKey = defineSecret('WEB_PUSH_PRIVATE_KEY');
 
-exports.sendTimerLevelCompletePush = onCall(async (request) => {
+const isSubscriptionGone = (error) => error?.statusCode === 404 || error?.statusCode === 410;
+
+exports.sendTimerLevelCompletePush = onCall({ secrets: [webPushPrivateKey] }, async (request) => {
   if (!request.auth?.uid) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
   }
@@ -36,6 +38,16 @@ exports.sendTimerLevelCompletePush = onCall(async (request) => {
   if (!tournamentSnap.exists) {
     throw new HttpsError('not-found', 'Tournament not found.');
   }
+
+  const publicKey = webPushPublicKey.value();
+  const subject = webPushSubject.value();
+  const privateKey = webPushPrivateKey.value();
+
+  if (!publicKey || !subject || !privateKey) {
+    throw new HttpsError('failed-precondition', 'Web Push VAPID configuration is incomplete.');
+  }
+
+  webpush.setVapidDetails(subject, publicKey, privateKey);
 
   const tournament = tournamentSnap.data();
   const game = Array.isArray(tournament.games)
@@ -62,7 +74,7 @@ exports.sendTimerLevelCompletePush = onCall(async (request) => {
     devicesSnap.forEach((deviceDoc) => {
       const device = deviceDoc.data();
 
-      if (!device?.token || device.notificationsEnabled === false) {
+      if (!device?.subscription || device.notificationsEnabled === false) {
         return;
       }
 
@@ -76,13 +88,14 @@ exports.sendTimerLevelCompletePush = onCall(async (request) => {
 
       deviceEntries.push({
         ref: deviceDoc.ref,
-        token: device.token,
+        endpoint: device.endpoint,
+        subscription: device.subscription,
       });
     });
   }
 
   const uniqueEntries = Array.from(
-    new Map(deviceEntries.map((entry) => [entry.token, entry])).values()
+    new Map(deviceEntries.map((entry) => [entry.endpoint || JSON.stringify(entry.subscription), entry])).values()
   );
 
   if (uniqueEntries.length === 0) {
@@ -92,37 +105,46 @@ exports.sendTimerLevelCompletePush = onCall(async (request) => {
   const url = `/tournament/${tournamentId}`;
   const tag = `timer-complete-${tournamentId}-${gameId}`;
   const body = `Le niveau ${levelNumber} est termine. Passez au niveau suivant.`;
-
-  const response = await getMessaging().sendEachForMulticast({
-    tokens: uniqueEntries.map((entry) => entry.token),
-    data: {
-      type: 'timer_complete',
-      tournamentId,
-      gameId,
-      levelNumber: String(levelNumber),
-      title: 'PokerTour',
-      body,
-      url,
-      tag,
-    },
-    webpush: {
-      headers: {
-        Urgency: 'high',
-      },
-    },
+  const payload = JSON.stringify({
+    type: 'timer_complete',
+    tournamentId,
+    gameId,
+    levelNumber,
+    title: 'PokerTour',
+    body,
+    url,
+    tag,
   });
 
   const cleanupOperations = [];
+  let successCount = 0;
+  let failureCount = 0;
 
-  response.responses.forEach((sendResponse, index) => {
-    if (!sendResponse.success && INVALID_TOKEN_ERRORS.has(sendResponse.error?.code)) {
-      cleanupOperations.push(
-        uniqueEntries[index].ref.delete().catch((error) => {
-          logger.error('Failed to delete invalid push token', error);
-        })
-      );
+  await Promise.all(uniqueEntries.map(async (entry) => {
+    try {
+      await webpush.sendNotification(entry.subscription, payload, {
+        urgency: 'high',
+        TTL: 60,
+      });
+      successCount += 1;
+    } catch (error) {
+      failureCount += 1;
+
+      if (isSubscriptionGone(error)) {
+        cleanupOperations.push(
+          entry.ref.delete().catch((deleteError) => {
+            logger.error('Failed to delete invalid push subscription', deleteError);
+          })
+        );
+      }
+
+      logger.error('Failed to send web push notification', error, {
+        tournamentId,
+        gameId,
+        endpoint: entry.endpoint,
+      });
     }
-  });
+  }));
 
   if (cleanupOperations.length > 0) {
     await Promise.all(cleanupOperations);
@@ -136,12 +158,12 @@ exports.sendTimerLevelCompletePush = onCall(async (request) => {
     tournamentId,
     gameId,
     levelNumber,
-    successCount: response.successCount,
-    failureCount: response.failureCount,
+    successCount,
+    failureCount,
   });
 
   return {
-    successCount: response.successCount,
-    failureCount: response.failureCount,
+    successCount,
+    failureCount,
   };
 });

@@ -1,4 +1,4 @@
-import { doc, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
+import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { app, db, useTestDb } from './firebase';
 import { playTimerCompleteAlarm } from './timerAlarm';
 
@@ -13,8 +13,6 @@ type TimerPushPayload = {
 };
 
 const getPushMode = (): 'prod' | 'test' => (useTestDb ? 'test' : 'prod');
-
-const loadMessagingModule = async () => import('firebase/messaging');
 
 const loadFunctionsModule = async () => import('firebase/functions');
 
@@ -32,6 +30,32 @@ export const getPushNotificationPermission = (): NotificationPermission | 'unsup
   }
 
   return Notification.permission;
+};
+
+export const isPushSupported = (): boolean => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return (
+    window.isSecureContext &&
+    'Notification' in window &&
+    'serviceWorker' in navigator &&
+    'PushManager' in window
+  );
+};
+
+const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let index = 0; index < rawData.length; index += 1) {
+    outputArray[index] = rawData.charCodeAt(index);
+  }
+
+  return outputArray;
 };
 
 export const getOrCreatePushDeviceId = (): string => {
@@ -63,20 +87,24 @@ export const registerPushServiceWorker = async (): Promise<ServiceWorkerRegistra
     return null;
   }
 
-  return navigator.serviceWorker.register(`/sw.js?firebaseProject=${getPushMode()}`);
+  return navigator.serviceWorker.register('/sw.js');
 };
 
-const savePushToken = async (userId: string, token: string) => {
+const savePushSubscription = async (userId: string, subscription: PushSubscription) => {
   const deviceId = getOrCreatePushDeviceId();
   const deviceRef = doc(db, 'users', userId, 'devices', deviceId);
+  const serializedSubscription = subscription.toJSON();
 
   await setDoc(deviceRef, {
-    token,
+    endpoint: subscription.endpoint,
+    expirationTime: subscription.expirationTime ?? null,
+    subscription: serializedSubscription,
     notificationsEnabled: true,
     updatedAt: serverTimestamp(),
     createdAt: serverTimestamp(),
     deviceId,
     mode: getPushMode(),
+    kind: 'web_push',
     userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
     platform: typeof navigator !== 'undefined' ? navigator.platform : null,
   }, { merge: true });
@@ -92,16 +120,11 @@ export const requestPushPermission = async (): Promise<NotificationPermission | 
 
 export const ensurePushRegistration = async (userId: string): Promise<string | null> => {
   try {
-    if (!isPushConfigured()) {
+    if (!isPushSupported() || !isPushConfigured()) {
       return null;
     }
 
     if (getPushNotificationPermission() !== 'granted') {
-      return null;
-    }
-
-    const { getMessaging, getToken, isSupported } = await loadMessagingModule();
-    if (!(await isSupported())) {
       return null;
     }
 
@@ -110,18 +133,20 @@ export const ensurePushRegistration = async (userId: string): Promise<string | n
       return null;
     }
 
-    const messaging = getMessaging(app);
-    const currentToken = await getToken(messaging, {
-      vapidKey: getVapidKey(),
-      serviceWorkerRegistration,
-    });
+    let subscription = await serviceWorkerRegistration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await serviceWorkerRegistration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(getVapidKey()),
+      });
+    }
 
-    if (!currentToken) {
+    if (!subscription) {
       return null;
     }
 
-    await savePushToken(userId, currentToken);
-    return currentToken;
+    await savePushSubscription(userId, subscription);
+    return subscription.endpoint;
   } catch (error) {
     console.warn('Unable to ensure push registration.', error);
     return null;
@@ -129,7 +154,7 @@ export const ensurePushRegistration = async (userId: string): Promise<string | n
 };
 
 export const enablePushNotifications = async (userId: string): Promise<NotificationPermission | 'unsupported'> => {
-  if (!isPushConfigured()) {
+  if (!isPushSupported() || !isPushConfigured()) {
     return 'unsupported';
   }
 
@@ -146,13 +171,13 @@ export const removePushRegistration = async (userId: string) => {
   const deviceRef = doc(db, 'users', userId, 'devices', deviceId);
 
   try {
-    const { deleteToken, getMessaging, isSupported } = await loadMessagingModule();
-    if (await isSupported()) {
-      const messaging = getMessaging(app);
-      await deleteToken(messaging);
+    const serviceWorkerRegistration = await registerPushServiceWorker();
+    const subscription = await serviceWorkerRegistration?.pushManager.getSubscription();
+    if (subscription) {
+      await subscription.unsubscribe();
     }
   } catch (error) {
-    console.warn('Unable to delete local push token cleanly.', error);
+    console.warn('Unable to unsubscribe local web push registration cleanly.', error);
   }
 
   await deleteDoc(deviceRef).catch((error) => {
@@ -166,17 +191,11 @@ export const initializeForegroundPushListener = async () => {
       return;
     }
 
-    const { getMessaging, isSupported, onMessage } = await loadMessagingModule();
-    if (!(await isSupported())) {
-      return;
-    }
-
     const win = window as Window & { [FOREGROUND_LISTENER_KEY]?: boolean };
     win[FOREGROUND_LISTENER_KEY] = true;
 
-    const messaging = getMessaging(app);
-    onMessage(messaging, (payload) => {
-      if (payload.data?.type === 'timer_complete') {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'timer_complete_push') {
         void playTimerCompleteAlarm();
       }
     });

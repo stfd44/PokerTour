@@ -1,4 +1,4 @@
-import { registerPushServiceWorker } from './pushNotifications';
+import { isPushSupported, registerPushServiceWorker } from './pushNotifications';
 
 type TimerNotificationPayload = {
   body: string;
@@ -9,15 +9,7 @@ type TimerNotificationPayload = {
 let serviceWorkerRegistrationPromise: Promise<ServiceWorkerRegistration | null> | null = null;
 
 export const isTimerNotificationSupported = (): boolean => {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  return (
-    window.isSecureContext &&
-    'Notification' in window &&
-    'serviceWorker' in navigator
-  );
+  return isPushSupported();
 };
 
 export const getTimerNotificationPermission = (): NotificationPermission | 'unsupported' => {
