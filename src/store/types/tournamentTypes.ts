@@ -43,6 +43,12 @@ export interface Game {
   levelStartTime: number; // Timestamp when the current level started (adjusted for pauses)
   isPaused: boolean; // Is the timer manually paused?
   remainingTimeOnPause: number | null; // Milliseconds remaining when paused
+  timerNotificationTaskId?: string | null;
+  timerNotificationScheduledFor?: number | null;
+  timerNotificationLevel?: number | null;
+  lastTimerPushLevel?: number | null;
+  lastTimerPushSentAt?: number | null;
+  lastTimerPushKey?: string | null;
   endedAt?: number | null; // Added for tracking game end time
   // Added fields for prize pool and winnings
   prizePool?: number;
