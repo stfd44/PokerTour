@@ -315,76 +315,92 @@ export const requestPushPermission = async (): Promise<NotificationPermission | 
 };
 
 const ensurePushRegistrationDetailed = async (userId: string): Promise<PushRegistrationResult> => {
-  if (!isPushSupported()) {
-    persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'unsupported' });
-    return { ok: false, endpoint: null, reason: 'unsupported' };
-  }
+  try {
+    if (!isPushSupported()) {
+      persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'unsupported' });
+      return { ok: false, endpoint: null, reason: 'unsupported' };
+    }
 
-  if (!isPushConfigured()) {
-    persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'not_configured' });
-    return { ok: false, endpoint: null, reason: 'not_configured' };
-  }
+    if (!isPushConfigured()) {
+      persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'not_configured' });
+      return { ok: false, endpoint: null, reason: 'not_configured' };
+    }
 
-  if (getPushNotificationPermission() !== 'granted') {
-    persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'permission_not_granted' });
-    return { ok: false, endpoint: null, reason: 'permission_not_granted' };
-  }
+    if (getPushNotificationPermission() !== 'granted') {
+      persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'permission_not_granted' });
+      return { ok: false, endpoint: null, reason: 'permission_not_granted' };
+    }
 
-  const serviceWorkerRegistration = await withTimeout(
-    registerPushServiceWorker(),
-    10000,
-    'sw_registration_timeout'
-  ).catch((error) => {
-    console.warn('Unable to register push service worker.', error);
-    return null;
-  });
-
-  if (!serviceWorkerRegistration) {
-    persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'sw_registration_failed' });
-    return { ok: false, endpoint: null, reason: 'sw_registration_failed' };
-  }
-
-  let subscription = await withTimeout(
-    serviceWorkerRegistration.pushManager.getSubscription(),
-    10000,
-    'get_subscription_timeout'
-  ).catch((error) => {
-    console.warn('Unable to read existing push subscription.', error);
-    return null;
-  });
-
-  if (!subscription) {
-    subscription = await withTimeout(
-      serviceWorkerRegistration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(getVapidKey()),
-      }),
+    const serviceWorkerRegistration = await withTimeout(
+      registerPushServiceWorker(),
       10000,
-      'subscribe_timeout'
+      'sw_registration_timeout'
     ).catch((error) => {
-      console.warn('Unable to create push subscription.', error);
+      console.warn('Unable to register push service worker.', error);
       return null;
     });
-  }
 
-  if (!subscription) {
-    persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'subscribe_failed' });
-    return { ok: false, endpoint: null, reason: 'subscribe_failed' };
-  }
+    if (!serviceWorkerRegistration) {
+      persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'sw_registration_failed' });
+      return { ok: false, endpoint: null, reason: 'sw_registration_failed' };
+    }
 
-  try {
-    await withTimeout(savePushSubscription(userId, subscription), 10000, 'save_subscription_timeout');
-    persistPushRegistrationStatus({ ok: true, endpoint: subscription.endpoint, reason: 'registered' });
-    return { ok: true, endpoint: subscription.endpoint };
+    let subscription = await withTimeout(
+      serviceWorkerRegistration.pushManager.getSubscription(),
+      10000,
+      'get_subscription_timeout'
+    ).catch((error) => {
+      console.warn('Unable to read existing push subscription.', error);
+      return null;
+    });
+
+    if (!subscription) {
+      let applicationServerKey: Uint8Array;
+
+      try {
+        applicationServerKey = urlBase64ToUint8Array(getVapidKey());
+      } catch (error) {
+        console.warn('Unable to decode the configured VAPID public key.', error);
+        persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'invalid_vapid_key' });
+        return { ok: false, endpoint: null, reason: 'invalid_vapid_key' };
+      }
+
+      subscription = await withTimeout(
+        serviceWorkerRegistration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        }),
+        10000,
+        'subscribe_timeout'
+      ).catch((error) => {
+        console.warn('Unable to create push subscription.', error);
+        return null;
+      });
+    }
+
+    if (!subscription) {
+      persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'subscribe_failed' });
+      return { ok: false, endpoint: null, reason: 'subscribe_failed' };
+    }
+
+    try {
+      await withTimeout(savePushSubscription(userId, subscription), 10000, 'save_subscription_timeout');
+      persistPushRegistrationStatus({ ok: true, endpoint: subscription.endpoint, reason: 'registered' });
+      return { ok: true, endpoint: subscription.endpoint };
+    } catch (error) {
+      console.warn('Unable to save push subscription.', error);
+      const reason =
+        error instanceof Error && error.message === 'save_subscription_timeout'
+          ? 'save_timeout'
+          : 'save_failed';
+
+      persistPushRegistrationStatus({ ok: false, endpoint: subscription.endpoint, reason });
+      return { ok: false, endpoint: subscription.endpoint, reason };
+    }
   } catch (error) {
-    console.warn('Unable to save push subscription.', error);
-    const reason =
-      error instanceof Error && error.message === 'save_subscription_timeout'
-        ? 'save_timeout'
-        : 'save_failed';
-
-    persistPushRegistrationStatus({ ok: false, endpoint: subscription.endpoint, reason });
-    return { ok: false, endpoint: subscription.endpoint, reason };
+    console.warn('Unexpected error while ensuring push registration.', error);
+    persistPushRegistrationStatus({ ok: false, endpoint: null, reason: 'unexpected_error' });
+    return { ok: false, endpoint: null, reason: 'unexpected_error' };
   }
 };
 

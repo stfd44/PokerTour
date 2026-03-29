@@ -106,6 +106,7 @@ const Profile: React.FC = () => {
         activation_pending: "Activation des notifications toujours en attente dans l'app.",
         unsupported: "Le web push n'est pas pris en charge sur cet appareil.",
         not_configured: "La cle web push n'est pas configuree.",
+        invalid_vapid_key: "La cle publique VAPID deployee n'est pas exploitable par le navigateur.",
         permission_timeout: "La permission iOS reste a l'etat default apres la demande.",
         permission_not_granted: "La permission n'a pas ete accordee.",
         permission_denied: "Les notifications sont refusees sur cet appareil.",
@@ -124,7 +125,11 @@ const Profile: React.FC = () => {
       );
     } catch (error) {
       console.error('Error running push activation test:', error);
-      setPushTestMessage("Le test push a echoue de facon inattendue.");
+      const details =
+        error instanceof Error && error.message
+          ? ` (${error.message})`
+          : '';
+      setPushTestMessage(`Le test push a echoue de facon inattendue.${details}`);
     } finally {
       setIsRunningPushTest(false);
     }
@@ -284,6 +289,8 @@ const Profile: React.FC = () => {
                 <div>sw_scope: {pushDebugState.serviceWorkerScope ?? 'none'}</div>
                 <div>sw_ready: {pushDebugState.serviceWorkerReady ? 'yes' : 'no'}</div>
                 <div>subscription_found: {pushDebugState.subscriptionFound ? 'yes' : 'no'}</div>
+                <div>subscription_endpoint: {pushDebugState.subscriptionEndpoint ?? 'none'}</div>
+                <div>device_id: {pushDebugState.deviceId ?? 'none'}</div>
                 <div>firestore_device: {pushDebugState.firestoreDeviceDocFound ? 'yes' : 'no'}</div>
                 <div>last_status: {pushDebugState.lastStatus?.reason ?? 'none'}</div>
               </div>
