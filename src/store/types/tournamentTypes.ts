@@ -7,6 +7,7 @@ export interface Player {
   eliminated?: boolean;
   eliminationTime?: number | null; // Added for tracking elimination time
   rebuysMade?: number; // ADDED: Track rebuys per player in a game
+  status?: 'invited' | 'confirmed'; // Status for team member invites
 }
 
 export interface Blinds {
@@ -134,11 +135,14 @@ export interface TournamentStoreState {
 export interface TournamentStoreActions {
   fetchTournaments: (userId: string) => Promise<void>;
   fetchTournamentById: (tournamentId: string) => Promise<void>; // Added action to fetch single tournament
-  addTournament: (tournamentData: Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'status' | 'creatorNickname' | 'guests'>, userId: string, teamId: string, initialGuests?: string[]) => Promise<void>;
+  addTournament: (tournamentData: Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'status' | 'creatorNickname' | 'guests'>, userId: string, teamId: string, initialGuests?: string[], invitedMembers?: Player[]) => Promise<void>;
   updateTournament: (tournamentId: string, userId: string, tournamentData: Partial<Omit<Tournament, 'id' | 'registrations' | 'creatorId' | 'games' | 'teamId' | 'creatorNickname'>>) => Promise<void>;
   deleteTournament: (tournamentId: string, userId: string) => Promise<void>;
   registerToTournament: (tournamentId: string, userId: string, player: Player, nickname?: string) => Promise<void>;
+  validateTournamentInvitation: (tournamentId: string, userId: string) => Promise<void>;
+  inviteMembersToTournament: (tournamentId: string, userId: string, members: Player[]) => Promise<void>;
   unregisterFromTournament: (tournamentId: string, userId: string) => Promise<void>;
+  removeMemberFromTournament: (tournamentId: string, memberId: string, userId: string) => Promise<void>;
   startTournament: (tournamentId: string, userId: string) => Promise<void>;
   endTournament: (tournamentId: string) => Promise<void>;
   addGuestToTournament: (tournamentId: string, guestName: string, userId: string) => Promise<void>;
@@ -166,6 +170,7 @@ export interface TournamentStoreActions {
   calculateAndStoreSettlement: (tournamentId: string) => Promise<void>;
   updateSettlementTransaction: (tournamentId: string, transactionIndex: number, completed: boolean) => Promise<void>;
   subscribeToTournament: (tournamentId: string) => () => void;
+  reopenGameAndReinstateSecond: (tournamentId: string, gameId: string) => Promise<void>;
 }
 
 // Combine state and actions for the final store type

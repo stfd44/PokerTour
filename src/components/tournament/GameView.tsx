@@ -38,6 +38,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
   const [animationEndTime, setAnimationEndTime] = useState<number | null>(null);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [showConfirmEndGame, setShowConfirmEndGame] = useState(false);
+  const [playerToEliminateFinal, setPlayerToEliminateFinal] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
@@ -125,6 +126,35 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
     setAnimationEndTime(Date.now() + 5000);
   };
 
+  const performElimination = async (playerId: string) => {
+    if (!game) return;
+    try {
+      await eliminatePlayer(tournamentId, gameId, playerId);
+      
+      // Check if game should end after elimination
+      const updatedGame = useTournamentStore.getState()
+        .tournaments.find(t => t.id === tournamentId)
+        ?.games.find(g => g.id === gameId);
+      
+      if (updatedGame) {
+        const activePlayers = updatedGame.players.filter(p => !p.eliminated);
+        
+        if (activePlayers.length === 1 && updatedGame.status !== 'ended') {
+          const winner = activePlayers[0];
+          const winnerDisplayName = winner.nickname || winner.name;
+          
+          // Start victory animation
+          startVictoryAnimation(winnerDisplayName);
+          
+          // End the game in the store
+          endGame(tournamentId, gameId);
+        }
+      }
+    } catch (error) {
+      console.error("Error performing player elimination:", error);
+    }
+  };
+
   const handlePlayerElimination = async (playerId: string, isCurrentlyEliminated: boolean | undefined) => {
     if (!game) return;
     
@@ -132,27 +162,14 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
       if (isCurrentlyEliminated) {
         await reinstatePlayer(tournamentId, gameId, playerId);
       } else {
-        await eliminatePlayer(tournamentId, gameId, playerId);
-        
-        // Check if game should end after elimination
-        const updatedGame = useTournamentStore.getState()
-          .tournaments.find(t => t.id === tournamentId)
-          ?.games.find(g => g.id === gameId);
-        
-        if (updatedGame) {
-          const activePlayers = updatedGame.players.filter(p => !p.eliminated);
-          
-          if (activePlayers.length === 1 && updatedGame.status !== 'ended') {
-            const winner = activePlayers[0];
-            const winnerDisplayName = winner.nickname || winner.name;
-            
-            // Start victory animation
-            startVictoryAnimation(winnerDisplayName);
-            
-            // End the game in the store
-            endGame(tournamentId, gameId);
-          }
+        const activePlayers = game.players.filter(p => !p.eliminated);
+        // If 2 active players remaining, eliminating one means the game ends
+        if (activePlayers.length === 2 && !isCurrentlyEliminated) {
+          setPlayerToEliminateFinal(playerId);
+          return;
         }
+        
+        await performElimination(playerId);
       }
     } catch (error) {
       console.error("Error handling player elimination/reinstatement:", error);
@@ -471,6 +488,36 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
                 className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium"
               >
                 Oui, l'arrêter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {playerToEliminateFinal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-auto shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Dernière élimination ?</h3>
+            <p className="text-gray-600 mb-6 flex flex-col gap-2">
+              <span>Êtes-vous sûr de vouloir éliminer ce joueur ?</span>
+              <span className="bg-red-50 text-red-800 p-2 rounded text-sm font-medium">⚠️ Cela mettra immédiatement fin à la partie.</span>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setPlayerToEliminateFinal(null)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  const playerId = playerToEliminateFinal;
+                  setPlayerToEliminateFinal(null);
+                  performElimination(playerId);
+                }}
+                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium"
+              >
+                Oui, l'éliminer
               </button>
             </div>
           </div>

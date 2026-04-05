@@ -124,12 +124,12 @@ const Home: React.FC = () => {
                     {teams.length === 0 && (
                         <section className="mb-8 p-4 bg-blue-100 border border-blue-300 rounded-lg text-center">
                             <p className="text-blue-800">
-                                Vous ne faites partie d'aucune équipe pour le moment.
+                                Vous ne faites partie d'aucun groupe pour le moment.
                             </p>
                             <p className="text-blue-700 mt-2">
                                 Pour participer ou organiser des tournois, commencez par{' '}
                                 <button onClick={() => navigate('/teams')} className="text-blue-900 font-semibold underline hover:text-blue-700">
-                                    rejoindre une équipe ou en créer une
+                                    rejoindre un groupe ou en créer un
                                 </button>.
                             </p>
                         </section>

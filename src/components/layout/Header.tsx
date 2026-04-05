@@ -14,7 +14,7 @@ export const Header = () => {
   const menuItems = [
     { label: 'Accueil', path: '/' },
     { label: 'Tournois', path: '/tournaments' },
-    { label: 'Teams', path: '/teams' }, // Added the Teams link here
+    { label: 'Communauté', path: '/teams' },
     { label: 'Statistiques', path: '/stats' },
     { label: 'Profil', path: '/profile' },
   ];

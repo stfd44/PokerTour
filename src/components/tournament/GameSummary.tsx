@@ -1,5 +1,9 @@
+import React, { useState } from 'react';
 import type { Game, Player } from '../../store/types/tournamentTypes';
-import { format } from 'date-fns'; // Using date-fns for formatting, will need installation
+import { format } from 'date-fns';
+import { useTournamentStore } from '../../store/tournamentStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import { RotateCcw } from 'lucide-react';
 
 interface GameSummaryProps {
   game: Game;
@@ -35,6 +39,15 @@ const calculateDuration = (start: number | null | undefined, end: number | null 
 };
 
 export function GameSummary({ game }: GameSummaryProps) {
+  const { user } = useAuthStore();
+  const reopenGameAndReinstateSecond = useTournamentStore(state => state.reopenGameAndReinstateSecond);
+  const [showConfirmReopen, setShowConfirmReopen] = useState(false);
+  const [isReopening, setIsReopening] = useState(false);
+
+  const tournament = useTournamentStore(state => 
+    state.tournaments.find(t => t.id === game.tournamentId)
+  );
+
   // Create a unified ranking list
   const rankedPlayers = [
     // Add winner(s) first
@@ -44,6 +57,18 @@ export function GameSummary({ game }: GameSummaryProps) {
       .filter((p: Player) => p.eliminated && p.eliminationTime)
       .sort((a: Player, b: Player) => (b.eliminationTime ?? 0) - (a.eliminationTime ?? 0)),
   ];
+
+  const handleReopenGame = async () => {
+    setIsReopening(true);
+    try {
+      await reopenGameAndReinstateSecond(game.tournamentId, game.id);
+    } catch (error) {
+      console.error("Error reopening game:", error);
+    } finally {
+      setIsReopening(false);
+      setShowConfirmReopen(false);
+    }
+  };
 
   // Calculate rebuy amount for each player individually (for cyclic distribution)
   const calculatePlayerRebuyWinnings = (playerId: string): number => {
@@ -63,7 +88,19 @@ export function GameSummary({ game }: GameSummaryProps) {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-      <h2 className="text-2xl font-bold text-poker-black mb-6 text-center">Résumé de la partie</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-poker-black">Résumé de la partie</h2>
+        
+        {user && rankedPlayers.length > 1 && tournament?.status !== 'ended' && (
+          <button
+            onClick={() => setShowConfirmReopen(true)}
+            className="flex items-center text-sm px-3 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-md transition-colors"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Pardonner le 2ème (Réouvrir)
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-center">
         <div>
@@ -152,6 +189,36 @@ export function GameSummary({ game }: GameSummaryProps) {
           })}
         </div>
       </div>
+
+      {showConfirmReopen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-auto shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Réouvrir la partie ?</h3>
+            <p className="text-gray-600 mb-6 flex flex-col gap-2">
+              <span>Voulez-vous vraiment réouvrir cette partie et réintégrer le dernier joueur éliminé (le 2ème) ?</span>
+              <span className="bg-orange-50 text-orange-800 p-2 rounded text-sm font-medium">
+                ⚠️ Cela annulera la fin de partie et supprimera les gains calculés. Le chronomètre reprendra.
+              </span>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowConfirmReopen(false)}
+                disabled={isReopening}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleReopenGame}
+                disabled={isReopening}
+                className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-md transition-colors font-medium flex items-center"
+              >
+                {isReopening ? 'Réouverture...' : 'Oui, réouvrir la partie'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

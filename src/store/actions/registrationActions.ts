@@ -8,7 +8,10 @@ import { Player, TournamentStore, TournamentStoreActions } from '../types/tourna
 // Define the slice for registration actions
 export type RegistrationActionSlice = Pick<TournamentStoreActions,
   'registerToTournament' |
+  'validateTournamentInvitation' |
+  'inviteMembersToTournament' |
   'unregisterFromTournament' |
+  'removeMemberFromTournament' |
   'addGuestToTournament' |
   'removeGuestFromTournament'
 >;
@@ -49,6 +52,75 @@ export const createRegistrationActionSlice: StateCreator<
     }
   },
 
+  // Validating a tournament invitation
+  validateTournamentInvitation: async (tournamentId, userId) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      const tournamentDoc = await getDoc(tournamentRef);
+      const tournamentData = tournamentDoc.data();
+      if (!tournamentData) {
+        throw new Error("Tournament not found");
+      }
+
+      const playerToValidate = tournamentData.registrations.find((p: Player) => p.id === userId);
+      if (!playerToValidate) {
+        throw new Error("Player not found in registrations");
+      }
+
+      // We need to update the entire registrations array in Firestore since we are modifying an object within it
+      const updatedRegistrations = tournamentData.registrations.map((p: Player) => 
+        p.id === userId ? { ...p, status: 'confirmed' } : p
+      );
+
+      await updateDoc(tournamentRef, {
+        registrations: updatedRegistrations,
+      });
+
+      set((state) => ({
+        tournaments: state.tournaments.map((t) =>
+          t.id === tournamentId
+            ? { ...t, registrations: updatedRegistrations }
+            : t
+        ),
+      }));
+    } catch (error) {
+      handleDatabaseError(error);
+    }
+  },
+
+  // Inviting members to a Tournament
+  inviteMembersToTournament: async (tournamentId, userId, members) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      if (!await isCreator(tournamentRef, userId)) {
+        throw new Error("Only the tournament creator can invite members.");
+      }
+
+      const invitedRegistrations = members.map(member => ({
+        ...member,
+        status: 'invited' as const,
+      }));
+
+      if (invitedRegistrations.length > 0) {
+        await updateDoc(tournamentRef, {
+          registrations: arrayUnion(...invitedRegistrations)
+        });
+
+        set((state) => ({
+          tournaments: state.tournaments.map((t) => {
+            if (t.id === tournamentId) {
+              const updatedRegistrations = [...(t.registrations || []), ...invitedRegistrations];
+              return { ...t, registrations: updatedRegistrations };
+            }
+            return t;
+          }),
+        }));
+      }
+    } catch (error) {
+      handleDatabaseError(error);
+    }
+  },
+
   // Unregistering from a Tournament
   unregisterFromTournament: async (tournamentId, userId) => {
     try {
@@ -75,6 +147,45 @@ export const createRegistrationActionSlice: StateCreator<
         tournaments: state.tournaments.map((t) =>
           t.id === tournamentId
             ? { ...t, registrations: t.registrations.filter((p) => p.id !== userId) }
+            : t
+        ),
+      }));
+    } catch (error) {
+      handleDatabaseError(error);
+    }
+  },
+
+  // Removing any member by creator
+  removeMemberFromTournament: async (tournamentId, memberId, userId) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      const tournamentDoc = await getDoc(tournamentRef);
+      const tournamentData = tournamentDoc.data();
+      if (!tournamentData) {
+        throw new Error("Tournament not found");
+      }
+
+      if (!await isCreator(tournamentRef, userId)) {
+        throw new Error("Only the tournament creator can remove a member.");
+      }
+
+      if (tournamentData.creatorId === memberId) {
+        throw new Error("The tournament creator cannot be removed.");
+      }
+
+      const playerToRemove = tournamentData.registrations.find((p: Player) => p.id === memberId);
+      if (!playerToRemove) {
+        throw new Error("Player not found in registrations");
+      }
+
+      await updateDoc(tournamentRef, {
+        registrations: arrayRemove(playerToRemove),
+      });
+
+      set((state) => ({
+        tournaments: state.tournaments.map((t) =>
+          t.id === tournamentId
+            ? { ...t, registrations: t.registrations.filter((p) => p.id !== memberId) }
             : t
         ),
       }));

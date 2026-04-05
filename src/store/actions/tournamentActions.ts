@@ -106,7 +106,7 @@ export const createTournamentActionSlice: StateCreator<
 
 
   // Adding a Tournament
-  addTournament: async (tournamentData, creatorId, teamId, initialGuests = []) => {
+  addTournament: async (tournamentData, creatorId, teamId, initialGuests = [], invitedMembers = []) => {
     try {
       // Fetch creator's data to get their nickname
       const creatorData = await getUserData(creatorId);
@@ -117,6 +117,7 @@ export const createTournamentActionSlice: StateCreator<
         id: creatorId,
         name: creatorNickname || `Utilisateur_${creatorId.substring(0, 5)}`, // Fallback name if no nickname
         nickname: creatorNickname || null, // Use null instead of undefined
+        status: 'confirmed',
       };
 
       // Create registration entries for initial guests
@@ -124,10 +125,17 @@ export const createTournamentActionSlice: StateCreator<
         id: `guest_${guestName.replace(/\s+/g, '_')}`, // Create a simple guest ID
         name: guestName,
         nickname: null, // Explicitly set nickname to null for guests
+        status: 'confirmed' as const,
       }));
 
-      // Combine creator and guest registrations
-      const initialRegistrations = [creatorRegistration, ...guestRegistrations];
+      // Map invited team members to registrations with 'invited' status
+      const invitedRegistrations = invitedMembers.map(member => ({
+        ...member,
+        status: 'invited' as const,
+      }));
+
+      // Combine creator, guests, and invited members registrations
+      const initialRegistrations = [creatorRegistration, ...guestRegistrations, ...invitedRegistrations];
 
       const docRef = await addDoc(collection(db, "tournaments"), {
         ...tournamentData,

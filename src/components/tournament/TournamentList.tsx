@@ -27,7 +27,7 @@ export function TournamentList() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { tournaments, registerToTournament, unregisterFromTournament, startTournament, fetchTournaments, deleteTournament } = useTournamentStore();
+  const { tournaments, registerToTournament, unregisterFromTournament, startTournament, fetchTournaments, deleteTournament, validateTournamentInvitation } = useTournamentStore();
   const { teams } = useTeamStore(); // Get teams state
   const [registrationStates, setRegistrationStates] = useState<{[key: string]: 'pending' | 'confirmed' | 'none'}>({});
   const [expandedTournaments, setExpandedTournaments] = useState<Set<string>>(new Set());
@@ -77,6 +77,12 @@ export function TournamentList() {
       if (user) {
           await unregisterFromTournament(tournamentId, user.uid);
           setRegistrationStates(prev => ({ ...prev, [tournamentId]: 'none' }));
+      }
+  };
+
+  const handleValidateInvitation = async (tournamentId: string) => {
+      if (user) {
+          await validateTournamentInvitation(tournamentId, user.uid);
       }
   };
 
@@ -163,7 +169,9 @@ export function TournamentList() {
         </div>
         <div className="grid gap-6">
       {sortedTournaments.map((tournament) => {
-        const isRegistered = user ? tournament.registrations.some(p => p.id === user.uid) : false;
+        const userRegistration = user ? tournament.registrations.find(p => p.id === user.uid) : null;
+        const isRegistered = !!userRegistration;
+        const isInvited = userRegistration?.status === 'invited';
         const registrationState = registrationStates[tournament.id];
         const isFull = tournament.registrations.length >= tournament.maxPlayers;
         const isExpanded = expandedTournaments.has(tournament.id);
@@ -215,11 +223,14 @@ export function TournamentList() {
                   <div className="pl-9 pt-2 space-y-1">
                     {tournament.registrations.length > 0 ? (
                       tournament.registrations.map((player, index) => (
-                        <div key={player.id} className="flex items-center text-sm py-1">
-                          <span className="w-6 text-poker-gold">{index + 1}.</span>
-                          <span>{player.nickname || player.name}</span>
+                        <div key={player.id} className={`flex items-center text-sm py-1 ${player.status === 'invited' ? 'text-orange-500' : 'text-gray-700'}`}>
+                          <span className="w-6 text-poker-gold shrink-0">{index + 1}.</span>
+                          <span className="truncate">{player.nickname || player.name}</span>
+                          {player.status === 'invited' && (
+                            <span className="ml-2 text-xs italic opacity-80">(En attente)</span>
+                          )}
                           {user && player.id === user.uid && (
-                            <span className="ml-2 text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">Vous</span>
+                            <span className="ml-2 text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full shrink-0">Vous</span>
                           )}
                         </div>
                       ))
@@ -275,10 +286,20 @@ export function TournamentList() {
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2"> {/* Inner wrap */}
                       {isRegistered ? (
                         <>
-                          <span className="flex items-center text-green-600">
-                            <Check className="w-5 h-5 mr-1" />
-                            Inscrit
-                          </span>
+                          {isInvited ? (
+                            <button
+                              onClick={() => handleValidateInvitation(tournament.id)}
+                              className="w-full sm:w-auto bg-orange-500 text-white px-4 py-2 rounded transition-colors flex items-center justify-center hover:bg-orange-600"
+                            >
+                              <Check className="w-5 h-5 mr-1" />
+                              Valider l'invitation
+                            </button>
+                          ) : (
+                            <span className="flex items-center text-green-600">
+                              <Check className="w-5 h-5 mr-1" />
+                              Inscrit
+                            </span>
+                          )}
                           {!isCreator && (
                             <button
                               onClick={() => handleUnregistration(tournament.id)}

@@ -33,7 +33,8 @@ export function TournamentGames() {
     isLoadingTournament, // Added loading state
     endTournament: endTournamentAction,
     registerToTournament,
-    unregisterFromTournament
+    unregisterFromTournament,
+    validateTournamentInvitation
   } = useTournamentStore(state => ({
     tournaments: state.tournaments,
     fetchTournamentById: state.fetchTournamentById, // Get the action
@@ -42,6 +43,7 @@ export function TournamentGames() {
     endTournament: state.endTournament,
     registerToTournament: state.registerToTournament,
     unregisterFromTournament: state.unregisterFromTournament,
+    validateTournamentInvitation: state.validateTournamentInvitation,
   }));
   // Find the tournament in the current state
   const tournament = tournaments.find(t => t.id === tournamentId);
@@ -148,6 +150,12 @@ export function TournamentGames() {
           setRegistrationStates(prev => ({ ...prev, [tournamentId]: 'none' }));
       }
   };
+
+  const handleValidateInvitation = async () => {
+      if (user && tournamentId) {
+          await validateTournamentInvitation(tournamentId, user.uid);
+      }
+  };
   // --- End Registration Handlers ---
 
   // Add checks for undefined tournamentId or tournament
@@ -179,6 +187,10 @@ export function TournamentGames() {
 
   // Determine the current game being viewed using the ID and the live tournament data from the store
   const gameToView = viewingGameId ? tournament.games.find(g => g.id === viewingGameId) : null;
+
+  const userRegistration = user ? tournament.registrations.find(p => p.id === user.uid) : null;
+  const isRegistered = !!userRegistration;
+  const isInvited = userRegistration?.status === 'invited';
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -258,11 +270,14 @@ export function TournamentGames() {
               <div className="border-t pt-3 mt-3 space-y-1 max-h-52 overflow-y-auto">
                 {tournament.registrations.length > 0 ? (
                   tournament.registrations.map((player, index) => (
-                    <div key={player.id} className="flex items-center text-sm py-1 px-2">
-                      <span className="w-6 text-poker-gold">{index + 1}.</span>
-                      <span>{player.nickname || player.name}</span>
+                    <div key={player.id} className={`flex items-center text-sm py-1 px-2 ${player.status === 'invited' ? 'text-orange-500' : 'text-gray-700'}`}>
+                      <span className="w-6 text-poker-gold shrink-0">{index + 1}.</span>
+                      <span className="truncate">{player.nickname || player.name}</span>
+                      {player.status === 'invited' && (
+                        <span className="ml-2 text-xs italic opacity-80">(En attente)</span>
+                      )}
                       {user && player.id === user.uid && (
-                        <span className="ml-2 text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">Vous</span>
+                        <span className="ml-2 text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full shrink-0">Vous</span>
                       )}
                     </div>
                   ))
@@ -288,7 +303,17 @@ export function TournamentGames() {
                 {/* Registration Buttons (Visible if tournament not ended and user is not creator) */}
                 {tournament.status !== 'ended' && user?.uid !== tournament.creatorId && (
                     <>
-                        {tournament.registrations.some(p => p.id === user?.uid) ? (
+                        {isRegistered ? (
+                             <>
+                               {isInvited ? (
+                                 <button
+                                   onClick={handleValidateInvitation}
+                                   className="bg-orange-500 text-white px-4 py-2 rounded transition-colors flex items-center hover:bg-orange-600"
+                                 >
+                                   <Check className="w-5 h-5 mr-1" />
+                                   Valider l'invitation
+                                 </button>
+                               ) : (
                                 <div className="flex items-center gap-4">
                                     <span className="flex items-center text-green-600">
                                         <Check className="w-5 h-5 mr-1" />
@@ -302,6 +327,8 @@ export function TournamentGames() {
                                         Se désinscrire
                                     </button>
                                 </div>
+                               )}
+                             </>
                             ) : registrationStates[tournamentId] === 'pending' ? (
                                 <div className="flex items-center text-gray-600">
                                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-poker-gold mr-2"></div>

@@ -7,14 +7,14 @@ Ce document liste les évolutions prévues pour l'application PokerTour, classé
 - [ ] **Gestion des notifications** : Ajouter un commutateur dans le menu profil pour activer/désactiver le système de notifications.
 
 ## 🏆 Gestion des Tournois & Équipes
-- [ ] **Invitation d'équipe à la création** : Possibilité d'inclure les membres de son équipe dès la création d'un tournoi.
+- [x] **Invitation d'équipe à la création / édition** : Possibilité d'inclure les membres de son équipe de manière fluide (interface unifiée et sans sauts visuels terminée).
 - [ ] **Notifications d'invitation** : Envoyer une notification automatique à tous les joueurs invités lors de la validation de la création du tournoi.
-- [ ] **Modification du menu équipe** : Renommer le menu Inscriptions
-permet de créer une équipe ou un tournoi et de rejoindre un tournoi public ou privé, ou de rejoindre une équipe. Garder le système de numéro unique pour identifier de façon unique les equipes et les tournois.
+- [x] **Transition vers le menu Communauté** : Le menu Équipe est devenu "Communauté" avec une gestion simplifiée des Championnats, Circuits et Groupes.
+- [x] **Gestion des membres non vérifiés** : Possibilité d'ajouter des membres manuels (badges "Non vérifié") dans les groupes et les tournois, avec interface de suppression unifiée.
 - [ ] **Structures de blindes prédéfinies** : Pouvoir enregistrer et sélectionner des structures de blindes types lors de la configuration.
 
 ## 🃏 Expérience de Jeu (Gameplay)
-- [ ] **Réintégration de joueur (Pardon)** : Après avoir éliminé le deuxième joueur, avoir la possibilité de le remettre en lice dans la partie (annulation d'élimination).
+- [x] **Réintégration de joueur (Pardon)** : Après avoir éliminé le deuxième joueur, avoir la possibilité de le remettre en lice dans la partie (annulation d'élimination).
 - [ ] **Génération de plan de table** : Lors de la création d'une partie, générer un plan de table avec le nom des joueurs (mode manuel ou aléatoire).
 
 ## 🖥️ Interface de Table & Actions

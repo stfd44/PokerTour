@@ -12,7 +12,8 @@ export type GameActionSlice = Pick<TournamentStoreActions,
   'startGame' |
   'endGame' |
   'deleteGame' |
-  'updateBlinds'
+  'updateBlinds' |
+  'reopenGameAndReinstateSecond'
 >;
 
 export const createGameActionSlice: StateCreator<
@@ -349,6 +350,77 @@ export const createGameActionSlice: StateCreator<
         
         const updatedGames = [...tournamentData.games];
         updatedGames[gameIndex] = updatedGame;
+
+        transaction.update(tournamentRef, { games: updatedGames });
+
+        set((state) => ({
+          tournaments: state.tournaments.map((t) =>
+            t.id === tournamentId ? { ...t, games: updatedGames } : t
+          ),
+        }));
+      });
+    } catch (error) {
+      handleDatabaseError(error);
+      throw error;
+    }
+  },
+
+  reopenGameAndReinstateSecond: async (tournamentId: string, gameId: string) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+
+      await runTransaction(db, async (transaction) => {
+        const tournamentDoc = await transaction.get(tournamentRef);
+        if (!tournamentDoc.exists()) {
+          throw new Error("Tournament not found");
+        }
+        const tournamentData = tournamentDoc.data();
+        if (!tournamentData || !tournamentData.games) {
+          throw new Error("Tournament data or games array is missing");
+        }
+
+        const gameIndex = tournamentData.games.findIndex((g: Game) => g.id === gameId);
+        if (gameIndex === -1) {
+          throw new Error("Game not found");
+        }
+
+        const game = tournamentData.games[gameIndex];
+
+        if (game.status !== 'ended') {
+          throw new Error("Game must be ended to reopen it.");
+        }
+
+        // Find the second player (the one with eliminated: true and the highest eliminationTime)
+        // Ensure we filter those who actually have an elimination time.
+        const eliminatedPlayers = game.players
+          .filter((p: Player) => p.eliminated && p.eliminationTime)
+          .sort((a: Player, b: Player) => (b.eliminationTime || 0) - (a.eliminationTime || 0));
+
+        if (eliminatedPlayers.length === 0) {
+          throw new Error("No eliminated player found to reinstate.");
+        }
+
+        // The first one in this sorted list (last to be eliminated) is our "2nd" player
+        const secondPlayer = eliminatedPlayers[0];
+
+        // Reinstate this player
+        const updatedPlayers = game.players.map((p: Player) => 
+          p.id === secondPlayer.id 
+            ? { ...p, eliminated: false, eliminationTime: null }
+            : p
+        );
+
+        // Reset game data
+        const updatedGameData = cleanGameForFirestore({
+          ...game,
+          status: 'in_progress',
+          endedAt: null,
+          results: [], // Clear results as they will be recalculated
+          players: updatedPlayers
+        });
+
+        const updatedGames = [...tournamentData.games];
+        updatedGames[gameIndex] = updatedGameData;
 
         transaction.update(tournamentRef, { games: updatedGames });
 

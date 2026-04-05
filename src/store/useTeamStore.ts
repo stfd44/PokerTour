@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { collection, addDoc, getDocs, query, where, doc, updateDoc, arrayUnion, arrayRemove, serverTimestamp, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, updateDoc, arrayUnion, arrayRemove, serverTimestamp, deleteDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db, handleDatabaseError, isCreator } from '../lib/firebase';
 import { useAuthStore } from './useAuthStore';
 
@@ -15,12 +15,18 @@ const generateUniqueId = async (): Promise<string> => {
   }
 };
 
+export interface PendingMember {
+  name: string;
+  addedAt: Date;
+}
+
 export interface Team {
   id: string;
   name: string;
   creatorId: string;
   members: string[];
   pastMembers: string[];
+  pendingMembers: PendingMember[]; // Membres ajoutés par nom, non vérifiés
   createdAt: Date;
   tag: string;
 }
@@ -37,7 +43,9 @@ interface TeamStore {
   deleteTeam: (teamId: string, userId: string) => Promise<void>;
   setCurrentTeam: (team: Team | null) => void;
   isCreator: (teamId: string, userId: string) => Promise<boolean>;
-  joinTeamByTag: (tag: string) => Promise<void>; // Add this line
+  joinTeamByTag: (tag: string) => Promise<void>;
+  addMemberByName: (teamId: string, nickname: string) => Promise<{ name: string; verified: boolean }>;
+  removePendingMember: (teamId: string, memberName: string) => Promise<void>;
 }
 
 export const useTeamStore = create<TeamStore>((set, get) => ({
@@ -53,36 +61,41 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     const uniqueId = await generateUniqueId();
     const tag = `${name.toLowerCase().replace(/\s+/g, '_')}_${uniqueId}`;
 
-
     const newTeam = {
       name,
       creatorId: user.uid,
       members: [user.uid],
       pastMembers: [],
-      createdAt: serverTimestamp(), // Use serverTimestamp() instead of new Date()
-      tag: tag, // Ajout du tag
+      pendingMembers: [],
+      createdAt: serverTimestamp(),
+      tag: tag,
     };
 
     try {
       const docRef = await addDoc(collection(db, 'teams'), newTeam);
       set((state) => ({
-        teams: [...state.teams, { ...newTeam, id: docRef.id, createdAt: new Date() }], // Add the createdAt field to the new team
+        teams: [...state.teams, { ...newTeam, id: docRef.id, createdAt: new Date() }],
       }));
     } catch (error) {
       handleDatabaseError(error);
     }
   },
-    fetchTeams: async () => {
+  fetchTeams: async () => {
     const { user } = useAuthStore.getState();
     if (!user) return;
     try {
       const q = query(collection(db, 'teams'), where('members', 'array-contains', user.uid));
       const querySnapshot = await getDocs(q);
       const fetchedTeams: Team[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(); // Fallback to a new Date if not available
-        fetchedTeams.push({ id: doc.id, ...data, createdAt } as Team);
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
+        // Normalize pendingMembers: convert Firestore Timestamps to JS Dates
+        const pendingMembers: PendingMember[] = (data.pendingMembers || []).map((pm: { name: string; addedAt: Timestamp | Date }) => ({
+          name: pm.name,
+          addedAt: pm.addedAt instanceof Timestamp ? pm.addedAt.toDate() : (pm.addedAt || new Date()),
+        }));
+        fetchedTeams.push({ id: docSnap.id, ...data, createdAt, pendingMembers } as Team);
       });
       set({ teams: fetchedTeams });
     } catch (error) {
@@ -113,7 +126,9 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       });
       set((state) => ({
         teams: state.teams.map((team) =>
-          team.id === teamId ? { ...team, members: team.members.filter((memberId) => memberId !== userId), pastMembers: [...team.pastMembers, userId] } : team
+          team.id === teamId
+            ? { ...team, members: team.members.filter((memberId) => memberId !== userId), pastMembers: [...team.pastMembers, userId] }
+            : team
         ),
       }));
     } catch (error) {
@@ -136,7 +151,9 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       });
       set((state) => ({
         teams: state.teams.map((team) =>
-          team.id === teamId ? { ...team, members: [...team.members, userId], pastMembers: team.pastMembers.filter((memberId) => memberId !== userId) } : team
+          team.id === teamId
+            ? { ...team, members: [...team.members, userId], pastMembers: team.pastMembers.filter((memberId) => memberId !== userId) }
+            : team
         ),
       }));
     } catch (error) {
@@ -178,7 +195,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        throw new Error('Équipe non valide ou inexistante');
+        throw new Error('Groupe non valide ou inexistant');
       }
 
       const teamDoc = querySnapshot.docs[0];
@@ -186,7 +203,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       const teamData = teamDoc.data() as Omit<Team, 'id'>;
 
       if (teamData.members.includes(user.uid)) {
-        throw new Error('Vous êtes déjà membre de cette équipe');
+        throw new Error('Vous êtes déjà membre de ce groupe');
       }
 
       const teamRef = doc(db, 'teams', teamId);
@@ -195,17 +212,111 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
         pastMembers: arrayRemove(user.uid),
       });
 
-      // Update local state - refetch teams to get the updated list
       await get().fetchTeams();
 
     } catch (error) {
-      // Rethrow specific errors or handle database errors
-      if (error instanceof Error && (error.message === 'Équipe non valide ou inexistante' || error.message === 'Vous êtes déjà membre de cette équipe')) {
+      if (error instanceof Error && (
+        error.message === 'Groupe non valide ou inexistant' ||
+        error.message === 'Vous êtes déjà membre de ce groupe'
+      )) {
         throw error;
       } else {
         handleDatabaseError(error);
-        throw new Error('Une erreur est survenue lors de la tentative de rejoindre l\'équipe.'); // Generic error for UI
+        throw new Error("Une erreur est survenue lors de la tentative de rejoindre le groupe.");
       }
     }
+  },
+  addMemberByName: async (teamId, nickname) => {
+    const { user } = useAuthStore.getState();
+    if (!user) throw new Error('Utilisateur non connecté.');
+
+    const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    if (!teamSnap.exists()) throw new Error('Groupe introuvable.');
+    const teamData = teamSnap.data() as Omit<Team, 'id'>;
+
+    // Try to find the user by nickname in Firestore
+    const q = query(collection(db, 'users'), where('nickname', '==', nickname));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      // --- User found: add as verified member ---
+      const foundUserDoc = querySnapshot.docs[0];
+      const foundUserId = foundUserDoc.id;
+      const foundUserData = foundUserDoc.data();
+
+      if (teamData.members.includes(foundUserId)) {
+        throw new Error(`${nickname} est déjà membre de ce groupe.`);
+      }
+
+      await updateDoc(teamRef, {
+        members: arrayUnion(foundUserId),
+        pastMembers: arrayRemove(foundUserId),
+      });
+
+      set((state) => ({
+        teams: state.teams.map((team) =>
+          team.id === teamId
+            ? { ...team, members: [...team.members, foundUserId] }
+            : team
+        ),
+      }));
+
+      const resolvedName = foundUserData.nickname || foundUserData.displayName || nickname;
+      return { name: resolvedName, verified: true };
+
+    } else {
+      // --- User NOT found: add as pending (unverified) member ---
+      const alreadyPending = (teamData.pendingMembers || []).some(
+        (pm: { name: string }) => pm.name.toLowerCase() === nickname.toLowerCase()
+      );
+      if (alreadyPending) {
+        throw new Error(`"${nickname}" est déjà dans la liste des membres en attente.`);
+      }
+
+      const newPendingMember: PendingMember = {
+        name: nickname,
+        addedAt: new Date(),
+      };
+
+      // Firestore doesn't support arrayUnion on sub-object arrays cleanly,
+      // so we read, append, and write back the pendingMembers array.
+      const updatedPending = [
+        ...(teamData.pendingMembers || []),
+        { name: nickname, addedAt: new Date() },
+      ];
+
+      await updateDoc(teamRef, { pendingMembers: updatedPending });
+
+      set((state) => ({
+        teams: state.teams.map((team) =>
+          team.id === teamId
+            ? { ...team, pendingMembers: [...(team.pendingMembers || []), newPendingMember] }
+            : team
+        ),
+      }));
+
+      return { name: nickname, verified: false };
+    }
+  },
+  removePendingMember: async (teamId, memberName) => {
+    const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    if (!teamSnap.exists()) throw new Error('Groupe introuvable.');
+    const teamData = teamSnap.data();
+
+    const updatedPending = (teamData.pendingMembers || []).filter(
+      (pm: { name: string }) => pm.name !== memberName
+    );
+
+    await updateDoc(teamRef, { pendingMembers: updatedPending });
+
+    set((state) => ({
+      teams: state.teams.map((team) =>
+        team.id === teamId
+          ? { ...team, pendingMembers: (team.pendingMembers || []).filter((pm) => pm.name !== memberName) }
+          : team
+      ),
+    }));
   },
 }));
