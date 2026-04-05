@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Confetti from 'react-confetti';
 import { useTournamentStore } from '../../store/tournamentStore';
-import { StopCircle, UserCheck, UserX, UserMinus, RefreshCcw, Edit } from 'lucide-react';
+import { StopCircle } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore'; // Import auth store
 import { GameTimer } from './GameTimer';
 import { GameSummary } from './GameSummary';
+import { GamePlayersPanel } from './GamePlayersPanel';
+import { GameBlindsPanel } from './GameBlindsPanel';
+import { GamePrizePoolPanel } from './GamePrizePoolPanel';
+import { Users, DollarSign, Settings2, X } from 'lucide-react';
 
 interface GameViewProps {
   gameId: string;
@@ -24,45 +28,16 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
   const reinstatePlayer = useTournamentStore(state => state.reinstatePlayer);
   const rebuyPlayer = useTournamentStore(state => state.rebuyPlayer);
   const endGame = useTournamentStore(state => state.endGame);
-  const updateBlinds = useTournamentStore(state => state.updateBlinds);
-  const resetLevelTimer = useTournamentStore(state => state.resetLevelTimer);
-  const updateLevelDuration = useTournamentStore(state => state.updateLevelDuration);
   
   // Local state
   const [rebuyLoading, setRebuyLoading] = useState<string | null>(null);
   const [rebuyError, setRebuyError] = useState<string | null>(null);
-  const [newSmallBlind, setNewSmallBlind] = useState('');
-  const [newBigBlind, setNewBigBlind] = useState('');
-  const [newLevelDuration, setNewLevelDuration] = useState('');
   const [winnerName, setWinnerName] = useState<string | null>(null);
   const [animationEndTime, setAnimationEndTime] = useState<number | null>(null);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [showConfirmEndGame, setShowConfirmEndGame] = useState(false);
   const [playerToEliminateFinal, setPlayerToEliminateFinal] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-
-  // Effect to get container dimensions for confetti
-  useEffect(() => {
-    if (containerRef.current) {
-      setDimensions({
-        width: containerRef.current.offsetWidth,
-        height: containerRef.current.offsetHeight
-      });
-    }
-
-    const handleResize = () => {
-      if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.offsetWidth,
-          height: containerRef.current.offsetHeight
-        });
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const [activePanel, setActivePanel] = useState<'players' | 'blinds' | 'prizePool' | null>(null);
 
   // Effect to check if animation should end
   useEffect(() => {
@@ -86,44 +61,13 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
     };
   }, [animationEndTime]);
 
-  // Effect to pre-fill next level's settings in the input fields
-  useEffect(() => {
-    if (!game) return;
-
-    const nextLevel = game.currentLevel + 1;
-    const nextBlinds = game.blindStructure?.[nextLevel];
-    const nextDuration = game.levelDurations?.[nextLevel];
-
-    if (nextBlinds) {
-      setNewSmallBlind(nextBlinds.small.toString());
-      setNewBigBlind(nextBlinds.big.toString());
-    } else {
-      // Propose doubling the current blinds if next level isn't set
-      const currentBlinds = game.blindStructure?.[game.currentLevel];
-      if (currentBlinds) {
-        setNewSmallBlind((currentBlinds.small * 2).toString());
-        setNewBigBlind((currentBlinds.big * 2).toString());
-      }
-    }
-
-    if (nextDuration) {
-      setNewLevelDuration(nextDuration.toString());
-    } else {
-      // Propose using the current duration if next level's isn't set
-      const currentDuration = game.levelDurations?.[game.currentLevel];
-      if (currentDuration) {
-        setNewLevelDuration(currentDuration.toString());
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game?.currentLevel]);
-
-
   const startVictoryAnimation = (winner: string) => {
     // Set winner name
     setWinnerName(winner);
     // Set animation end time to 5 seconds from now
     setAnimationEndTime(Date.now() + 5000);
+    // Ensure all panels are closed
+    setActivePanel(null);
   };
 
   const performElimination = async (playerId: string) => {
@@ -202,34 +146,6 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
     setShowConfirmEndGame(true);
   };
 
-  const handleUpdateBlinds = () => {
-    if (!user || !game) return;
-    const small = parseInt(newSmallBlind, 10);
-    const big = parseInt(newBigBlind, 10);
-    if (isNaN(small) || isNaN(big) || small <= 0 || big <= small) {
-        alert("Veuillez entrer des blinds valides (la grosse blind doit être supérieure à la petite).");
-        return;
-    }
-    updateBlinds(tournamentId, gameId, { small, big }, user.uid);
-    updateBlinds(tournamentId, gameId, { small, big }, user.uid);
-  };
-
-  const handleUpdateDuration = () => {
-    if (!user || !game) return;
-    const duration = parseInt(newLevelDuration, 10);
-    if (isNaN(duration) || duration <= 0) {
-        alert("Veuillez entrer une durée valide en minutes.");
-        return;
-    }
-    updateLevelDuration(tournamentId, gameId, duration, user.uid);
-    updateLevelDuration(tournamentId, gameId, duration, user.uid);
-  };
-
-  const handleResetTimer = () => {
-    if (!user || !game) return;
-    resetLevelTimer(tournamentId, gameId, user.uid);
-  };
-
   // Handle loading state
   if (!game || !tournament) {
     return (
@@ -251,13 +167,13 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
 
   // Render active game view
   return (
-    <div ref={containerRef} className="bg-white rounded-lg shadow-md p-6 relative">
+    <div className="bg-white rounded-lg shadow-md p-6 relative">
       {/* Victory Animation */}
       {winnerName && (
-        <>
+        <div className="fixed inset-0 z-[100] pointer-events-none">
           <Confetti
-            width={dimensions.width || 500}
-            height={dimensions.height || 500}
+            width={window.innerWidth}
+            height={window.innerHeight}
             recycle={true}
             numberOfPieces={500}
             gravity={0.2}
@@ -265,18 +181,18 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
             opacity={isFadingOut ? 0 : 1}
             tweenDuration={500}
           />
-          <div className={`absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center z-10 rounded-lg transition-opacity duration-500 ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
+          <div className={`absolute inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center transition-opacity duration-500 ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
             <div className="animate-bounce mb-4">
-              <p className="text-white text-xl font-bold mb-2">🏆 FÉLICITATIONS 🏆</p>
+              <p className="text-white text-3xl font-bold mb-2">🏆 FÉLICITATIONS 🏆</p>
             </div>
-            <div className="bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 p-6 rounded-lg shadow-lg transform transition-transform duration-500 animate-wiggle scale-110">
-              <p className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-500 to-red-500">
+            <div className="bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 p-8 rounded-lg shadow-2xl transform transition-transform duration-500 animate-wiggle scale-110">
+              <p className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-500 to-red-500 shadow-sm">
                 {winnerName}
               </p>
             </div>
-            <p className="text-white text-lg mt-4 animate-pulse">a remporté la partie !</p>
+            <p className="text-white text-2xl mt-8 animate-pulse font-medium">a remporté la partie !</p>
           </div>
-        </>
+        </div>
       )}
 
       {/* Header */}
@@ -304,166 +220,71 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
         />
       )}
 
-      {/* Admin Controls - Only for players in the game */}
-      {game.status === 'in_progress' && user && game.players.some(p => p.id === user.uid) && game.blindStructure && game.blindStructure.length > 0 && (
-        <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-            <Edit className="w-5 h-5 mr-2" />
-            Contrôles de la partie
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Blinds Control for NEXT level */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Blinds (Niveau {game.currentLevel + 2})
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  placeholder={`SB: ${game.blindStructure[game.currentLevel]?.small * 2}`}
-                  value={newSmallBlind}
-                  onChange={(e) => setNewSmallBlind(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-                <input
-                  type="number"
-                  placeholder={`BB: ${game.blindStructure[game.currentLevel]?.big * 2}`}
-                  value={newBigBlind}
-                  onChange={(e) => setNewBigBlind(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-                <button
-                  onClick={handleUpdateBlinds}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                  disabled={!newSmallBlind || !newBigBlind}
-                >
-                  Définir
-                </button>
-              </div>
-            </div>
-
-            {/* Level Duration Control for NEXT level */}
-            <div className="space-y-2">
-               <label className="block text-sm font-medium text-gray-700">
-                Durée (Niveau {game.currentLevel + 2})
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  placeholder={`${game.levelDurations?.[game.currentLevel]} min`}
-                  value={newLevelDuration}
-                  onChange={(e) => setNewLevelDuration(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-                <button
-                  onClick={handleUpdateDuration}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                  disabled={!newLevelDuration}
-                >
-                  Définir
-                </button>
-              </div>
-            </div>
-          </div>
-            
-          <div className="mt-4 flex flex-wrap gap-2">
-             <button onClick={handleResetTimer} className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300">Réinit. Timer</button>
-          </div>
-        </div>
-      )}
-
-      {/* Rebuy Info */}
-      {game.status === 'in_progress' && (
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
-          Rebuy autorisé jusqu'à la fin du niveau {game.rebuyAllowedUntilLevel}.
-          Total Rebuys: {game.totalRebuys} ({game.totalRebuys * game.rebuyAmount} €)
-        </div>
-      )}
-      
-      {/* Rebuy Error */}
-      {rebuyError && (
-        <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-md text-sm text-red-700">
-          Erreur Rebuy: {rebuyError}
-        </div>
-      )}
-
-      {/* Players List */}
-      <div className="space-y-4 mt-6">
-        <h3 className="text-xl font-semibold text-gray-800">Joueurs</h3>
-        <div className="grid gap-3">
-          {game.players.map((player) => {
-            const canRebuy = player.eliminated && 
-                            game.status === 'in_progress' && 
-                            game.currentLevel < game.rebuyAllowedUntilLevel;
-            const isLoadingRebuy = rebuyLoading === player.id;
-
-            return (
-              <div
-                key={player.id}
-                className={`flex items-center justify-between p-3 rounded-lg border ${
-                  player.eliminated
-                    ? 'bg-red-50 border-red-200 opacity-60'
-                    : 'bg-green-50 border-green-200'
-                }`}
-              >
-                <div className="flex items-center">
-                  {player.eliminated ? (
-                    <UserX className="w-5 h-5 text-red-500 mr-2" />
-                  ) : (
-                    <UserCheck className="w-5 h-5 text-green-500 mr-2" />
-                  )}
-                  <span className={player.eliminated ? 'line-through text-gray-500' : ''}>
-                    {player.nickname || player.name}
-                  </span>
-                </div>
-
-                {/* Player Actions - Only show if current user is a participant */}
-                {user && game.players.some(p => p.id === user.uid) && (
-                  <div className="flex flex-wrap items-center gap-2 justify-end">
-                    {/* Rebuy Button */}
-                    {canRebuy && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleRebuy(player.id)}
-                          disabled={isLoadingRebuy}
-                          className={`px-3 py-1 rounded-md text-sm flex items-center transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-wait`}
-                        >
-                          <RefreshCcw className={`w-4 h-4 mr-1 ${isLoadingRebuy ? 'animate-spin' : ''}`} />
-                          {isLoadingRebuy ? '...' : `Rebuy (${game.rebuyAmount}€)`}
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Eliminate/Reinstate Button */}
-                    <button
-                      onClick={() => handlePlayerElimination(player.id, player.eliminated)}
-                      disabled={game.status !== 'in_progress' || isLoadingRebuy}
-                      className={`px-3 py-1 rounded-md text-sm flex items-center transition-colors ${
-                        player.eliminated
-                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                          : 'bg-red-100 text-red-700 hover:bg-red-200'
-                      } ${game.status !== 'in_progress' || isLoadingRebuy ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {player.eliminated ? (
-                        <>
-                          <UserCheck className="w-4 h-4 mr-1" />
-                          Réintégrer
-                        </>
-                      ) : (
-                        <>
-                          <UserMinus className="w-4 h-4 mr-1" />
-                          Éliminer
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+      {/* Quick Action Buttons */}
+      <div className="grid grid-cols-3 gap-3 mt-6">
+        <button
+          onClick={() => setActivePanel('players')}
+          className="flex flex-col items-center justify-center p-3 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors border border-indigo-200"
+        >
+          <Users className="w-6 h-6 mb-1" />
+          <span className="text-sm font-medium">Joueurs</span>
+        </button>
+        <button
+          onClick={() => setActivePanel('prizePool')}
+          className="flex flex-col items-center justify-center p-3 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200"
+        >
+          <DollarSign className="w-6 h-6 mb-1" />
+          <span className="text-sm font-medium">Prize Pool</span>
+        </button>
+        <button
+          onClick={() => setActivePanel('blinds')}
+          className="flex flex-col items-center justify-center p-3 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors border border-amber-200"
+        >
+          <Settings2 className="w-6 h-6 mb-1" />
+          <span className="text-sm font-medium">Réglages</span>
+        </button>
       </div>
+
+      {/* activePanel modal */}
+      {activePanel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-end sm:items-center z-50 p-0 sm:p-4 pb-20 sm:pb-4">
+          <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-slide-up sm:animate-fade-in relative z-50">
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50">
+              <h2 className="text-lg font-bold text-gray-800">
+                {activePanel === 'players' && 'Gestion des Joueurs'}
+                {activePanel === 'blinds' && 'Réglages de la partie'}
+                {activePanel === 'prizePool' && 'Prize Pool'}
+              </h2>
+              <button
+                onClick={() => setActivePanel(null)}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-4 overflow-y-auto">
+              {activePanel === 'players' && (
+                <GamePlayersPanel 
+                  game={game} 
+                  tournamentId={tournamentId} 
+                  gameId={gameId} 
+                  onEliminate={handlePlayerElimination}
+                  onRebuy={handleRebuy}
+                  rebuyLoading={rebuyLoading}
+                  rebuyError={rebuyError}
+                />
+              )}
+              {activePanel === 'blinds' && (
+                <GameBlindsPanel game={game} tournamentId={tournamentId} gameId={gameId} />
+              )}
+              {activePanel === 'prizePool' && tournament && (
+                <GamePrizePoolPanel game={game} tournament={tournament} onClose={() => setActivePanel(null)} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showConfirmEndGame && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">

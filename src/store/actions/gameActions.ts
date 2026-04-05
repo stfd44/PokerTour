@@ -2,7 +2,7 @@ import { StateCreator } from 'zustand';
 // Removed unused isCreator
 import { db, handleDatabaseError } from '../../lib/firebase';
 import { doc, updateDoc, arrayUnion, getDoc, runTransaction } from 'firebase/firestore';
-import { Blinds, Game, Player, Tournament, TournamentStore, TournamentStoreActions } from '../types/tournamentTypes';
+import { Blinds, Game, Player, Tournament, TournamentStore, TournamentStoreActions, PotContribution } from '../types/tournamentTypes';
 import { cleanGameForFirestore, calculateResultsForGame } from '../helpers/tournamentHelpers';
 
 // Define the slice for game actions
@@ -13,7 +13,9 @@ export type GameActionSlice = Pick<TournamentStoreActions,
   'endGame' |
   'deleteGame' |
   'updateBlinds' |
-  'reopenGameAndReinstateSecond'
+  'updateRebuyLevel' |
+  'reopenGameAndReinstateSecond' |
+  'updateGamePrizeSettings'
 >;
 
 export const createGameActionSlice: StateCreator<
@@ -71,7 +73,7 @@ export const createGameActionSlice: StateCreator<
         rebuyAllowedUntilLevel: rebuyAllowedUntilLevel,
         totalRebuys: 0,
         rebuyAmount: tournamentData.buyin, // Set rebuy amount from tournament buyin
-        rebuyDistributionRule: gameData.rebuyDistributionRule || 'winner_takes_all', // Set rebuy distribution rule with default
+        rebuyDistributionRule: gameData.rebuyDistributionRule || 'cyclic_distribution', // Set rebuy distribution rule with default
         // ADDED: Pot management fields (only if provided)
         ...(gameData.potContributions && {
           potContributions: gameData.potContributions,
@@ -102,6 +104,65 @@ export const createGameActionSlice: StateCreator<
   // Commenting out for now as it's not used by the new features.
   // updateGame: async (tournamentId: string, gameId: string, gameData: Partial<Game>) => {
   // },
+
+  updateGamePrizeSettings: async (
+    tournamentId: string,
+    gameId: string,
+    prizePool: number,
+    distributionPercentages: { first: number; second: number; third: number },
+    rebuyDistributionRule: 'winner_takes_all' | 'cyclic_distribution',
+    winnings: { first: number; second: number; third: number },
+    potContributions?: PotContribution[],
+    totalPotAmount?: number
+  ) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      
+      await runTransaction(db, async (transaction) => {
+        const tournamentDoc = await transaction.get(tournamentRef);
+        if (!tournamentDoc.exists()) {
+          throw new Error("Tournament not found");
+        }
+        
+        const tournamentData = tournamentDoc.data() as Tournament;
+        if (!tournamentData.games) {
+          throw new Error("No games array found in tournament");
+        }
+        
+        const gameIndex = tournamentData.games.findIndex((g: Game) => g.id === gameId);
+        if (gameIndex === -1) {
+          throw new Error("Game not found");
+        }
+        
+        const gameToUpdate = tournamentData.games[gameIndex];
+        
+        // Prepare updated game manually to keep consistency
+        const updatedGameData: Partial<Game> = {
+          ...gameToUpdate,
+          prizePool,
+          distributionPercentages,
+          rebuyDistributionRule,
+          winnings,
+        };
+
+        if (potContributions) {
+          updatedGameData.potContributions = potContributions;
+          updatedGameData.totalPotAmount = totalPotAmount || 0;
+        }
+
+        const updatedGame = cleanGameForFirestore(updatedGameData as Game);
+        
+        const updatedGames = [...tournamentData.games];
+        updatedGames[gameIndex] = updatedGame;
+        
+        transaction.update(tournamentRef, { games: updatedGames });
+      });
+
+      // Local state is updated by the onSnapshot listener from subscribeToTournament
+    } catch (error) {
+      handleDatabaseError(error);
+    }
+  },
 
   // Starting a Game - Refactored to use Firestore Transaction
   startGame: async (tournamentId: string, gameId: string, userId: string) => {
@@ -347,6 +408,57 @@ export const createGameActionSlice: StateCreator<
         updatedBlindStructure[nextLevel] = newBlinds;
 
         const updatedGame = { ...game, blindStructure: updatedBlindStructure };
+        
+        const updatedGames = [...tournamentData.games];
+        updatedGames[gameIndex] = updatedGame;
+
+        transaction.update(tournamentRef, { games: updatedGames });
+
+        set((state) => ({
+          tournaments: state.tournaments.map((t) =>
+            t.id === tournamentId ? { ...t, games: updatedGames } : t
+          ),
+        }));
+      });
+    } catch (error) {
+      handleDatabaseError(error);
+      throw error;
+    }
+  },
+
+  updateRebuyLevel: async (tournamentId: string, gameId: string, newLevel: number, userId: string) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+
+      await runTransaction(db, async (transaction) => {
+        const tournamentDoc = await transaction.get(tournamentRef);
+        if (!tournamentDoc.exists()) {
+          throw new Error("Tournament not found");
+        }
+        const tournamentData = tournamentDoc.data();
+        if (!tournamentData || !tournamentData.games) {
+          throw new Error("Tournament data or games array is missing");
+        }
+
+        const gameIndex = tournamentData.games.findIndex((g: Game) => g.id === gameId);
+        if (gameIndex === -1) {
+          throw new Error("Game not found");
+        }
+
+        const game = tournamentData.games[gameIndex];
+
+        if (game.status !== 'in_progress' && game.status !== 'pending') {
+          throw new Error("Rebuy level can only be changed before or during the game.");
+        }
+
+        // Normally we should check if userId is creator or administrator, 
+        // for now we just verify they are in the game or tournament.
+        const isPlayerInGame = game.players.some((p: Player) => p.id === userId);
+        if (!isPlayerInGame && tournamentData.creatorId !== userId) {
+          throw new Error("Unauthorized to update rebuy level.");
+        }
+
+        const updatedGame = { ...game, rebuyAllowedUntilLevel: newLevel };
         
         const updatedGames = [...tournamentData.games];
         updatedGames[gameIndex] = updatedGame;

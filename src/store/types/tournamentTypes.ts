@@ -155,6 +155,16 @@ export interface TournamentStoreActions {
     rebuyAllowedUntilLevel?: number
   ) => Promise<void>;
   // updateGame: (tournamentId: string, gameId: string, gameData: Partial<Game>) => Promise<void>;
+  updateGamePrizeSettings: (
+    tournamentId: string,
+    gameId: string,
+    prizePool: number,
+    distributionPercentages: { first: number; second: number; third: number },
+    rebuyDistributionRule: 'winner_takes_all' | 'cyclic_distribution',
+    winnings: { first: number; second: number; third: number },
+    potContributions?: PotContribution[],
+    totalPotAmount?: number
+  ) => Promise<void>;
   startGame: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
   endGame: (tournamentId: string, gameId: string) => Promise<void>;
   deleteGame: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
@@ -164,6 +174,7 @@ export interface TournamentStoreActions {
   advanceBlindLevel: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
   resetLevelTimer: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
   updateLevelDuration: (tournamentId: string, gameId: string, newDuration: number, userId: string) => Promise<void>;
+  updateRebuyLevel: (tournamentId: string, gameId: string, newLevel: number, userId: string) => Promise<void>;
   eliminatePlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
   reinstatePlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
   rebuyPlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;

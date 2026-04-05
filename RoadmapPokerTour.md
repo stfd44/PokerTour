@@ -18,7 +18,7 @@ Ce document liste les évolutions prévues pour l'application PokerTour, classé
 - [ ] **Génération de plan de table** : Lors de la création d'une partie, générer un plan de table avec le nom des joueurs (mode manuel ou aléatoire).
 
 ## 🖥️ Interface de Table & Actions
-- [ ] **Panneau d'actions rapides sur table** : Ajouter des boutons dédiés pour :
+- [x] **Panneau d'actions rapides sur table** : Ajouter des boutons dédiés pour :
     - La gestion des joueurs
     - La gestion des recaves (rebuys)
     - La gestion du Prize Pool

@@ -34,7 +34,7 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
   return (
     <>
       <div className="grid gap-6">
-        {tournament.games.map((game: Game) => ( // Added Game type
+        {[...tournament.games].reverse().map((game: Game) => ( // Added Game type and reversed array
           <div key={game.id} className="bg-white rounded-lg shadow-md p-6">
             {/* Use flex-col on small screens, flex-row on larger screens */}
           <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-4 sm:gap-0">

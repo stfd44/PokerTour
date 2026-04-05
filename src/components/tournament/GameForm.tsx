@@ -49,7 +49,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [distributionPercentages, setDistributionPercentages] = useState<DistributionPercentages>(initialPercentages);
   const [rebuyLevel, setRebuyLevel] = useState<number>(2); // State for rebuy level
-  const [rebuyDistributionRule, setRebuyDistributionRule] = useState<'winner_takes_all' | 'cyclic_distribution'>('winner_takes_all'); // State for rebuy distribution rule
+  const [rebuyDistributionRule, setRebuyDistributionRule] = useState<'winner_takes_all' | 'cyclic_distribution'>('cyclic_distribution'); // State for rebuy distribution rule
   // ADDED: State for pot management
   const [usePotSystem, setUsePotSystem] = useState<boolean>(false); // Toggle for pot system
   const [playersWhoPaidPot, setPlayersWhoPaidPot] = useState<Set<string>>(new Set()); // Players who paid to pot
@@ -75,7 +75,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
       setSelectedPlayers(new Set());
       setDistributionPercentages(initialPercentages);
       setRebuyLevel(2);
-      setRebuyDistributionRule('winner_takes_all');
+      setRebuyDistributionRule('cyclic_distribution');
     }
   }, [editingGame]);
 
