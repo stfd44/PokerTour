@@ -4,6 +4,7 @@ import { db, handleDatabaseError } from '../../lib/firebase';
 import { doc, updateDoc, arrayUnion, getDoc, runTransaction } from 'firebase/firestore';
 import { Blinds, Game, Player, Tournament, TournamentStore, TournamentStoreActions, PotContribution } from '../types/tournamentTypes';
 import { cleanGameForFirestore, calculateResultsForGame } from '../helpers/tournamentHelpers';
+import { sendGameEventPush, getOrCreatePushDeviceId } from '../../lib/pushNotifications';
 
 // Define the slice for game actions
 export type GameActionSlice = Pick<TournamentStoreActions,
@@ -244,6 +245,13 @@ export const createGameActionSlice: StateCreator<
 
       console.log(`[startGame - ${gameId}] Transaction committed successfully.`);
 
+      sendGameEventPush({
+        tournamentId,
+        gameId,
+        eventType: 'start',
+        excludeDeviceId: getOrCreatePushDeviceId(),
+      }).catch(err => console.warn('Failed to send game start push notification', err));
+
     } catch (error) {
       console.error(`[startGame - ${gameId}] Transaction failed:`, error);
       handleDatabaseError(error);
@@ -254,7 +262,7 @@ export const createGameActionSlice: StateCreator<
   endGame: async (tournamentId: string, gameId: string) => {
     const tournamentRef = doc(db, "tournaments", tournamentId);
     try {
-      await runTransaction(db, async (transaction) => {
+      const top3Names = await runTransaction(db, async (transaction) => {
         const tournamentDoc = await transaction.get(tournamentRef);
         if (!tournamentDoc.exists()) {
           throw new Error("Tournament not found");
@@ -315,9 +323,26 @@ export const createGameActionSlice: StateCreator<
                t.id === tournamentId ? { ...t, games: updatedGames } : t
              ),
          }));
+         
+         const top3Names = [...gameResults]
+           .sort((a, b) => a.rank - b.rank)
+           .slice(0, 3)
+           .map(r => r.name);
+         
+         return top3Names;
       }); // End of runTransaction
 
       console.log(`[endGame - ${gameId}] Mark as ended transaction committed successfully.`);
+
+      if (top3Names && top3Names.length > 0) {
+        sendGameEventPush({
+          tournamentId,
+          gameId,
+          eventType: 'end',
+          top3Names,
+          excludeDeviceId: getOrCreatePushDeviceId(),
+        }).catch(err => console.warn('Failed to send game end push notification', err));
+      }
 
     } catch (error) {
       console.error(`[endGame - ${gameId}] Mark as ended transaction failed:`, error);

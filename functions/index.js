@@ -706,12 +706,17 @@ exports.sendGameEventPush = onCall({ secrets: [webPushPrivateKey] }, async (requ
     gameId,
     eventType,
     playerName,
+    top3Names = [],
     excludeDeviceId = null,
     mode = 'prod',
   } = request.data || {};
 
-  if (!tournamentId || !gameId || !eventType || !playerName) {
-    throw new HttpsError('invalid-argument', 'tournamentId, gameId, eventType and playerName are required.');
+  if (!tournamentId || !gameId || !eventType) {
+    throw new HttpsError('invalid-argument', 'tournamentId, gameId, and eventType are required.');
+  }
+  
+  if (['elimination', 'rebuy'].includes(eventType) && !playerName) {
+    throw new HttpsError('invalid-argument', 'playerName is required for elimination/rebuy events.');
   }
 
   const tournamentSnap = await db.collection('tournaments').doc(tournamentId).get();
@@ -739,11 +744,21 @@ exports.sendGameEventPush = onCall({ secrets: [webPushPrivateKey] }, async (requ
   }
 
   let body = '';
-  // Avoid accented characters that could be problematic, or keep them if standard
   if (eventType === 'elimination') {
     body = `🚨 ${playerName} a été éliminé(e) de la table !`;
   } else if (eventType === 'rebuy') {
     body = `💰 ${playerName} s'est recavé(e) !`;
+  } else if (eventType === 'start') {
+    body = `🎲 La partie vient de démarrer ! À vos jetons.`;
+  } else if (eventType === 'end') {
+    if (top3Names && top3Names.length > 0) {
+      body = `🏆 La partie est terminée !`;
+      if (top3Names[0]) body += `\n🥇 1. ${top3Names[0]}`;
+      if (top3Names[1]) body += `\n🥈 2. ${top3Names[1]}`;
+      if (top3Names[2]) body += `\n🥉 3. ${top3Names[2]}`;
+    } else {
+      body = `🏆 La partie est terminée !`;
+    }
   }
 
   const tag = `game-event-${tournamentId}-${gameId}-${eventType}-${Date.now()}`;

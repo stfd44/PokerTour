@@ -645,8 +645,9 @@ export const sendPushTestToCurrentDevice = async (): Promise<PushTestResult> => 
 type GameEventPushPayload = {
   tournamentId: string;
   gameId: string;
-  eventType: 'elimination' | 'rebuy';
-  playerName: string;
+  eventType: 'elimination' | 'rebuy' | 'start' | 'end';
+  playerName?: string;
+  top3Names?: string[];
   excludeDeviceId?: string;
 };
 
@@ -655,6 +656,7 @@ export const sendGameEventPush = async ({
   gameId,
   eventType,
   playerName,
+  top3Names,
   excludeDeviceId,
 }: GameEventPushPayload) => {
   try {
@@ -667,6 +669,7 @@ export const sendGameEventPush = async ({
       gameId,
       eventType,
       playerName,
+      top3Names,
       excludeDeviceId,
       mode: getPushMode(),
     });
