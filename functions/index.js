@@ -695,3 +695,89 @@ exports.sendPushTestToCurrentDevice = onCall({ secrets: [webPushPrivateKey] }, a
     failureCount,
   };
 });
+
+exports.sendGameEventPush = onCall({ secrets: [webPushPrivateKey] }, async (request) => {
+  if (!request.auth?.uid) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const {
+    tournamentId,
+    gameId,
+    eventType,
+    playerName,
+    excludeDeviceId = null,
+    mode = 'prod',
+  } = request.data || {};
+
+  if (!tournamentId || !gameId || !eventType || !playerName) {
+    throw new HttpsError('invalid-argument', 'tournamentId, gameId, eventType and playerName are required.');
+  }
+
+  const tournamentSnap = await db.collection('tournaments').doc(tournamentId).get();
+  if (!tournamentSnap.exists) {
+    throw new HttpsError('not-found', 'Tournament not found.');
+  }
+
+  configureWebPush();
+
+  const tournament = tournamentSnap.data();
+  
+  const participantIds = Array.isArray(tournament.registrations) 
+    ? tournament.registrations.map(p => p.id).filter(Boolean)
+    : [];
+
+  const uniqueEntries = await getTimerDeviceEntries({
+    participantIds,
+    mode,
+    excludeParticipantId: request.auth.uid,
+    excludeDeviceId,
+  });
+
+  if (uniqueEntries.length === 0) {
+    return { successCount: 0, failureCount: 0 };
+  }
+
+  let body = '';
+  // Avoid accented characters that could be problematic, or keep them if standard
+  if (eventType === 'elimination') {
+    body = `🚨 ${playerName} a été éliminé(e) de la table !`;
+  } else if (eventType === 'rebuy') {
+    body = `💰 ${playerName} s'est recavé(e) !`;
+  }
+
+  const tag = `game-event-${tournamentId}-${gameId}-${eventType}-${Date.now()}`;
+  const payload = JSON.stringify({
+    type: 'game_event',
+    tournamentId,
+    gameId,
+    title: 'PokerTour',
+    body,
+    url: `/tournament/${tournamentId}`,
+    tag,
+  });
+
+  const { successCount, failureCount } = await sendWebPushPayload({
+    entries: uniqueEntries,
+    payload,
+    logContext: (entry) => ({
+      tournamentId,
+      gameId,
+      eventType,
+      endpoint: entry.endpoint,
+    }),
+  });
+
+  logger.info('Game event push notification sent', {
+    tournamentId,
+    gameId,
+    eventType,
+    successCount,
+    failureCount,
+  });
+
+  return {
+    successCount,
+    failureCount,
+  };
+});

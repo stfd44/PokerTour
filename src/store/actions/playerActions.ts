@@ -3,6 +3,7 @@ import { db, handleDatabaseError } from '../../lib/firebase';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { Game, Player, TournamentStore, TournamentStoreActions } from '../types/tournamentTypes';
 import { cleanGameForFirestore } from '../helpers/tournamentHelpers';
+import { sendGameEventPush, getOrCreatePushDeviceId } from '../../lib/pushNotifications';
 
 // Define the slice for player actions within a game
 export type PlayerActionSlice = Pick<TournamentStoreActions,
@@ -27,13 +28,16 @@ export const createPlayerActionSlice: StateCreator<
       if (!tournamentData) throw new Error("Tournament not found");
 
       const now = Date.now();
+      let playerName = '';
       const updatedGames = tournamentData.games.map((game: Game) => {
         if (game.id === gameId) {
-          const updatedPlayers = game.players.map(player =>
-            player.id === playerId
-              ? { ...player, eliminated: true, eliminationTime: now }
-              : player
-          );
+          const updatedPlayers = game.players.map(player => {
+            if (player.id === playerId) {
+              playerName = player.nickname || player.name;
+              return { ...player, eliminated: true, eliminationTime: now };
+            }
+            return player;
+          });
           // Return the cleaned game object
           return cleanGameForFirestore({ ...game, players: updatedPlayers });
         }
@@ -47,6 +51,16 @@ export const createPlayerActionSlice: StateCreator<
           t.id === tournamentId ? { ...t, games: updatedGames } : t
         ),
       }));
+
+      if (playerName) {
+        sendGameEventPush({
+          tournamentId,
+          gameId,
+          eventType: 'elimination',
+          playerName,
+          excludeDeviceId: getOrCreatePushDeviceId(),
+        }).catch(err => console.warn('Failed to send elimination push notification', err));
+      }
     } catch (error) {
       handleDatabaseError(error);
     }
@@ -114,8 +128,10 @@ export const createPlayerActionSlice: StateCreator<
       // --- End Validation ---
 
       // --- Perform Rebuy ---
+      let playerName = '';
       const updatedPlayers = game.players.map((player: Player) => {
         if (player.id === playerId) {
+          playerName = player.nickname || player.name;
           // Reinstate player and increment their rebuy count
           return {
             ...player,
@@ -148,6 +164,16 @@ export const createPlayerActionSlice: StateCreator<
           t.id === tournamentId ? { ...t, games: updatedGames } : t
         ),
       }));
+
+      if (playerName) {
+        sendGameEventPush({
+          tournamentId,
+          gameId,
+          eventType: 'rebuy',
+          playerName,
+          excludeDeviceId: getOrCreatePushDeviceId(),
+        }).catch(err => console.warn('Failed to send rebuy push notification', err));
+      }
 
     } catch (error) {
       handleDatabaseError(error);

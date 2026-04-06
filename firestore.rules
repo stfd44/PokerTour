@@ -11,10 +11,10 @@ service cloud.firestore {
       return isAuth() && request.auth.uid == userId;
     }
 
-    function onlyGamesChanged() {
-      // Checks that the only field being modified is the 'games' array.
+    function allowedNonCreatorFieldsChanged() {
+      // Checks that the only fields being modified are 'games' and/or 'registrations'.
       // All other fields must remain identical.
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['games']);
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['games', 'registrations']);
     }
 
     // --- Rules ---
@@ -32,9 +32,9 @@ service cloud.firestore {
       allow update: if isAuth() && (
         // Rule 1: The creator can always update the tournament.
         isUser(resource.data.creatorId) ||
-        // Rule 2: Any authenticated user can modify ONLY the 'games' array.
-        // This keeps tournament metadata protected while allowing synced game actions.
-        onlyGamesChanged()
+        // Rule 2: Any authenticated user can modify ONLY the 'games' and/or 'registrations' array.
+        // This keeps tournament metadata protected while allowing synced game actions and registrations.
+        allowedNonCreatorFieldsChanged()
       );
       
       allow delete: if isUser(resource.data.creatorId);

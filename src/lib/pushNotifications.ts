@@ -641,3 +641,39 @@ export const sendPushTestToCurrentDevice = async (): Promise<PushTestResult> => 
     throw error;
   }
 };
+
+type GameEventPushPayload = {
+  tournamentId: string;
+  gameId: string;
+  eventType: 'elimination' | 'rebuy';
+  playerName: string;
+  excludeDeviceId?: string;
+};
+
+export const sendGameEventPush = async ({
+  tournamentId,
+  gameId,
+  eventType,
+  playerName,
+  excludeDeviceId,
+}: GameEventPushPayload) => {
+  try {
+    const { getFunctions, httpsCallable } = await loadFunctionsModule();
+    const functions = getFunctions(app);
+    const sendPush = httpsCallable(functions, 'sendGameEventPush');
+    
+    const result = await sendPush({
+      tournamentId,
+      gameId,
+      eventType,
+      playerName,
+      excludeDeviceId,
+      mode: getPushMode(),
+    });
+
+    return result;
+  } catch (error) {
+    console.warn('Unable to call game event push function.', error);
+    throw error;
+  }
+};
