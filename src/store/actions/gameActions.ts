@@ -13,6 +13,7 @@ export type GameActionSlice = Pick<TournamentStoreActions,
   'startGame' |
   'endGame' |
   'deleteGame' |
+  'updateGameStructure' |
   'updateBlinds' |
   'updateRebuyLevel' |
   'reopenGameAndReinstateSecond' |
@@ -28,9 +29,9 @@ export const createGameActionSlice: StateCreator<
   // Adding a Game
   addGame: async (
     tournamentId: string,
-    gameData: Pick<Game, 'startingStack' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings' | 'potContributions' | 'totalPotAmount' | 'rebuyDistributionRule'>,
-    initialBlinds: Blinds,
-    levelDuration: number,
+    gameData: Pick<Game, 'startingStack' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings' | 'potContributions' | 'totalPotAmount' | 'rebuyDistributionRule' | 'rebuyLimitMode' | 'maxRebuysPerPlayer'>,
+    blindStructure: Blinds[],
+    levelDurations: number[],
     rebuyAllowedUntilLevel: number = 2
   ) => {
     try {
@@ -47,8 +48,8 @@ export const createGameActionSlice: StateCreator<
         id: gameId,
         // Fields from gameData
         startingStack: gameData.startingStack,
-        levelDurations: [levelDuration],
-        blindStructure: [initialBlinds],
+        levelDurations: levelDurations.length > 0 ? levelDurations : [20],
+        blindStructure: blindStructure.length > 0 ? blindStructure : [{ small: 25, big: 50 }],
         players: (gameData.players || []).map(p => ({ // Sanitize players
             id: p.id,
             name: p.name,
@@ -71,7 +72,9 @@ export const createGameActionSlice: StateCreator<
         endedAt: null, // Not ended yet
         results: [], // Initialize results as empty array
         // Rebuy fields initialization
+        rebuyLimitMode: gameData.rebuyLimitMode || 'until_level',
         rebuyAllowedUntilLevel: rebuyAllowedUntilLevel,
+        maxRebuysPerPlayer: gameData.maxRebuysPerPlayer,
         totalRebuys: 0,
         rebuyAmount: tournamentData.buyin, // Set rebuy amount from tournament buyin
         rebuyDistributionRule: gameData.rebuyDistributionRule || 'cyclic_distribution', // Set rebuy distribution rule with default
@@ -215,6 +218,8 @@ export const createGameActionSlice: StateCreator<
             distributionPercentages: gameToStart.distributionPercentages ?? { first: 60, second: 25, third: 15 },
             winnings: gameToStart.winnings ?? { first: 0, second: 0, third: 0 },
             rebuyAllowedUntilLevel: gameToStart.rebuyAllowedUntilLevel ?? 2,
+            rebuyLimitMode: gameToStart.rebuyLimitMode ?? 'until_level',
+            maxRebuysPerPlayer: gameToStart.maxRebuysPerPlayer,
             totalRebuys: gameToStart.totalRebuys ?? 0,
             rebuyAmount: gameToStart.rebuyAmount ?? 0,
             results: gameToStart.results ?? [],
@@ -383,6 +388,96 @@ export const createGameActionSlice: StateCreator<
       }));
     } catch (error) {
       handleDatabaseError(error);
+    }
+  },
+
+  updateGameStructure: async (
+    tournamentId: string,
+    gameId: string,
+    blindStructure: Blinds[],
+    levelDurations: number[],
+    userId: string,
+    rebuyAllowedUntilLevel?: number,
+    rebuyLimitMode?: Game['rebuyLimitMode'],
+    maxRebuysPerPlayer?: number
+  ) => {
+    try {
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+
+      await runTransaction(db, async (transaction) => {
+        const tournamentDoc = await transaction.get(tournamentRef);
+        if (!tournamentDoc.exists()) {
+          throw new Error("Tournament not found");
+        }
+
+        const tournamentData = tournamentDoc.data() as Tournament;
+        if (!tournamentData.games) {
+          throw new Error("Tournament data or games array is missing");
+        }
+
+        const gameIndex = tournamentData.games.findIndex((g: Game) => g.id === gameId);
+        if (gameIndex === -1) {
+          throw new Error("Game not found");
+        }
+
+        const game = tournamentData.games[gameIndex];
+        if (game.status === 'ended') {
+          throw new Error("Game structure cannot be changed after the game has ended.");
+        }
+
+        const isPlayerInGame = game.players.some((p: Player) => p.id === userId);
+        if (!isPlayerInGame && tournamentData.creatorId !== userId) {
+          throw new Error("Unauthorized to update game structure.");
+        }
+
+        if (blindStructure.length === 0 || levelDurations.length === 0 || blindStructure.length !== levelDurations.length) {
+          throw new Error("Blind structure and durations must be defined for each level.");
+        }
+
+        const sanitizedBlindStructure = blindStructure.map((level, index) => {
+          const small = Math.max(1, Math.trunc(level.small));
+          const big = Math.max(small + 1, Math.trunc(level.big));
+
+          if (big <= small) {
+            throw new Error(`Invalid blinds at level ${index + 1}.`);
+          }
+
+          return { small, big };
+        });
+
+        const sanitizedDurations = levelDurations.map((duration, index) => {
+          const value = Math.max(1, Math.trunc(duration));
+          if (value <= 0) {
+            throw new Error(`Invalid duration at level ${index + 1}.`);
+          }
+          return value;
+        });
+
+        const safeCurrentLevel = Math.min(game.currentLevel, sanitizedBlindStructure.length - 1);
+        const updatedGame: Game = {
+          ...game,
+          blindStructure: sanitizedBlindStructure,
+          levelDurations: sanitizedDurations,
+          currentLevel: safeCurrentLevel,
+          ...(typeof rebuyAllowedUntilLevel === 'number' ? { rebuyAllowedUntilLevel } : {}),
+          ...(rebuyLimitMode ? { rebuyLimitMode } : {}),
+          ...(typeof maxRebuysPerPlayer === 'number' ? { maxRebuysPerPlayer } : {}),
+        };
+
+        const updatedGames = [...tournamentData.games];
+        updatedGames[gameIndex] = updatedGame;
+
+        transaction.update(tournamentRef, { games: updatedGames });
+
+        set((state) => ({
+          tournaments: state.tournaments.map((t) =>
+            t.id === tournamentId ? { ...t, games: updatedGames } : t
+          ),
+        }));
+      });
+    } catch (error) {
+      handleDatabaseError(error);
+      throw error;
     }
   },
 

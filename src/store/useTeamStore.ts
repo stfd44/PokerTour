@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, arrayUnion, arrayRemove, serverTimestamp, deleteDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db, handleDatabaseError, isCreator } from '../lib/firebase';
 import { useAuthStore } from './useAuthStore';
+import type { BlindLevel, RebuyLimitMode } from './types/tournamentTypes';
 
 // Fonction pour générer un ID unique à 4 chiffres
 const generateUniqueId = async (): Promise<string> => {
@@ -20,6 +21,17 @@ export interface PendingMember {
   addedAt: Date;
 }
 
+export interface BlindPreset {
+  id: string;
+  name: string;
+  startingStack: number;
+  levels: BlindLevel[];
+  rebuyLimitMode?: RebuyLimitMode;
+  rebuyAllowedUntilLevel: number;
+  maxRebuysPerPlayer?: number;
+  createdAt: Date;
+}
+
 export interface Team {
   id: string;
   name: string;
@@ -27,6 +39,7 @@ export interface Team {
   members: string[];
   pastMembers: string[];
   pendingMembers: PendingMember[]; // Membres ajoutés par nom, non vérifiés
+  blindPresets?: BlindPreset[];
   createdAt: Date;
   tag: string;
 }
@@ -46,6 +59,8 @@ interface TeamStore {
   joinTeamByTag: (tag: string) => Promise<void>;
   addMemberByName: (teamId: string, nickname: string) => Promise<{ name: string; verified: boolean }>;
   removePendingMember: (teamId: string, memberName: string) => Promise<void>;
+  addBlindPreset: (teamId: string, preset: Omit<BlindPreset, 'id' | 'createdAt'>) => Promise<void>;
+  deleteBlindPreset: (teamId: string, presetId: string) => Promise<void>;
 }
 
 export const useTeamStore = create<TeamStore>((set, get) => ({
@@ -95,7 +110,30 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
           name: pm.name,
           addedAt: pm.addedAt instanceof Timestamp ? pm.addedAt.toDate() : (pm.addedAt || new Date()),
         }));
-        fetchedTeams.push({ id: docSnap.id, ...data, createdAt, pendingMembers } as Team);
+        const blindPresets: BlindPreset[] = (data.blindPresets || []).map((preset: {
+          id: string;
+          name: string;
+          startingStack: number;
+          levels?: BlindLevel[];
+          blinds?: { small: number; big: number };
+          levelDuration?: number;
+          rebuyLimitMode?: RebuyLimitMode;
+          rebuyAllowedUntilLevel: number;
+          maxRebuysPerPlayer?: number;
+          createdAt?: Timestamp | Date;
+        }) => ({
+          ...preset,
+          levels: Array.isArray(preset.levels) && preset.levels.length > 0
+            ? preset.levels
+            : [{
+                blinds: preset.blinds || { small: 25, big: 50 },
+                duration: preset.levelDuration || 20,
+              }],
+          rebuyLimitMode: preset.rebuyLimitMode || 'until_level',
+          maxRebuysPerPlayer: preset.maxRebuysPerPlayer,
+          createdAt: preset.createdAt instanceof Timestamp ? preset.createdAt.toDate() : (preset.createdAt || new Date()),
+        }));
+        fetchedTeams.push({ id: docSnap.id, ...data, createdAt, pendingMembers, blindPresets } as Team);
       });
       set({ teams: fetchedTeams });
     } catch (error) {
@@ -315,6 +353,58 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
       teams: state.teams.map((team) =>
         team.id === teamId
           ? { ...team, pendingMembers: (team.pendingMembers || []).filter((pm) => pm.name !== memberName) }
+          : team
+      ),
+    }));
+  },
+  addBlindPreset: async (teamId, preset) => {
+    const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    if (!teamSnap.exists()) throw new Error('Groupe introuvable.');
+    const teamData = teamSnap.data() as Omit<Team, 'id'>;
+
+    const trimmedName = preset.name.trim();
+    if (!trimmedName) {
+      throw new Error('Le nom de la structure est requis.');
+    }
+
+    const existingPresets = teamData.blindPresets || [];
+    const alreadyExists = existingPresets.some((entry) => entry.name.trim().toLowerCase() === trimmedName.toLowerCase());
+    if (alreadyExists) {
+      throw new Error('Une structure avec ce nom existe déjà dans ce groupe.');
+    }
+
+    const newPreset: BlindPreset = {
+      ...preset,
+      name: trimmedName,
+      id: Date.now().toString(),
+      createdAt: new Date(),
+    };
+
+    const updatedBlindPresets = [...existingPresets, newPreset];
+    await updateDoc(teamRef, { blindPresets: updatedBlindPresets });
+
+    set((state) => ({
+      teams: state.teams.map((team) =>
+        team.id === teamId
+          ? { ...team, blindPresets: [...(team.blindPresets || []), newPreset] }
+          : team
+      ),
+    }));
+  },
+  deleteBlindPreset: async (teamId, presetId) => {
+    const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    if (!teamSnap.exists()) throw new Error('Groupe introuvable.');
+    const teamData = teamSnap.data() as Omit<Team, 'id'>;
+
+    const updatedBlindPresets = (teamData.blindPresets || []).filter((preset) => preset.id !== presetId);
+    await updateDoc(teamRef, { blindPresets: updatedBlindPresets });
+
+    set((state) => ({
+      teams: state.teams.map((team) =>
+        team.id === teamId
+          ? { ...team, blindPresets: (team.blindPresets || []).filter((preset) => preset.id !== presetId) }
           : team
       ),
     }));

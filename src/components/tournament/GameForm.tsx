@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTournamentStore } from '../../store/tournamentStore';
+import { useTeamStore } from '../../store/useTeamStore';
 import { UserCheck, Minus, Plus } from 'lucide-react';
-import type { Game, Player, Tournament, PotContribution } from '../../store/types/tournamentTypes';
+import type { Game, Player, Tournament, PotContribution, BlindLevel, RebuyLimitMode } from '../../store/types/tournamentTypes';
 import { calculatePrizePool, calculateWinnings } from '../../lib/utils';
 
 interface GameFormProps {
@@ -19,21 +20,28 @@ interface DistributionPercentages {
 
 interface GameFormType {
   startingStack: number;
-  blinds: {
-    small: number;
-    big: number;
-  };
-  blindLevels: number;
+  levels: BlindLevel[];
   players: Player[]; // Use Player type
 }
 
+const DEFAULT_LEVEL_COUNT = 10;
+
+const createDefaultLevels = (): BlindLevel[] => ([
+  { blinds: { small: 25, big: 50 }, duration: 20 },
+  { blinds: { small: 50, big: 100 }, duration: 20 },
+  { blinds: { small: 75, big: 150 }, duration: 20 },
+  { blinds: { small: 100, big: 200 }, duration: 20 },
+  { blinds: { small: 150, big: 300 }, duration: 20 },
+  { blinds: { small: 200, big: 400 }, duration: 20 },
+  { blinds: { small: 300, big: 600 }, duration: 20 },
+  { blinds: { small: 400, big: 800 }, duration: 20 },
+  { blinds: { small: 600, big: 1200 }, duration: 20 },
+  { blinds: { small: 800, big: 1600 }, duration: 20 },
+]);
+
 const initialGameForm: GameFormType = {
-  startingStack: 10000, // Default starting stack
-  blinds: {
-    small: 25,
-    big: 50
-  },
-  blindLevels: 20, // Default blind level duration
+  startingStack: 10000,
+  levels: createDefaultLevels(),
   players: []
 };
 
@@ -45,39 +53,102 @@ const initialPercentages: DistributionPercentages = {
 
 export function GameForm({ tournament, editingGame, tournamentId, onClose }: GameFormProps) {
   const addGame = useTournamentStore(state => state.addGame);
+  const { teams, addBlindPreset } = useTeamStore(state => ({
+    teams: state.teams,
+    addBlindPreset: state.addBlindPreset,
+  }));
   const [gameForm, setGameForm] = useState<GameFormType>(initialGameForm);
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [distributionPercentages, setDistributionPercentages] = useState<DistributionPercentages>(initialPercentages);
-  const [rebuyLevel, setRebuyLevel] = useState<number>(2); // State for rebuy level
+  const [rebuyLimitMode, setRebuyLimitMode] = useState<RebuyLimitMode>('max_per_player');
+  const [rebuyLevel, setRebuyLevel] = useState<number>(4); // State for rebuy level
+  const [maxRebuysPerPlayer, setMaxRebuysPerPlayer] = useState<number>(2);
   const [rebuyDistributionRule, setRebuyDistributionRule] = useState<'winner_takes_all' | 'cyclic_distribution'>('cyclic_distribution'); // State for rebuy distribution rule
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('');
+  const [newPresetName, setNewPresetName] = useState<string>('');
+  const [presetFeedback, setPresetFeedback] = useState<string | null>(null);
   // ADDED: State for pot management
   const [usePotSystem, setUsePotSystem] = useState<boolean>(false); // Toggle for pot system
   const [playersWhoPaidPot, setPlayersWhoPaidPot] = useState<Set<string>>(new Set()); // Players who paid to pot
 
+  const currentTeam = useMemo(
+    () => teams.find((team) => team.id === tournament.teamId),
+    [teams, tournament.teamId]
+  );
+  const blindPresets = currentTeam?.blindPresets || [];
+
   useEffect(() => {
     if (editingGame) {
-      // Adapter la nouvelle structure de données
-      const firstBlinds = editingGame.blindStructure?.[0] || { small: 25, big: 50 };
-      const firstDuration = editingGame.levelDurations?.[0] || 20;
-      
+      const existingLevels = editingGame.blindStructure.map((blinds, index) => ({
+        blinds,
+        duration: editingGame.levelDurations?.[index] || editingGame.levelDurations?.[0] || 20,
+      }));
+
       setGameForm({
         startingStack: editingGame.startingStack,
-        blinds: { ...firstBlinds },
-        blindLevels: firstDuration,
+        levels: existingLevels.length > 0 ? existingLevels : createDefaultLevels(),
         players: [...editingGame.players],
       });
       setSelectedPlayers(new Set(editingGame.players.map((p: Player) => p.id))); // Added Player type
       setDistributionPercentages(editingGame.distributionPercentages || initialPercentages);
-      setRebuyLevel(editingGame.rebuyAllowedUntilLevel ?? 2);
+      setRebuyLimitMode(editingGame.rebuyLimitMode ?? 'until_level');
+      setRebuyLevel(editingGame.rebuyAllowedUntilLevel ?? 4);
+      setMaxRebuysPerPlayer(editingGame.maxRebuysPerPlayer ?? 2);
       setRebuyDistributionRule(editingGame.rebuyDistributionRule ?? 'winner_takes_all');
     } else {
       setGameForm(initialGameForm);
       setSelectedPlayers(new Set());
       setDistributionPercentages(initialPercentages);
-      setRebuyLevel(2);
+      setRebuyLimitMode('max_per_player');
+      setRebuyLevel(4);
+      setMaxRebuysPerPlayer(2);
       setRebuyDistributionRule('cyclic_distribution');
+      setSelectedPresetId('');
+      setNewPresetName('');
+      setPresetFeedback(null);
     }
   }, [editingGame]);
+
+  const applyPreset = useCallback((presetId: string) => {
+    const preset = blindPresets.find((entry) => entry.id === presetId);
+    if (!preset) {
+      setSelectedPresetId('');
+      return;
+    }
+
+    setGameForm((prev) => ({
+      ...prev,
+      startingStack: preset.startingStack,
+      levels: preset.levels.length > 0 ? preset.levels.map((level) => ({ ...level, blinds: { ...level.blinds } })) : createDefaultLevels(),
+    }));
+    setRebuyLimitMode(preset.rebuyLimitMode || 'max_per_player');
+    setRebuyLevel(preset.rebuyAllowedUntilLevel);
+    setMaxRebuysPerPlayer(preset.maxRebuysPerPlayer ?? 2);
+    setSelectedPresetId(preset.id);
+    setPresetFeedback(`Structure "${preset.name}" appliquée.`);
+  }, [blindPresets]);
+
+  const handleSavePreset = async () => {
+    if (!tournament.teamId) {
+      setPresetFeedback("Aucun groupe n'est associé à ce tournoi.");
+      return;
+    }
+
+    try {
+      await addBlindPreset(tournament.teamId, {
+        name: newPresetName,
+        startingStack: gameForm.startingStack,
+        levels: gameForm.levels.map((level) => ({ ...level, blinds: { ...level.blinds } })),
+        rebuyLimitMode,
+        rebuyAllowedUntilLevel: rebuyLevel,
+        maxRebuysPerPlayer,
+      });
+      setNewPresetName('');
+      setPresetFeedback('Structure enregistrée dans le groupe.');
+    } catch (error) {
+      setPresetFeedback((error as Error).message);
+    }
+  };
 
   // ADDED: Calculate total pot amount (sum of buy-ins for players who paid to pot)
   const totalPotAmount = useMemo(() => {
@@ -95,6 +166,48 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
         newSet.add(playerId);
       }
       return newSet;
+    });
+  };
+
+  const updateLevelField = (index: number, field: 'small' | 'big' | 'duration', value: number) => {
+    setGameForm((prev) => ({
+      ...prev,
+      levels: prev.levels.map((level, levelIndex) => {
+        if (levelIndex !== index) {
+          return level;
+        }
+
+        if (field === 'duration') {
+          return { ...level, duration: value };
+        }
+
+        return {
+          ...level,
+          blinds: {
+            ...level.blinds,
+            [field]: value,
+          },
+        };
+      }),
+    }));
+  };
+
+  const addLevelRow = () => {
+    setGameForm((prev) => {
+      const lastLevel = prev.levels[prev.levels.length - 1] || { blinds: { small: 25, big: 50 }, duration: 20 };
+      return {
+        ...prev,
+        levels: [
+          ...prev.levels,
+          {
+            blinds: {
+              small: lastLevel.blinds.small * 2,
+              big: lastLevel.blinds.big * 2,
+            },
+            duration: lastLevel.duration,
+          },
+        ],
+      };
     });
   };
 
@@ -124,6 +237,8 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
       prizePool: prizePool,
       distributionPercentages: distributionPercentages,
       winnings: winnings,
+      rebuyLimitMode,
+      maxRebuysPerPlayer,
       rebuyDistributionRule: rebuyDistributionRule, // ADDED: Include rebuy distribution rule
       // ADDED: Include pot data if pot system is used
       ...(usePotSystem && {
@@ -138,12 +253,27 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
       alert('La modification de parties existantes n\'est pas encore disponible');
       return;
     } else {
+      const sanitizedLevels = gameForm.levels
+        .map((level) => ({
+          blinds: {
+            small: Math.max(1, level.blinds.small),
+            big: Math.max(level.blinds.small + 1, level.blinds.big),
+          },
+          duration: Math.max(1, level.duration),
+        }))
+        .filter((level) => level.blinds.big > level.blinds.small);
+
+      if (sanitizedLevels.length < DEFAULT_LEVEL_COUNT) {
+        alert(`Veuillez définir au moins ${DEFAULT_LEVEL_COUNT} niveaux de blindes.`);
+        return;
+      }
+
       addGame(
         tournamentId!,
         gameData,
-        gameForm.blinds, // Blinds initiaux
-        gameForm.blindLevels, // Durée du niveau
-        rebuyLevel // Niveau de rebuy autorisé
+        sanitizedLevels.map((level) => level.blinds),
+        sanitizedLevels.map((level) => level.duration),
+        rebuyLimitMode === 'until_level' ? rebuyLevel : 999
       );
     }
     onClose();
@@ -171,6 +301,11 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
     }
     return calculateWinnings(prizePool, distributionPercentages);
   }, [prizePool, distributionPercentages, selectedPlayers.size]);
+
+  const hasInvalidLevels = useMemo(
+    () => gameForm.levels.some((level) => level.blinds.small <= 0 || level.blinds.big <= level.blinds.small || level.duration <= 0),
+    [gameForm.levels]
+  );
 
   const adjustPercentage = useCallback((place: keyof DistributionPercentages, adjustment: number) => {
     setDistributionPercentages(prev => {
@@ -227,6 +362,53 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
     <div className="space-y-6">
       <form onSubmit={handleCreateGame} className="space-y-6 pb-4">
         <div>
+          <label htmlFor="blindPreset" className="block text-sm font-medium text-gray-700 mb-1">
+            Structure prédéfinie du groupe
+          </label>
+          <select
+            id="blindPreset"
+            value={selectedPresetId}
+            onChange={(e) => applyPreset(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+          >
+            <option value="">Choisir une structure enregistrée</option>
+            {blindPresets.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.name} - {preset.levels.length} niveaux
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500 mt-1">
+            La structure est sélectionnée pour ce tournoi, mais elle est mémorisée au niveau du groupe.
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+          <label htmlFor="presetName" className="block text-sm font-medium text-gray-700">
+            Enregistrer la configuration actuelle comme structure du groupe
+          </label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              id="presetName"
+              value={newPresetName}
+              onChange={(e) => setNewPresetName(e.target.value)}
+              placeholder="Ex: Standard 25/50 - 20 min"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+            />
+            <button
+              type="button"
+              onClick={handleSavePreset}
+              disabled={!newPresetName.trim()}
+              className="px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Enregistrer
+            </button>
+          </div>
+          {presetFeedback && <p className="text-xs text-gray-600">{presetFeedback}</p>}
+        </div>
+
+        <div>
           <label htmlFor="startingStack" className="block text-sm font-medium text-gray-700 mb-1">
             Stack de départ
           </label>
@@ -245,86 +427,141 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="smallBlind" className="block text-sm font-medium text-gray-700 mb-1">
-              Petite blind
-            </label>
-            <input
-              type="number"
-              id="smallBlind"
-              value={gameForm.blinds.small}
-              onChange={(e) => setGameForm(prev => ({
-                ...prev,
-                blinds: {
-                  ...prev.blinds,
-                  small: parseInt(e.target.value)
-                }
-              }))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
-              min="5"
-              step="5"
-              required
-            />
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Structure complète des blindes
+              </label>
+              <p className="text-xs text-gray-500">
+                Définissez au moins 10 niveaux à l'avance pour gérer une progression non linéaire.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={addLevelRow}
+              className="px-3 py-2 text-sm bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+            >
+              Ajouter un niveau
+            </button>
           </div>
 
-          <div>
-            <label htmlFor="bigBlind" className="block text-sm font-medium text-gray-700 mb-1">
-              Grosse blind
-            </label>
-            <input
-              type="number"
-              id="bigBlind"
-              value={gameForm.blinds.big}
-              onChange={(e) => setGameForm(prev => ({
-                ...prev,
-                blinds: {
-                  ...prev.blinds,
-                  big: parseInt(e.target.value)
-                }
-              }))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
-              min="10"
-              step="10"
-              required
-            />
+          <div className="overflow-x-auto border border-gray-200 rounded-lg">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50 text-gray-700">
+                <tr>
+                  <th className="px-3 py-2 text-left">Niveau</th>
+                  <th className="px-3 py-2 text-left">Petite blind</th>
+                  <th className="px-3 py-2 text-left">Grosse blind</th>
+                  <th className="px-3 py-2 text-left">Durée</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gameForm.levels.map((level, index) => (
+                  <tr key={index} className="border-t border-gray-100">
+                    <td className="px-3 py-2 font-medium text-gray-700">{index + 1}</td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        value={level.blinds.small}
+                        onChange={(e) => updateLevelField(index, 'small', parseInt(e.target.value, 10) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+                        min="1"
+                        step="1"
+                        required
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        value={level.blinds.big}
+                        onChange={(e) => updateLevelField(index, 'big', parseInt(e.target.value, 10) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+                        min="2"
+                        step="1"
+                        required
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        value={level.duration}
+                        onChange={(e) => updateLevelField(index, 'duration', parseInt(e.target.value, 10) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+                        min="1"
+                        step="1"
+                        required
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+          {gameForm.levels.length < DEFAULT_LEVEL_COUNT && (
+            <p className="text-xs text-amber-600">
+              Il manque encore {DEFAULT_LEVEL_COUNT - gameForm.levels.length} niveau(x) pour atteindre le minimum recommandé de 10.
+            </p>
+          )}
         </div>
 
-        <div>
-          <label htmlFor="blindLevels" className="block text-sm font-medium text-gray-700 mb-1">
-            Durée des niveaux (minutes)
-          </label>
-          <input
-            type="number"
-            id="blindLevels"
-            value={gameForm.blindLevels}
-            onChange={(e) => setGameForm(prev => ({
-              ...prev,
-              blindLevels: parseInt(e.target.value)
-            }))}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
-            min="5"
-            step="5"
-            required
-          />
-        </div>
+        <div className="space-y-3">
+          <div>
+            <label htmlFor="rebuyLimitMode" className="block text-sm font-medium text-gray-700 mb-1">
+              Mode de limitation des recaves
+            </label>
+            <select
+              id="rebuyLimitMode"
+              value={rebuyLimitMode}
+              onChange={(e) => {
+                const nextMode = e.target.value as RebuyLimitMode;
+                setRebuyLimitMode(nextMode);
+                if (nextMode === 'until_level' && (!rebuyLevel || rebuyLevel >= 999)) {
+                  setRebuyLevel(4);
+                }
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+            >
+              <option value="max_per_player">Nombre max de recaves par joueur</option>
+              <option value="until_level">Jusqu'au niveau</option>
+            </select>
+          </div>
 
-        <div>
-          <label htmlFor="rebuyLevel" className="block text-sm font-medium text-gray-700 mb-1">
-            Rebuy autorisé jusqu'au niveau (inclus)
-          </label>
-          <input
-            type="number"
-            id="rebuyLevel"
-            value={rebuyLevel}
-            onChange={(e) => setRebuyLevel(Math.max(0, parseInt(e.target.value)))}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
-            min="0"
-            step="1"
-            required
-          />
-           <p className="text-xs text-gray-500 mt-1">Niveau 0 = pas de rebuy après le début. Niveau 2 (défaut) = rebuy possible pendant niveaux 1 et 2.</p>
+          {rebuyLimitMode === 'max_per_player' ? (
+            <div>
+              <label htmlFor="maxRebuysPerPlayer" className="block text-sm font-medium text-gray-700 mb-1">
+                Nombre max de recaves par joueur
+              </label>
+              <input
+                type="number"
+                id="maxRebuysPerPlayer"
+                value={maxRebuysPerPlayer}
+                onChange={(e) => setMaxRebuysPerPlayer(Math.max(0, parseInt(e.target.value) || 0))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+                min="0"
+                step="1"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">0 = aucune recave. 1 = une seule recave maximum par joueur.</p>
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="rebuyLevel" className="block text-sm font-medium text-gray-700 mb-1">
+                Recave autorisée jusqu'au niveau (inclus)
+              </label>
+              <input
+                type="number"
+                id="rebuyLevel"
+                value={rebuyLevel}
+                onChange={(e) => setRebuyLevel(Math.max(0, parseInt(e.target.value) || 0))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+                min="0"
+                step="1"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">Niveau 0 = pas de recave après le début. Niveau 2 = recave possible pendant les niveaux 1 et 2.</p>
+            </div>
+          )}
         </div>
 
         <div>
@@ -515,7 +752,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
           </button>
           <button
             type="submit"
-            disabled={selectedPlayers.size < 2}
+            disabled={selectedPlayers.size < 2 || gameForm.levels.length < DEFAULT_LEVEL_COUNT || hasInvalidLevels}
             className="w-full sm:w-auto bg-poker-red text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {editingGame ? 'Mettre à jour' : 'Créer la partie'}

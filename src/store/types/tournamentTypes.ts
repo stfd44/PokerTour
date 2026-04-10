@@ -15,6 +15,13 @@ export interface Blinds {
   big: number;
 }
 
+export interface BlindLevel {
+  blinds: Blinds;
+  duration: number;
+}
+
+export type RebuyLimitMode = 'until_level' | 'max_per_player';
+
 // ADDED: Interface for pot contributions by players
 export interface PotContribution {
   playerId: string;
@@ -57,7 +64,9 @@ export interface Game {
   winnings?: { first: number; second: number; third: number };
   results?: PlayerResult[]; // ADDED: Stores results for all players
   // Rebuy fields
+  rebuyLimitMode?: RebuyLimitMode;
   rebuyAllowedUntilLevel: number; // Max level for rebuys (e.g., 2)
+  maxRebuysPerPlayer?: number;
   totalRebuys: number; // Count of rebuys made
   rebuyAmount: number; // Cost of one rebuy (usually tournament buyin)
   rebuyDistributionRule: 'winner_takes_all' | 'cyclic_distribution'; // ADDED: Distribution rule for rebuys
@@ -149,9 +158,9 @@ export interface TournamentStoreActions {
   removeGuestFromTournament: (tournamentId: string, guestName: string, userId: string) => Promise<void>;
   addGame: (
     tournamentId: string,
-    gameData: Pick<Game, 'startingStack' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings' | 'potContributions' | 'totalPotAmount' | 'rebuyDistributionRule'>,
-    initialBlinds: Blinds,
-    levelDuration: number,
+    gameData: Pick<Game, 'startingStack' | 'players' | 'tournamentId' | 'prizePool' | 'distributionPercentages' | 'winnings' | 'potContributions' | 'totalPotAmount' | 'rebuyDistributionRule' | 'rebuyLimitMode' | 'maxRebuysPerPlayer'>,
+    blindStructure: Blinds[],
+    levelDurations: number[],
     rebuyAllowedUntilLevel?: number
   ) => Promise<void>;
   // updateGame: (tournamentId: string, gameId: string, gameData: Partial<Game>) => Promise<void>;
@@ -168,6 +177,16 @@ export interface TournamentStoreActions {
   startGame: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
   endGame: (tournamentId: string, gameId: string) => Promise<void>;
   deleteGame: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
+  updateGameStructure: (
+    tournamentId: string,
+    gameId: string,
+    blindStructure: Blinds[],
+    levelDurations: number[],
+    userId: string,
+    rebuyAllowedUntilLevel?: number,
+    rebuyLimitMode?: RebuyLimitMode,
+    maxRebuysPerPlayer?: number
+  ) => Promise<void>;
   updateBlinds: (tournamentId: string, gameId: string, newBlinds: Blinds, userId: string) => Promise<void>;
   pauseTimer: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
   resumeTimer: (tournamentId: string, gameId: string, userId: string) => Promise<void>;

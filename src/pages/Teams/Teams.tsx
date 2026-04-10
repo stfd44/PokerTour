@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTeamStore, Team } from '../../store/useTeamStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Trash2, UserPlus, UserMinus, LogIn, Users, UserSearch, X, Hash, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Trash2, UserPlus, UserMinus, LogIn, Users, UserSearch, X, Hash, ShieldAlert, ShieldCheck, Layers } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
 const Teams: React.FC = () => {
   const { user } = useAuthStore();
-  const { teams, createTeam, fetchTeams, leaveTeam, joinTeam, deleteTeam, joinTeamByTag, addMemberByName, removePendingMember } = useTeamStore();
+  const { teams, createTeam, fetchTeams, leaveTeam, joinTeam, deleteTeam, joinTeamByTag, addMemberByName, removePendingMember, deleteBlindPreset } = useTeamStore();
   const [newTeamName, setNewTeamName] = useState('');
   const [joinTag, setJoinTag] = useState('');
   const [joinMessage, setJoinMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -184,6 +184,15 @@ const Teams: React.FC = () => {
       console.error('Error removing pending member:', error);
     } finally {
       setConfirmRemovePending(null);
+    }
+  };
+
+  const handleDeleteBlindPreset = async (teamId: string, presetId: string) => {
+    try {
+      await deleteBlindPreset(teamId, presetId);
+    } catch (error) {
+      console.error('Error deleting blind preset:', error);
+      alert((error as Error).message);
     }
   };
 
@@ -386,6 +395,41 @@ const Teams: React.FC = () => {
                         </ul>
                       </div>
                     </>
+                  )}
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <h4 className="text-sm font-semibold mb-3 flex items-center text-gray-700">
+                    <Layers className="w-4 h-4 mr-1.5 text-gray-400" />
+                    Structures de blindes ({team.blindPresets?.length || 0})
+                  </h4>
+
+                  {team.blindPresets && team.blindPresets.length > 0 ? (
+                    <ul className="space-y-2">
+                      {team.blindPresets.map((preset) => (
+                        <li key={preset.id} className="flex items-center justify-between gap-3 text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-800 truncate">{preset.name}</p>
+                            <p className="text-xs text-gray-500">
+                              Stack {preset.startingStack.toLocaleString()} | {preset.levels.length} niveaux | Départ {preset.levels[0]?.blinds.small}/{preset.levels[0]?.blinds.big} | Rebuy jusqu'au niveau {preset.rebuyAllowedUntilLevel}
+                            </p>
+                          </div>
+                          {isCreatorOfTeam && (
+                            <button
+                              onClick={() => handleDeleteBlindPreset(team.id, preset.id)}
+                              title="Supprimer cette structure"
+                              className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      Aucune structure enregistrée. Vous pourrez en créer directement depuis la création d'une partie de tournoi.
+                    </p>
                   )}
                 </div>
               </li>

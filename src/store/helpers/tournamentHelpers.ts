@@ -51,6 +51,7 @@ export function cleanGameForFirestore(game: Game): Game {
     cleanedGame.isPaused = cleanedGame.isPaused ?? false;
     cleanedGame.remainingTimeOnPause = cleanedGame.remainingTimeOnPause ?? null;
     cleanedGame.status = cleanedGame.status ?? 'pending';
+    cleanedGame.rebuyLimitMode = cleanedGame.rebuyLimitMode ?? 'until_level';
 
 
     return cleanedGame;

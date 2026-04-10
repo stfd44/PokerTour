@@ -115,15 +115,25 @@ export const createPlayerActionSlice: StateCreator<
       if (game.status !== 'in_progress') {
         throw new Error("Game is not in progress.");
       }
-      if (game.currentLevel >= game.rebuyAllowedUntilLevel) { // Use >= because levels are 0-indexed, level 2 means until *end* of level 2
-        throw new Error(`Rebuys are only allowed up to level ${game.rebuyAllowedUntilLevel}. Current level: ${game.currentLevel + 1}.`);
-      }
       const playerIndex = game.players.findIndex((p: Player) => p.id === playerId);
       if (playerIndex === -1) {
         throw new Error("Player not found in this game.");
       }
       if (!game.players[playerIndex].eliminated) {
         throw new Error("Player is not eliminated.");
+      }
+      const player = game.players[playerIndex];
+      const rebuyLimitMode = game.rebuyLimitMode || 'until_level';
+      if (rebuyLimitMode === 'until_level') {
+        if (game.currentLevel >= game.rebuyAllowedUntilLevel) {
+          throw new Error(`Les recaves sont autorisées jusqu'à la fin du niveau ${game.rebuyAllowedUntilLevel}. Niveau actuel : ${game.currentLevel + 1}.`);
+        }
+      } else {
+        const maxRebuysPerPlayer = game.maxRebuysPerPlayer ?? 0;
+        const playerRebuys = player.rebuysMade || 0;
+        if (playerRebuys >= maxRebuysPerPlayer) {
+          throw new Error(`Ce joueur a déjà atteint la limite de ${maxRebuysPerPlayer} recave(s).`);
+        }
       }
       // --- End Validation ---
 
