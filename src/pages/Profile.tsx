@@ -5,10 +5,12 @@ import {
   enablePushNotifications,
   getLastTimerPushStatus,
   getPushDebugState,
+  getPushNotificationPermission,
   removePushRegistration,
   sendPushTestToCurrentDevice,
   type PushDebugState,
 } from '../lib/pushNotifications';
+import { Bell, BellOff, Settings, Info } from 'lucide-react';
 
 type FirebaseLikeError = Error & {
   code?: string;
@@ -28,6 +30,7 @@ const Profile: React.FC = () => {
   const [isRunningPushTest, setIsRunningPushTest] = useState<boolean>(false);
   const [isSendingPushNotificationTest, setIsSendingPushNotificationTest] = useState<boolean>(false);
   const [lastTimerPushMessage, setLastTimerPushMessage] = useState<string | null>(null);
+  const [isTogglingNotifications, setIsTogglingNotifications] = useState<boolean>(false);
 
   // Initialize nickname input when user data is available
   useEffect(() => {
@@ -37,7 +40,7 @@ const Profile: React.FC = () => {
   }, [user?.nickname]);
 
   useEffect(() => {
-    if (!user?.isDev || !user.uid) {
+    if (!user?.uid) {
       setPushDebugState(null);
       return;
     }
@@ -75,7 +78,7 @@ const Profile: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [user?.isDev, user?.uid]);
+  }, [user?.uid]);
 
   // Removed useEffect for fetching tournament/team data as it's no longer needed here
 
@@ -251,6 +254,38 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleToggleNotifications = async () => {
+    if (!user?.uid || isTogglingNotifications) return;
+
+    setIsTogglingNotifications(true);
+    try {
+      const isEnabled = Boolean(pushDebugState?.subscriptionFound && pushDebugState?.firestoreDeviceDocFound);
+      
+      if (isEnabled) {
+        await removePushRegistration(user.uid);
+      } else {
+        const result = await enablePushNotifications(user.uid);
+        if (!result.ok) {
+          const messageByReason: Record<string, string> = {
+            unsupported: "Le web push n'est pas pris en charge sur cet appareil.",
+            not_configured: "La clé web push n'est pas configurée.",
+            permission_denied: "Les notifications sont bloquées dans votre navigateur.",
+            permission_not_granted: "Permission non accordée.",
+          };
+          setPushTestMessage(messageByReason[result.reason ?? ''] ?? "Échec de l'activation des notifications.");
+        }
+      }
+      
+      // Refresh state
+      const nextState = await getPushDebugState(user.uid);
+      setPushDebugState(nextState);
+    } catch (error) {
+      console.error('Error toggling notifications:', error);
+    } finally {
+      setIsTogglingNotifications(false);
+    }
+  };
+
   // Removed statistics calculation logic (useMemo hook)
 
   // Simplified isLoading logic: only rely on authLoading
@@ -296,6 +331,68 @@ const Profile: React.FC = () => {
             {saveMessage}
           </p>
         )}
+      </div>
+
+      {/* Notifications Section */}
+      <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Bell className="w-6 h-6 text-poker-blue" />
+            <h2 className="text-xl font-semibold text-poker-black">Notifications Push</h2>
+          </div>
+          {/* Toggle Switch */}
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input 
+              type="checkbox" 
+              className="sr-only peer"
+              checked={Boolean(pushDebugState?.subscriptionFound && pushDebugState?.firestoreDeviceDocFound)}
+              onChange={handleToggleNotifications}
+              disabled={isTogglingNotifications || !user?.uid}
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-poker-blue/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-poker-blue"></div>
+          </label>
+        </div>
+
+        <p className="text-gray-600 mb-4 text-sm">
+          Recevez des alertes en temps réel pour les fins de niveaux et les événements importants de vos tournois.
+        </p>
+
+        {/* Status Info */}
+        <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-gray-100">
+          <div className="flex items-center text-sm">
+            <span className="text-gray-500 mr-2">État :</span>
+            {isTogglingNotifications ? (
+              <span className="text-poker-blue animate-pulse">Mise à jour...</span>
+            ) : pushDebugState?.subscriptionFound && pushDebugState?.firestoreDeviceDocFound ? (
+              <span className="text-green-600 font-medium flex items-center">
+                <Bell className="w-4 h-4 mr-1" /> Activées sur cet appareil
+              </span>
+            ) : (
+              <span className="text-gray-500 flex items-center">
+                <BellOff className="w-4 h-4 mr-1" /> Désactivées
+              </span>
+            )}
+          </div>
+          
+          {pushDebugState?.permission === 'denied' && (
+            <div className="flex items-start bg-red-50 p-3 rounded text-red-700 text-xs mt-2 font-medium">
+              <Info className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+              <p>
+                Les notifications sont bloquées par votre navigateur. 
+                Veuillez les autoriser dans les paramètres du site pour les activer.
+              </p>
+            </div>
+          )}
+          
+          {pushDebugState && !pushDebugState.standalone && /iPhone|iPad|iPod/.test(navigator.userAgent) && (
+            <div className="flex items-start bg-blue-50 p-3 rounded text-blue-700 text-xs mt-2">
+              <Info className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+              <p>
+                Sur iPhone, ajoutez l'application à votre écran d'accueil pour pouvoir recevoir des notifications.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Developer Section - Conditionally Rendered */}

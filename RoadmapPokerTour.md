@@ -4,7 +4,7 @@ Ce document liste les évolutions prévues pour l'application PokerTour, classé
 
 ## 👤 Authentification & Profil
 - [ ] **Changement d'utilisateur simplifié** : Permettre de basculer facilement entre les comptes via la connexion Google.
-- [ ] **Gestion des notifications** : Ajouter un commutateur dans le menu profil pour activer/désactiver le système de notifications.
+- [x] **Gestion des notifications** : Ajouter un commutateur dans le menu profil pour activer/désactiver le système de notifications.
 
 ## 🏆 Gestion des Tournois & Équipes
 - [x] **Invitation d'équipe à la création / édition** : Possibilité d'inclure les membres de son équipe de manière fluide (interface unifiée et sans sauts visuels terminée).
