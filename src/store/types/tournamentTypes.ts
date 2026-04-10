@@ -153,7 +153,7 @@ export interface TournamentStoreActions {
   unregisterFromTournament: (tournamentId: string, userId: string) => Promise<void>;
   removeMemberFromTournament: (tournamentId: string, memberId: string, userId: string) => Promise<void>;
   startTournament: (tournamentId: string, userId: string) => Promise<void>;
-  endTournament: (tournamentId: string) => Promise<void>;
+  endTournament: (tournamentId: string, userId: string) => Promise<void>;
   addGuestToTournament: (tournamentId: string, guestName: string, userId: string) => Promise<void>;
   removeGuestFromTournament: (tournamentId: string, guestName: string, userId: string) => Promise<void>;
   addGame: (

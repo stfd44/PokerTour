@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "install-hooks": "node scripts/install-hooks.js",
     "update-version": "node scripts/update-version.js",
-    "postinstall": "npm run install-hooks"
+    "postinstall": "npm run install-hooks",
+    "deploy:rules:prod": "firebase deploy -P default --only firestore:rules",
+    "deploy:rules:dev": "firebase deploy -P dev --config firebase.dev.json --only firestore:rules"
   },
   "dependencies": {
     "clsx": "^2.1.0",

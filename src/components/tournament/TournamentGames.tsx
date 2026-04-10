@@ -127,7 +127,7 @@ export function TournamentGames() {
     if (!tournamentId || !user?.uid) return;
     setShowConfirmEndTournament(false);
     try {
-      await endTournamentAction(tournamentId);
+      await endTournamentAction(tournamentId, user.uid);
     } catch (error) {
       console.error("Error ending tournament from component:", error);
     }

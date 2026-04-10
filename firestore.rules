@@ -17,6 +17,12 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['games', 'registrations']);
     }
 
+    function allowedTournamentEnding() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+        resource.data.status != 'ended' &&
+        request.resource.data.status == 'ended';
+    }
+
     // --- Rules ---
     match /teams/{teamId} {
       allow create: if isAuth();
@@ -34,7 +40,9 @@ service cloud.firestore {
         isUser(resource.data.creatorId) ||
         // Rule 2: Any authenticated user can modify ONLY the 'games' and/or 'registrations' array.
         // This keeps tournament metadata protected while allowing synced game actions and registrations.
-        allowedNonCreatorFieldsChanged()
+        allowedNonCreatorFieldsChanged() ||
+        // Rule 3: Any authenticated user can only mark a tournament as ended.
+        allowedTournamentEnding()
       );
       
       allow delete: if isUser(resource.data.creatorId);

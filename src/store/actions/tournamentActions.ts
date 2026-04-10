@@ -244,13 +244,27 @@ export const createTournamentActionSlice: StateCreator<
   },
 
   // Ending a Tournament
-  endTournament: async (tournamentId) => {
+  endTournament: async (tournamentId, userId) => {
     try {
       const tournamentRef = doc(db, "tournaments", tournamentId);
-      // Verify user is the creator before updating
-      // if (!await isCreator(tournamentRef, userId)) {
-      //   throw new Error("You are not authorized to end this tournament.");
-      // }
+      const tournamentDoc = await getDoc(tournamentRef);
+      if (!tournamentDoc.exists()) {
+        throw new Error("Tournament not found");
+      }
+
+      const tournamentData = tournamentDoc.data() as Tournament;
+      const isConfirmedParticipant = tournamentData.registrations.some(
+        player => player.id === userId && player.status !== 'invited'
+      );
+
+      if (!isConfirmedParticipant) {
+        throw new Error("Only confirmed participants can end this tournament.");
+      }
+
+      if (tournamentData.status === 'ended') {
+        return;
+      }
+
       // Update status in Firestore
       await updateDoc(tournamentRef, {
         status: 'ended',
