@@ -622,25 +622,21 @@ export const createGameActionSlice: StateCreator<
           throw new Error("Game must be ended to reopen it.");
         }
 
-        // Find the second player (the one with eliminated: true and the highest eliminationTime)
-        // Ensure we filter those who actually have an elimination time.
+        // Find eliminated players to potentially reinstate someone
         const eliminatedPlayers = game.players
           .filter((p: Player) => p.eliminated && p.eliminationTime)
           .sort((a: Player, b: Player) => (b.eliminationTime || 0) - (a.eliminationTime || 0));
 
-        if (eliminatedPlayers.length === 0) {
-          throw new Error("No eliminated player found to reinstate.");
+        // Reinstate the last eliminated player if any
+        let updatedPlayers = game.players;
+        if (eliminatedPlayers.length > 0) {
+          const lastEliminated = eliminatedPlayers[0];
+          updatedPlayers = game.players.map((p: Player) => 
+            p.id === lastEliminated.id 
+              ? { ...p, eliminated: false, eliminationTime: null }
+              : p
+          );
         }
-
-        // The first one in this sorted list (last to be eliminated) is our "2nd" player
-        const secondPlayer = eliminatedPlayers[0];
-
-        // Reinstate this player
-        const updatedPlayers = game.players.map((p: Player) => 
-          p.id === secondPlayer.id 
-            ? { ...p, eliminated: false, eliminationTime: null }
-            : p
-        );
 
         // Reset game data
         const updatedGameData = cleanGameForFirestore({

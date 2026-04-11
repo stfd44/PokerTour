@@ -56,6 +56,9 @@ export function GameSummary({ game }: GameSummaryProps) {
   ];
 
   const remainingPlayersCount = rankedPlayers.filter(p => !p.eliminated).length;
+  const lastEliminated = game.players
+    .filter((p: Player) => p.eliminated && p.eliminationTime)
+    .sort((a: Player, b: Player) => (b.eliminationTime || 0) - (a.eliminationTime || 0))[0];
 
   const handleReopenGame = async () => {
     setIsReopening(true);
@@ -92,13 +95,13 @@ export function GameSummary({ game }: GameSummaryProps) {
         <h2 className="text-2xl font-bold text-poker-black">Résumé de la partie</h2>
 
         <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-          {user && remainingPlayersCount > 1 && tournament?.status !== 'ended' && (
+          {user && tournament?.status !== 'ended' && (
             <button
               onClick={() => setShowConfirmReopen(true)}
               className="flex items-center rounded-md bg-blue-100 px-3 py-2 text-sm text-blue-700 transition-colors hover:bg-blue-200"
             >
               <RotateCcw className="mr-2 h-4 w-4" />
-              Pardonner le 2ème (Réouvrir)
+              {lastEliminated ? 'Pardonner le 2ème (Réouvrir)' : 'Réouvrir la partie'}
             </button>
           )}
 
@@ -212,9 +215,15 @@ export function GameSummary({ game }: GameSummaryProps) {
           <div className="mx-auto w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
             <h3 className="mb-2 text-lg font-bold text-gray-900">Réouvrir la partie ?</h3>
             <p className="mb-6 flex flex-col gap-2 text-gray-600">
-              <span>Voulez-vous vraiment réouvrir cette partie et réintégrer le dernier joueur éliminé (le 2ème) ?</span>
+              {lastEliminated ? (
+                <span>
+                  Voulez-vous vraiment réouvrir cette partie et réintégrer <strong>{lastEliminated.nickname || lastEliminated.name}</strong> (le dernier éliminé) ?
+                </span>
+              ) : (
+                <span>Voulez-vous vraiment réouvrir cette partie ? Les joueurs classés seront remis en jeu.</span>
+              )}
               <span className="rounded bg-orange-50 p-2 text-sm font-medium text-orange-800">
-                ⚠️ Cela annulera la fin de partie et supprimera les gains calculés. Le chronomètre reprendra.
+                ⚠️ Cela annulera la fin de partie et supprimera les gains calculés. Le chronomètre reprendra au moment où il a été arrêté.
               </span>
             </p>
             <div className="flex justify-end gap-3">
