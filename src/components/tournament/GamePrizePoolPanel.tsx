@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { DollarSign, Minus, Plus } from 'lucide-react';
 import type { Game, Tournament, PotContribution } from '../../store/types/tournamentTypes';
 import { calculateWinnings } from '../../lib/utils';
@@ -8,25 +8,51 @@ import { useTournamentStore } from '../../store/tournamentStore';
 interface GamePrizePoolPanelProps {
   game: Game;
   tournament: Tournament;
+  canManageGame: boolean;
   onClose: () => void;
 }
 
-export function GamePrizePoolPanel({ game, tournament, onClose }: GamePrizePoolPanelProps) {
+function normalizeDistributionPercentages(percentages?: { first?: number; second?: number; third?: number }) {
+  const rawFirst = Math.max(0, Math.trunc(percentages?.first ?? 60));
+  const rawSecond = Math.max(0, Math.trunc(percentages?.second ?? 25));
+  const rawThird = Math.max(0, Math.trunc(percentages?.third ?? 15));
+
+  const first = Math.min(rawFirst, 100);
+  const remainingAfterFirst = 100 - first;
+  const second = Math.min(rawSecond, remainingAfterFirst);
+  const remainingAfterSecond = remainingAfterFirst - second;
+  const third = Math.min(rawThird, remainingAfterSecond);
+  const remainder = 100 - (first + second + third);
+
+  return {
+    first,
+    second,
+    third: third + remainder,
+  };
+}
+
+export function GamePrizePoolPanel({ game, tournament, canManageGame, onClose }: GamePrizePoolPanelProps) {
   const updateGamePrizeSettings = useTournamentStore(state => state.updateGamePrizeSettings);
   // We can add actual updating logic here later. For now, it displays current settings
   // and allows local edits in the form.
   const [prizePool, setPrizePool] = useState(game.prizePool?.toString() || '0');
-  const [distributionPercentages, setDistributionPercentages] = useState<{first: number, second: number, third: number}>({
-    first: game.distributionPercentages?.first || 60,
-    second: game.distributionPercentages?.second || 25,
-    third: game.distributionPercentages?.third || 15
-  });
+  const [distributionPercentages, setDistributionPercentages] = useState<{first: number, second: number, third: number}>(
+    normalizeDistributionPercentages(game.distributionPercentages)
+  );
   const [rebuyRule, setRebuyRule] = useState<'winner_takes_all' | 'cyclic_distribution'>(game.rebuyDistributionRule || 'winner_takes_all');
 
   const [usePotSystem, setUsePotSystem] = useState<boolean>(game.potContributions !== undefined);
   const [playersWhoPaidPot, setPlayersWhoPaidPot] = useState<Set<string>>(
     new Set((game.potContributions || []).filter(c => c.amount > 0).map(c => c.playerId))
   );
+
+  useEffect(() => {
+    setPrizePool(game.prizePool?.toString() || '0');
+    setDistributionPercentages(normalizeDistributionPercentages(game.distributionPercentages));
+    setRebuyRule(game.rebuyDistributionRule || 'winner_takes_all');
+    setUsePotSystem(game.potContributions !== undefined);
+    setPlayersWhoPaidPot(new Set((game.potContributions || []).filter(c => c.amount > 0).map(c => c.playerId)));
+  }, [game]);
 
   const totalPotAmount = useMemo(() => {
     if (!usePotSystem) return 0;
@@ -52,52 +78,40 @@ export function GamePrizePoolPanel({ game, tournament, onClose }: GamePrizePoolP
 
   const adjustPercentage = useCallback((place: 'first' | 'second' | 'third', adjustment: number) => {
     setDistributionPercentages(prev => {
-        const currentPercentages = { ...prev };
-        const currentValue = currentPercentages[place];
-        const newValue = currentValue + adjustment;
+      const next = { ...prev };
+      const otherPlaces = (['first', 'second', 'third'] as const).filter((entry) => entry !== place);
+      const proposed = next[place] + adjustment;
 
-        if (newValue < 0 || newValue > 100) return currentPercentages;
-
-        let adjustmentApplied = false;
-        if (adjustment > 0) {
-            if (place === 'first') {
-                if (currentPercentages.second >= adjustment) { currentPercentages.second -= adjustment; adjustmentApplied = true; }
-                else if (currentPercentages.third >= adjustment) { currentPercentages.third -= adjustment; adjustmentApplied = true; }
-            } else if (place === 'second') {
-                if (currentPercentages.third >= adjustment) { currentPercentages.third -= adjustment; adjustmentApplied = true; }
-                else if (currentPercentages.first >= adjustment) { currentPercentages.first -= adjustment; adjustmentApplied = true; }
-            } else {
-                if (currentPercentages.first >= adjustment) { currentPercentages.first -= adjustment; adjustmentApplied = true; }
-                else if (currentPercentages.second >= adjustment) { currentPercentages.second -= adjustment; adjustmentApplied = true; }
-            }
-        } else {
-             const increase = -adjustment;
-             if (place === 'first') {
-                 currentPercentages.second += increase; adjustmentApplied = true;
-             } else if (place === 'second') {
-                 currentPercentages.third += increase; adjustmentApplied = true;
-             } else {
-                 currentPercentages.first += increase; adjustmentApplied = true;
-             }
-        }
-
-        if (adjustmentApplied) {
-            currentPercentages[place] = newValue;
-            const sum = currentPercentages.first + currentPercentages.second + currentPercentages.third;
-            if (sum !== 100) {
-                 if (adjustment > 0) {
-                    if (place === 'first') currentPercentages.second += (100 - sum);
-                    else if (place === 'second') currentPercentages.third += (100 - sum);
-                    else currentPercentages.first += (100 - sum);
-                 } else {
-                    if (place === 'first') currentPercentages.second += (100 - sum);
-                    else if (place === 'second') currentPercentages.third += (100 - sum);
-                    else currentPercentages.first += (100 - sum);
-                 }
-            }
-            return currentPercentages;
-        }
+      if (proposed < 0 || proposed > 100) {
         return prev;
+      }
+
+      if (adjustment > 0) {
+        let remainingToRemove = adjustment;
+
+        for (const otherPlace of otherPlaces) {
+          if (remainingToRemove <= 0) break;
+          const removable = Math.min(next[otherPlace], remainingToRemove);
+          next[otherPlace] -= removable;
+          remainingToRemove -= removable;
+        }
+
+        if (remainingToRemove > 0) {
+          return prev;
+        }
+      } else if (adjustment < 0) {
+        const increase = Math.abs(adjustment);
+        const baseShare = Math.floor(increase / otherPlaces.length);
+        let remainder = increase % otherPlaces.length;
+
+        otherPlaces.forEach((otherPlace) => {
+          next[otherPlace] += baseShare + (remainder > 0 ? 1 : 0);
+          if (remainder > 0) remainder -= 1;
+        });
+      }
+
+      next[place] = proposed;
+      return next;
     });
   }, []);
 
@@ -135,6 +149,12 @@ export function GamePrizePoolPanel({ game, tournament, onClose }: GamePrizePoolP
         Gestion du Prize Pool
       </h3>
 
+      {!canManageGame && (
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+          Mode visiteur : consultation uniquement.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div>
@@ -143,6 +163,7 @@ export function GamePrizePoolPanel({ game, tournament, onClose }: GamePrizePoolP
               type="number"
               value={prizePool}
               onChange={(e) => setPrizePool(e.target.value)}
+              disabled={!canManageGame}
               className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
@@ -152,6 +173,7 @@ export function GamePrizePoolPanel({ game, tournament, onClose }: GamePrizePoolP
              <select
                 value={rebuyRule}
                 onChange={(e) => setRebuyRule(e.target.value as any)}
+                disabled={!canManageGame}
                 className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
              >
                 <option value="winner_takes_all">Le vainqueur rafle tout (WTA)</option>
@@ -168,6 +190,7 @@ export function GamePrizePoolPanel({ game, tournament, onClose }: GamePrizePoolP
                   type="checkbox"
                   checked={usePotSystem}
                   onChange={(e) => setUsePotSystem(e.target.checked)}
+                  disabled={!canManageGame}
                   className="w-4 h-4 text-poker-red border-gray-300 rounded focus:ring-poker-red"
                 />
                 <span className="text-sm text-gray-700">Utiliser un pot centralisé</span>
@@ -198,6 +221,7 @@ export function GamePrizePoolPanel({ game, tournament, onClose }: GamePrizePoolP
                            type="checkbox"
                            checked={hasPaidToPot}
                            onChange={() => togglePlayerPotPayment(player.id)}
+                           disabled={!canManageGame}
                            className="w-4 h-4 text-poker-red border-gray-300 rounded focus:ring-poker-red"
                          />
                          <span className="text-sm text-gray-600">
@@ -225,27 +249,27 @@ export function GamePrizePoolPanel({ game, tournament, onClose }: GamePrizePoolP
             <div className="flex flex-wrap items-center justify-between gap-y-1">
               <span className="w-16 shrink-0 text-gray-600">1er:</span>
               <div className="flex items-center space-x-2">
-                  <button type="button" onClick={() => adjustPercentage('first', -5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.first <= 0}><Minus size={16} /></button>
+                  <button type="button" onClick={() => adjustPercentage('first', -5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={!canManageGame || distributionPercentages.first <= 0}><Minus size={16} /></button>
                   <span className="font-semibold w-10 text-center">{distributionPercentages.first}%</span>
-                  <button type="button" onClick={() => adjustPercentage('first', 5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.first >= 100}><Plus size={16} /></button>
+                  <button type="button" onClick={() => adjustPercentage('first', 5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={!canManageGame || distributionPercentages.first >= 100}><Plus size={16} /></button>
               </div>
               <span className="text-gray-700 w-20 text-right">{estimatedWinnings.first} €</span>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-y-1">
               <span className="w-16 shrink-0 text-gray-600">2ème:</span>
                 <div className="flex items-center space-x-2">
-                  <button type="button" onClick={() => adjustPercentage('second', -5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.second <= 0}><Minus size={16} /></button>
+                  <button type="button" onClick={() => adjustPercentage('second', -5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={!canManageGame || distributionPercentages.second <= 0}><Minus size={16} /></button>
                   <span className="font-semibold w-10 text-center">{distributionPercentages.second}%</span>
-                  <button type="button" onClick={() => adjustPercentage('second', 5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.second >= 100}><Plus size={16} /></button>
+                  <button type="button" onClick={() => adjustPercentage('second', 5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={!canManageGame || distributionPercentages.second >= 100}><Plus size={16} /></button>
               </div>
               <span className="text-gray-700 w-20 text-right">{estimatedWinnings.second} €</span>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-y-1">
               <span className="w-16 shrink-0 text-gray-600">3ème:</span>
                 <div className="flex items-center space-x-2">
-                  <button type="button" onClick={() => adjustPercentage('third', -5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.third <= 0}><Minus size={16} /></button>
+                  <button type="button" onClick={() => adjustPercentage('third', -5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={!canManageGame || distributionPercentages.third <= 0}><Minus size={16} /></button>
                   <span className="font-semibold w-10 text-center">{distributionPercentages.third}%</span>
-                  <button type="button" onClick={() => adjustPercentage('third', 5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.third >= 100}><Plus size={16} /></button>
+                  <button type="button" onClick={() => adjustPercentage('third', 5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={!canManageGame || distributionPercentages.third >= 100}><Plus size={16} /></button>
               </div>
               <span className="text-gray-700 w-20 text-right">{estimatedWinnings.third} €</span>
             </div>
@@ -259,7 +283,7 @@ export function GamePrizePoolPanel({ game, tournament, onClose }: GamePrizePoolP
       <div className="mt-4 flex justify-end">
         <button
           onClick={handleSave}
-          disabled={totalDist !== 100}
+          disabled={!canManageGame || totalDist !== 100}
           className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
         >
           Enregistrer les modifications

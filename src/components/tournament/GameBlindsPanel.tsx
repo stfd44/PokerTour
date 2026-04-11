@@ -9,6 +9,7 @@ interface GameBlindsPanelProps {
   game: Game;
   tournamentId: string;
   gameId: string;
+  canManageGame: boolean;
 }
 
 const buildLevelsFromGame = (currentGame: Game): BlindLevel[] =>
@@ -17,7 +18,7 @@ const buildLevelsFromGame = (currentGame: Game): BlindLevel[] =>
     duration: currentGame.levelDurations?.[index] || currentGame.levelDurations?.[0] || 20,
   }));
 
-export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelProps) {
+export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: GameBlindsPanelProps) {
   const { user } = useAuthStore();
   const tournaments = useTournamentStore((state) => state.tournaments);
   const updateBlinds = useTournamentStore((state) => state.updateBlinds);
@@ -264,7 +265,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
     resetLevelTimer(tournamentId, gameId, user.uid);
   };
 
-  if (!user || !game.players.some((p) => p.id === user.uid) || !game.blindStructure || game.blindStructure.length === 0) {
+  if (!user || !game.blindStructure || game.blindStructure.length === 0) {
     return null;
   }
 
@@ -274,6 +275,12 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
         <Edit className="w-5 h-5 mr-2" />
         Réglages de la partie
       </h3>
+
+      {!canManageGame && (
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+          Mode visiteur : consultation uniquement.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
@@ -286,6 +293,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
               placeholder={`SB: ${game.blindStructure[game.currentLevel]?.small * 2}`}
               value={newSmallBlind}
               onChange={(e) => setNewSmallBlind(e.target.value)}
+              disabled={!canManageGame}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               min="1"
               step="1"
@@ -295,13 +303,14 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
               placeholder={`BB: ${game.blindStructure[game.currentLevel]?.big * 2}`}
               value={newBigBlind}
               onChange={(e) => setNewBigBlind(e.target.value)}
+              disabled={!canManageGame}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               min="2"
               step="1"
             />
             <button
               onClick={handleUpdateBlinds}
-              {...getButtonProps('blinds', !newSmallBlind || !newBigBlind)}
+              {...getButtonProps('blinds', !canManageGame || !newSmallBlind || !newBigBlind)}
             />
           </div>
         </div>
@@ -316,13 +325,14 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
               placeholder={`${game.levelDurations?.[game.currentLevel]} min`}
               value={newLevelDuration}
               onChange={(e) => setNewLevelDuration(e.target.value)}
+              disabled={!canManageGame}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               min="1"
               step="1"
             />
             <button
               onClick={handleUpdateDuration}
-              {...getButtonProps('duration', !newLevelDuration)}
+              {...getButtonProps('duration', !canManageGame || !newLevelDuration)}
             />
           </div>
         </div>
@@ -339,13 +349,14 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
               placeholder={rebuyLimitMode === 'max_per_player' ? `${game.maxRebuysPerPlayer ?? 2}` : `${game.rebuyAllowedUntilLevel}`}
               value={newRebuyLevel}
               onChange={(e) => setNewRebuyLevel(e.target.value)}
+              disabled={!canManageGame}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               min="0"
               step="1"
             />
             <button
               onClick={handleUpdateRebuyLevel}
-              {...getButtonProps('rebuy', !newRebuyLevel)}
+              {...getButtonProps('rebuy', !canManageGame || !newRebuyLevel)}
             />
           </div>
         </div>
@@ -361,6 +372,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
               id="activeBlindPreset"
               value={selectedPresetId}
               onChange={(e) => handleApplyPreset(e.target.value)}
+              disabled={!canManageGame}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
             >
               <option value="">Structure actuelle</option>
@@ -378,7 +390,8 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
           <button
             type="button"
             onClick={handleAddLevel}
-            className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-100 flex items-center justify-center gap-2"
+            disabled={!canManageGame}
+            className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-100 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
             Ajouter un niveau
@@ -407,6 +420,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
                       type="number"
                       value={level.blinds.small}
                       onChange={(e) => updateEditableLevel(index, 'small', parseInt(e.target.value, 10) || 0)}
+                      disabled={!canManageGame}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       min="1"
                       step="1"
@@ -417,6 +431,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
                       type="number"
                       value={level.blinds.big}
                       onChange={(e) => updateEditableLevel(index, 'big', parseInt(e.target.value, 10) || 0)}
+                      disabled={!canManageGame}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       min="2"
                       step="1"
@@ -427,6 +442,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
                       type="number"
                       value={level.duration}
                       onChange={(e) => updateEditableLevel(index, 'duration', parseInt(e.target.value, 10) || 0)}
+                      disabled={!canManageGame}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       min="1"
                       step="1"
@@ -459,6 +475,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
                   setNewRebuyLevel(nextMaxValue.toString());
                 }
               }}
+              disabled={!canManageGame}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
               <option value="max_per_player">Nombre max par joueur</option>
@@ -477,6 +494,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
                   type="number"
                   value={maxRebuysPerPlayer}
                   onChange={(e) => setMaxRebuysPerPlayer(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                  disabled={!canManageGame}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   min="0"
                   step="1"
@@ -492,6 +510,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
                   type="number"
                   value={structureRebuyLevel}
                   onChange={(e) => setStructureRebuyLevel(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                  disabled={!canManageGame}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   min="0"
                   step="1"
@@ -503,7 +522,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
           <button
             type="button"
             onClick={handleSaveStructure}
-            {...getButtonProps('structure', editableLevels.length === 0, 'Enregistrer la structure')}
+            {...getButtonProps('structure', !canManageGame || editableLevels.length === 0, 'Enregistrer la structure')}
           />
         </div>
       </div>
@@ -511,7 +530,8 @@ export function GameBlindsPanel({ game, tournamentId, gameId }: GameBlindsPanelP
       <div className="flex flex-wrap gap-2">
         <button
           onClick={handleResetTimer}
-          className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300"
+          disabled={!canManageGame}
+          className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Réinit. timer du niveau en cours
         </button>

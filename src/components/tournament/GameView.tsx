@@ -146,6 +146,11 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
     setShowConfirmEndGame(true);
   };
 
+  const canManageGame = !!user && (
+    game?.players.some((p) => p.id === user.uid) ||
+    tournament?.creatorId === user.uid
+  );
+
   // Handle loading state
   if (!game || !tournament) {
     return (
@@ -200,7 +205,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
         <h2 className="text-2xl font-bold text-poker-black">Table en cours</h2>
         <div className="flex flex-wrap items-center gap-2 justify-end">
           {/* Only show End Game button if user is a participant */}
-          {game.status === 'in_progress' && user && game.players.some(p => p.id === user.uid) && (
+          {game.status === 'in_progress' && canManageGame && (
             <button
               onClick={handleEndGame}
               className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors flex items-center"
@@ -269,6 +274,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
                   game={game} 
                   tournamentId={tournamentId} 
                   gameId={gameId} 
+                  canManageGame={canManageGame}
                   onEliminate={handlePlayerElimination}
                   onRebuy={handleRebuy}
                   rebuyLoading={rebuyLoading}
@@ -276,10 +282,20 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
                 />
               )}
               {activePanel === 'blinds' && (
-                <GameBlindsPanel game={game} tournamentId={tournamentId} gameId={gameId} />
+                <GameBlindsPanel
+                  game={game}
+                  tournamentId={tournamentId}
+                  gameId={gameId}
+                  canManageGame={canManageGame}
+                />
               )}
               {activePanel === 'prizePool' && tournament && (
-                <GamePrizePoolPanel game={game} tournament={tournament} onClose={() => setActivePanel(null)} />
+                <GamePrizePoolPanel
+                  game={game}
+                  tournament={tournament}
+                  canManageGame={canManageGame}
+                  onClose={() => setActivePanel(null)}
+                />
               )}
             </div>
           </div>

@@ -7,6 +7,7 @@ interface GamePlayersPanelProps {
   game: Game;
   tournamentId: string;
   gameId: string;
+  canManageGame: boolean;
   onEliminate: (playerId: string, isCurrentlyEliminated: boolean | undefined) => void;
   onRebuy: (playerId: string) => void;
   rebuyLoading: string | null;
@@ -15,6 +16,7 @@ interface GamePlayersPanelProps {
 
 export function GamePlayersPanel({
   game,
+  canManageGame,
   onEliminate,
   onRebuy,
   rebuyLoading,
@@ -22,12 +24,91 @@ export function GamePlayersPanel({
 }: GamePlayersPanelProps) {
   const { user } = useAuthStore();
   const rebuyLimitMode = game.rebuyLimitMode || 'until_level';
+  const activePlayers = game.players.filter((player) => !player.eliminated);
+  const eliminatedPlayers = game.players.filter((player) => player.eliminated);
+
+  const renderPlayerCard = (player: Game['players'][number]) => {
+    const canRebuy =
+      player.eliminated &&
+      game.status === 'in_progress' &&
+      (rebuyLimitMode === 'max_per_player'
+        ? (player.rebuysMade || 0) < (game.maxRebuysPerPlayer ?? 0)
+        : game.currentLevel < game.rebuyAllowedUntilLevel);
+
+    const isLoadingRebuy = rebuyLoading === player.id;
+
+    return (
+      <div
+        key={player.id}
+        className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border gap-3 ${
+          player.eliminated
+            ? 'bg-red-50 border-red-200 opacity-80'
+            : 'bg-green-50 border-green-200'
+        }`}
+      >
+        <div className="flex items-center">
+          {player.eliminated ? (
+            <UserX className="w-5 h-5 text-red-500 mr-2" />
+          ) : (
+            <UserCheck className="w-5 h-5 text-green-500 mr-2" />
+          )}
+          <span className={player.eliminated ? 'line-through text-gray-500' : 'font-medium'}>
+            {player.nickname || player.name}
+            {rebuyLimitMode === 'max_per_player' && ` (${player.rebuysMade || 0}/${game.maxRebuysPerPlayer ?? 0} recaves)`}
+          </span>
+        </div>
+
+        {user && canManageGame && (
+          <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
+            {canRebuy && (
+              <button
+                onClick={() => onRebuy(player.id)}
+                disabled={isLoadingRebuy}
+                className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-wait"
+              >
+                <RefreshCcw className={`w-4 h-4 mr-1.5 ${isLoadingRebuy ? 'animate-spin' : ''}`} />
+                {isLoadingRebuy ? '...' : `Rebuy (${game.rebuyAmount}EUR)`}
+              </button>
+            )}
+
+            <button
+              onClick={() => onEliminate(player.id, player.eliminated)}
+              disabled={game.status !== 'in_progress' || isLoadingRebuy}
+              className={`px-3 py-1.5 rounded-md text-sm flex items-center transition-colors ${
+                player.eliminated
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                  : 'bg-red-100 text-red-700 hover:bg-red-200'
+              } ${game.status !== 'in_progress' || isLoadingRebuy ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {player.eliminated ? (
+                <>
+                  <UserCheck className="w-4 h-4 mr-1.5" />
+                  Reintegrer
+                </>
+              ) : (
+                <>
+                  <UserMinus className="w-4 h-4 mr-1.5" />
+                  Eliminer
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xl font-semibold text-gray-800">Gestion des joueurs</h3>
       </div>
+
+      {!canManageGame && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+          Mode visiteur : suivi des joueurs sans interaction.
+        </div>
+      )}
 
       {game.status === 'in_progress' && (
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 mb-4">
@@ -44,77 +125,42 @@ export function GamePlayersPanel({
         </div>
       )}
 
-      <div className="grid gap-3 max-h-[60vh] overflow-y-auto pr-2 pb-4">
-        {game.players.map((player) => {
-          const canRebuy =
-            player.eliminated &&
-            game.status === 'in_progress' &&
-            (rebuyLimitMode === 'max_per_player'
-              ? (player.rebuysMade || 0) < (game.maxRebuysPerPlayer ?? 0)
-              : game.currentLevel < game.rebuyAllowedUntilLevel);
-
-          const isLoadingRebuy = rebuyLoading === player.id;
-
-          return (
-            <div
-              key={player.id}
-              className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border gap-3 ${
-                player.eliminated
-                  ? 'bg-red-50 border-red-200 opacity-80'
-                  : 'bg-green-50 border-green-200'
-              }`}
-            >
-              <div className="flex items-center">
-                {player.eliminated ? (
-                  <UserX className="w-5 h-5 text-red-500 mr-2" />
-                ) : (
-                  <UserCheck className="w-5 h-5 text-green-500 mr-2" />
-                )}
-                <span className={player.eliminated ? 'line-through text-gray-500' : 'font-medium'}>
-                  {player.nickname || player.name}
-                  {rebuyLimitMode === 'max_per_player' && ` (${player.rebuysMade || 0}/${game.maxRebuysPerPlayer ?? 0} recaves)`}
-                </span>
-              </div>
-
-              {user && game.players.some((p) => p.id === user.uid) && (
-                <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
-                  {canRebuy && (
-                    <button
-                      onClick={() => onRebuy(player.id)}
-                      disabled={isLoadingRebuy}
-                      className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-wait"
-                    >
-                      <RefreshCcw className={`w-4 h-4 mr-1.5 ${isLoadingRebuy ? 'animate-spin' : ''}`} />
-                      {isLoadingRebuy ? '...' : `Rebuy (${game.rebuyAmount}EUR)`}
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => onEliminate(player.id, player.eliminated)}
-                    disabled={game.status !== 'in_progress' || isLoadingRebuy}
-                    className={`px-3 py-1.5 rounded-md text-sm flex items-center transition-colors ${
-                      player.eliminated
-                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                        : 'bg-red-100 text-red-700 hover:bg-red-200'
-                    } ${game.status !== 'in_progress' || isLoadingRebuy ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {player.eliminated ? (
-                      <>
-                        <UserCheck className="w-4 h-4 mr-1.5" />
-                        Reintegrer
-                      </>
-                    ) : (
-                      <>
-                        <UserMinus className="w-4 h-4 mr-1.5" />
-                        Eliminer
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
+      <div className="max-h-[60vh] overflow-y-auto pr-2 pb-4 space-y-5">
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-green-700">En jeu</h4>
+            <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">
+              {activePlayers.length}
+            </span>
+          </div>
+          {activePlayers.length > 0 ? (
+            <div className="grid gap-3">
+              {activePlayers.map(renderPlayerCard)}
             </div>
-          );
-        })}
+          ) : (
+            <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+              Aucun joueur encore en jeu.
+            </div>
+          )}
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-red-700">Elimines</h4>
+            <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">
+              {eliminatedPlayers.length}
+            </span>
+          </div>
+          {eliminatedPlayers.length > 0 ? (
+            <div className="grid gap-3">
+              {eliminatedPlayers.map(renderPlayerCard)}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+              Aucun joueur elimine pour le moment.
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
