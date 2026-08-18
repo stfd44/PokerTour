@@ -1,5 +1,55 @@
 import { Game, Player, PlayerResult, Tournament, TournamentStore } from '../types/tournamentTypes';
 
+function isStartedGame(game: Game): boolean {
+  return game.status === 'in_progress' || game.status === 'ended' || game.startedAt != null;
+}
+
+/** Players who are in at least one game that has already started. */
+export function getPlayerIdsInStartedGames(games: Game[] | undefined): Set<string> {
+  return new Set(
+    (games ?? [])
+      .filter(isStartedGame)
+      .flatMap((game) => (game.players ?? []).map((player) => player.id))
+  );
+}
+
+/**
+ * Confirm tournament invitations for players already seated in a started game.
+ * Returns the original array when nothing changes.
+ */
+export function confirmInvitationsForStartedGames(
+  registrations: Player[] | undefined,
+  games: Game[] | undefined
+): Player[] {
+  const currentRegistrations = registrations ?? [];
+  const playerIdsInStartedGames = getPlayerIdsInStartedGames(games);
+
+  if (playerIdsInStartedGames.size === 0) {
+    return currentRegistrations;
+  }
+
+  let changed = false;
+  const updatedRegistrations = currentRegistrations.map((player) => {
+    if (player.status === 'invited' && playerIdsInStartedGames.has(player.id)) {
+      changed = true;
+      return { ...player, status: 'confirmed' as const };
+    }
+    return player;
+  });
+
+  return changed ? updatedRegistrations : currentRegistrations;
+}
+
+export function withConfirmedInvitationsFromStartedGames<T extends Pick<Tournament, 'registrations' | 'games'>>(
+  tournament: T
+): T {
+  const registrations = confirmInvitationsForStartedGames(tournament.registrations, tournament.games);
+  if (registrations === tournament.registrations) {
+    return tournament;
+  }
+  return { ...tournament, registrations };
+}
+
 // Helper function to specifically clean a Game object for Firestore
 // Removes undefined fields, ensuring compatibility.
 export function cleanGameForFirestore(game: Game): Game {

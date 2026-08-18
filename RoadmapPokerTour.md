@@ -8,7 +8,6 @@ Ce document liste les évolutions prévues pour l'application PokerTour, classé
 
 ## 🏆 Gestion des Tournois & Équipes
 - [x] **Invitation d'équipe à la création / édition** : Possibilité d'inclure les membres de son équipe de manière fluide (interface unifiée et sans sauts visuels terminée).
-- [ ] **Notifications d'invitation** : Envoyer une notification automatique à tous les joueurs invités lors de la validation de la création du tournoi.
 - [x] **Transition vers le menu Communauté** : Le menu Équipe est devenu "Communauté" avec une gestion simplifiée des Championnats, Circuits et Groupes.
 - [x] **Gestion des membres non vérifiés** : Possibilité d'ajouter des membres manuels (badges "Non vérifié") dans les groupes et les tournois, avec interface de suppression unifiée.
 - [ ] **Structures de blindes prédéfinies** : Pouvoir enregistrer et sélectionner des structures de blindes types lors de la configuration.
@@ -26,8 +25,11 @@ Ce document liste les évolutions prévues pour l'application PokerTour, classé
 - [ ] **Refonte visuelle des boutons de tournoi** : Remplacer les boutons textuels (ex: "Faire le bilan") par des icônes plus intuitives (ex: icône de dollars ou billets).
 
 ## 🔔 Système de Notifications
-- [ ] **Alerte d'élimination** : Envoyer une notification à tous les joueurs du tournoi lorsqu'un joueur est éliminé d'une table.
-- [ ] **Alerte de recave** : Envoyer une notification à tous les joueurs dès qu'un joueur effectue un "recave".
+- [x] **Alerte d'élimination** : Envoyer une notification à tous les joueurs du tournoi lorsqu'un joueur est éliminé d'une table.
+- [x] **Alerte de recave** : Envoyer une notification à tous les joueurs dès qu'un joueur effectue un "recave".
+- [x] **Alerte de début de partie** : Notification envoyée à tous les joueurs dès que la partie est lancée.
+- [x] **Alerte de fin de partie** : Notification de fin de jeu incluant le classement des 3 premiers joueurs.
+- [ ] **Notifications d'invitation** : Envoyer une notification automatique à tous les joueurs invités lors de la validation de la création du tournoi. (Transféré depuis Gestion des Tournois)
 
 ## 📺 Affichage & Diffusion
 - [ ] **Mode Diffusion (Cast/Overlay)** : Ajouter un mode d'affichage optimisé pour écran géant incluant :

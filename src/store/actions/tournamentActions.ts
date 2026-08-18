@@ -4,6 +4,7 @@ import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, getDoc, query, 
 import { useTeamStore } from '../useTeamStore';
 // Removed unused TournamentStoreState
 import { Tournament, Player, TournamentStore, TournamentStoreActions } from '../types/tournamentTypes';
+import { confirmInvitationsForStartedGames, withConfirmedInvitationsFromStartedGames } from '../helpers/tournamentHelpers';
 
 // Define the slice for tournament actions
 // It needs access to `set` from Zustand and potentially `get`
@@ -51,7 +52,8 @@ export const createTournamentActionSlice: StateCreator<
             };
         });
 
-        const tournaments = await Promise.all(tournamentsPromises);
+        const tournaments = (await Promise.all(tournamentsPromises))
+          .map(withConfirmedInvitationsFromStartedGames);
         set({ tournaments });
     } catch (error) {
       handleDatabaseError(error);
@@ -73,11 +75,11 @@ export const createTournamentActionSlice: StateCreator<
           const creatorData = await getUserData(data.creatorId);
           creatorNickname = creatorData?.nickname ?? undefined;
         }
-        const fetchedTournament: Tournament = {
+        const fetchedTournament: Tournament = withConfirmedInvitationsFromStartedGames({
           id: docSnap.id,
           ...data,
           creatorNickname: creatorNickname,
-        };
+        });
 
         // Update the tournaments array: replace if exists, add if new
         const currentTournaments = get().tournaments;
@@ -253,7 +255,11 @@ export const createTournamentActionSlice: StateCreator<
       }
 
       const tournamentData = tournamentDoc.data() as Tournament;
-      const isConfirmedParticipant = tournamentData.registrations.some(
+      const registrations = confirmInvitationsForStartedGames(
+        tournamentData.registrations,
+        tournamentData.games
+      );
+      const isConfirmedParticipant = registrations.some(
         player => player.id === userId && player.status !== 'invited'
       );
 
@@ -296,16 +302,25 @@ export const createTournamentActionSlice: StateCreator<
         const currentTournaments = get().tournaments;
         const existingTournament = currentTournaments.find(t => t.id === tournamentId);
         
-        const updatedTournament: Tournament = {
+        const updatedTournament: Tournament = withConfirmedInvitationsFromStartedGames({
           id: docSnap.id,
           ...data,
           creatorNickname: existingTournament?.creatorNickname // Preserve existing nickname if available
-        };
+        });
+
+        const registrationsNeedConfirm = Boolean(data.registrations) &&
+          updatedTournament.registrations !== data.registrations;
         
         // Update local state
         set((state) => ({
           tournaments: state.tournaments.map(t => t.id === tournamentId ? updatedTournament : t)
         }));
+
+        if (registrationsNeedConfirm) {
+          updateDoc(tournamentRef, { registrations: updatedTournament.registrations }).catch((error) => {
+            console.warn(`Failed to auto-confirm invitations for started games in ${tournamentId}:`, error);
+          });
+        }
         
         // If nickname is missing, fetch it (rare since it's usually set on initial fetch or creation)
         if (!updatedTournament.creatorNickname && data.creatorId) {

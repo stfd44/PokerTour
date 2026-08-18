@@ -3,7 +3,7 @@ import { StateCreator } from 'zustand';
 import { db, handleDatabaseError } from '../../lib/firebase';
 import { doc, updateDoc, arrayUnion, getDoc, runTransaction } from 'firebase/firestore';
 import { Blinds, Game, Player, Tournament, TournamentStore, TournamentStoreActions, PotContribution } from '../types/tournamentTypes';
-import { cleanGameForFirestore, calculateResultsForGame } from '../helpers/tournamentHelpers';
+import { cleanGameForFirestore, calculateResultsForGame, confirmInvitationsForStartedGames } from '../helpers/tournamentHelpers';
 import { sendGameEventPush, getOrCreatePushDeviceId } from '../../lib/pushNotifications';
 
 // Define the slice for game actions
@@ -236,14 +236,25 @@ export const createGameActionSlice: StateCreator<
             index === gameToStartIndex ? updatedGameData : g
         ).map((g: Game) => cleanGameForFirestore(g)); // Clean all games
 
+        // Sitting in a started game confirms any pending tournament invitation
+        const updatedRegistrations = confirmInvitationsForStartedGames(
+          tournamentData.registrations,
+          [{ ...gameToStart, status: 'in_progress', startedAt: now }]
+        );
+
         // Perform the update within the transaction
-        transaction.update(tournamentRef, { games: updatedGames });
+        transaction.update(tournamentRef, {
+          games: updatedGames,
+          registrations: updatedRegistrations,
+        });
         console.log(`[startGame Transaction - ${gameId}] Transaction update scheduled.`);
 
         // Update local state optimistically
         set((state) => ({
             tournaments: state.tournaments.map((t) =>
-              t.id === tournamentId ? { ...t, games: updatedGames } : t
+              t.id === tournamentId
+                ? { ...t, games: updatedGames, registrations: updatedRegistrations }
+                : t
             ),
         }));
       }); // End of runTransaction
