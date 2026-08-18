@@ -264,12 +264,12 @@ const Stats: React.FC = () => {
 
       {/* Filters and Title */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h1 className="text-3xl font-bold text-poker-black">Statistiques Globales ({selectedYear})</h1>
+        <h1 className="text-3xl font-bold text-white drop-shadow-sm">Statistiques Globales ({selectedYear})</h1>
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
           {/* Year Selector */}
           {availableYears.length > 0 && (
             <div className="w-full sm:w-auto">
-              <label htmlFor="year-select" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="year-select" className="block text-sm font-medium text-gray-200">
                 Année :
               </label>
               <select
@@ -289,7 +289,7 @@ const Stats: React.FC = () => {
           {/* Team Selector */}
           {teams.length > 1 && (
             <div className="w-full sm:w-auto">
-              <label htmlFor="team-select" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="team-select" className="block text-sm font-medium text-gray-200">
                 Équipe :
               </label>
               <select

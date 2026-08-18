@@ -5,6 +5,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
 import { MainLayout } from './pages/MainLayout';
 import { Header } from './components/layout/Header';
+import { AppAtmosphere } from './components/layout/AppAtmosphere';
 // Teams is now routed within MainLayout
 import { useAuthStore } from './store/useAuthStore';
 // Stats is now routed within MainLayout
@@ -59,32 +60,30 @@ function App() {
     return () => unsubscribe();
   }, [setUser, fetchTeams]);
 
-  // Use the isLoading state from the store
-  if (isLoading) {
-    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
-  }
+  const appContent = (() => {
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center min-h-screen text-poker-gold">
+          Chargement...
+        </div>
+      );
+    }
 
-  // If user is logged in but requires a nickname, show the prompt
-  if (user && requiresNickname) {
-    return <NicknamePrompt />;
-  }
+    if (user && requiresNickname) {
+      return <NicknamePrompt />;
+    }
 
-  // Main application routes
-  return (
-    <>
+    return (
       <Routes>
         <Route
           path="/login"
-          // Redirect to home if user exists (even if nickname is pending, handled above)
           element={user ? <Navigate to="/" /> : <Login />}
         />
-        {/* Protected Routes */}
         <Route
           path="/*"
           element={
             user ? (
-              <div className="min-h-screen bg-poker-light">
-                {/* Pass the AppUser object */}
+              <div className="min-h-screen">
                 <Header />
                 <MainLayout />
               </div>
@@ -93,8 +92,14 @@ function App() {
             )
           }
         />
-        {/* The routes for teams, tournaments, stats, profile are now handled within MainLayout */}
       </Routes>
+    );
+  })();
+
+  return (
+    <>
+      <AppAtmosphere />
+      <div className="relative z-10 min-h-screen">{appContent}</div>
     </>
   );
 }

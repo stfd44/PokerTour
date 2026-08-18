@@ -220,7 +220,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 space-y-4 sm:space-y-0">
-        <h2 className="text-2xl font-bold text-poker-black">Table en cours</h2>
+        <h2 className="text-2xl font-bold text-white drop-shadow-sm">Table en cours</h2>
         <div className="flex flex-wrap items-center gap-2 justify-end">
           {/* Only show End Game button if user is a participant */}
           {game.status === 'in_progress' && canManageGame && (

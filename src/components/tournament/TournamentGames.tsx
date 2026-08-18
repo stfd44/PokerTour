@@ -207,7 +207,7 @@ export function TournamentGames() {
         <>
           {/* --- Tournament Header --- */}
           <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 space-y-4 sm:space-y-0">
-            <h1 className="text-3xl font-bold text-poker-black">
+            <h1 className="text-3xl font-bold text-white drop-shadow-sm">
               {tournament.name}
             </h1>
             {/* The action buttons have been moved to the details card */}

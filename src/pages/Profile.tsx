@@ -303,7 +303,7 @@ const Profile: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold text-poker-black mb-6">Profil de {user.nickname || user.displayName}</h1>
+      <h1 className="text-3xl font-bold text-white mb-6 drop-shadow-sm">Profil de {user.nickname || user.displayName}</h1>
 
       {/* Nickname Section */}
       <div className="bg-white p-6 rounded-lg shadow border border-gray-200">

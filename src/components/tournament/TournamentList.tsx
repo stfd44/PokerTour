@@ -158,7 +158,7 @@ export function TournamentList() {
   return (
     <div className="space-y-6">
         <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-poker-black">Tournois</h2>
+            <h2 className="text-2xl font-bold text-white drop-shadow-sm">Tournois</h2>
             <button
                 onClick={() => setIsCreateModalOpen(true)}
                 className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"

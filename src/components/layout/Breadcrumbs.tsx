@@ -108,7 +108,7 @@ export const Breadcrumbs: React.FC = () => {
   }
 
   return (
-    <nav aria-label="Breadcrumb" className="mb-6 text-sm text-gray-600">
+    <nav aria-label="Breadcrumb" className="mb-6 text-sm text-gray-300">
       <ol className="list-none p-0 inline-flex items-center space-x-2">
         {breadcrumbs.map((crumb, index) => (
           <li key={crumb.path} className="flex items-center">
@@ -128,7 +128,7 @@ export const Breadcrumbs: React.FC = () => {
               const renderAsText = isLastCrumb && pathMatches && isSpecificEndpoint;
 
               return renderAsText ? (
-                <span className="font-semibold text-poker-dark" aria-current="page">
+                <span className="font-semibold text-white" aria-current="page">
                   {crumb.isIcon ? <HomeIcon className="h-4 w-4" /> : crumb.name}
                 </span>
               ) : (
@@ -142,7 +142,7 @@ export const Breadcrumbs: React.FC = () => {
                       // Navigate with state to signal a view reset
                       navigate(crumb.path, { state: { resetView: true } });
                     }}
-                    className="hover:text-poker-accent hover:underline flex items-center cursor-pointer"
+                    className="hover:text-poker-gold hover:underline flex items-center cursor-pointer"
                   >
                     {crumb.isIcon ? <HomeIcon className="h-4 w-4" /> : crumb.name}
                   </a>
@@ -150,7 +150,7 @@ export const Breadcrumbs: React.FC = () => {
                   // Use standard Link for other links
                   <Link
                     to={crumb.path}
-                    className="hover:text-poker-accent hover:underline flex items-center"
+                    className="hover:text-poker-gold hover:underline flex items-center"
                   >
                     {crumb.isIcon ? <HomeIcon className="h-4 w-4" /> : crumb.name}
                   </Link>

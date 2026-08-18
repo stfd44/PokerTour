@@ -107,15 +107,15 @@ const Home: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-poker-light">
-            <main className="container mx-auto px-4 py-8">
-                <div className="max-w-6xl mx-auto">
+        <div>
+            <main>
+                <div>
                     {/* Welcome Section */}
                     <section className="text-center mb-12">
-                        <h1 className="text-4xl md:text-5xl font-bold text-poker-black mb-4">
+                        <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 drop-shadow-md">
                             Bienvenue sur PokerTour
                         </h1>
-                        <p className="text-xl text-gray-600">
+                        <p className="text-xl text-gray-200">
                             Organisez et gérez vos tournois de poker comme un professionnel
                         </p>
                     </section>
@@ -173,8 +173,8 @@ const Home: React.FC = () => {
                     {/* Upcoming Tournaments */}
                     {upcomingTournaments.length > 0 && (
                         <section className="mb-12">
-                            <h2 className="text-2xl font-bold text-poker-black mb-4 flex items-center">
-                                <Calendar className="w-6 h-6 mr-2" /> Prochains Tournois
+                            <h2 className="text-2xl font-bold text-white mb-4 flex items-center drop-shadow-sm">
+                                <Calendar className="w-6 h-6 mr-2 text-poker-gold" /> Prochains Tournois
                             </h2>
                             <div className="grid gap-4">
                                 {upcomingTournaments.map((tournament: Tournament) => (
@@ -187,8 +187,8 @@ const Home: React.FC = () => {
                     {/* Recent Tournaments */}
                     {recentTournaments.length > 0 && user && (
                         <section className="mb-12">
-                            <h2 className="text-2xl font-bold text-poker-black mb-4 flex items-center">
-                                <Trophy className="w-6 h-6 mr-2" /> Tournois Récents
+                            <h2 className="text-2xl font-bold text-white mb-4 flex items-center drop-shadow-sm">
+                                <Trophy className="w-6 h-6 mr-2 text-poker-gold" /> Tournois Récents
                             </h2>
                             <div className="grid gap-4">
                                 {recentTournaments.map((tournament: Tournament) => (

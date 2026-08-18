@@ -200,8 +200,8 @@ const Teams: React.FC = () => {
     <div className="container mx-auto p-4 max-w-2xl">
       {/* Page Title */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Communauté</h1>
-        <p className="text-gray-600 text-base leading-relaxed">
+        <h1 className="text-3xl font-bold text-white mb-2 drop-shadow-sm">Communauté</h1>
+        <p className="text-gray-200 text-base leading-relaxed">
           Créez ou rejoignez votre communauté, votre circuit ou votre championnat,
           ou tout simplement votre groupe d'amis avec lesquels vous jouez le plus souvent.
         </p>
