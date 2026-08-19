@@ -90,15 +90,15 @@ export function GameSummary({ game }: GameSummaryProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+    <div className="glass-card p-6">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-bold text-poker-black">Résumé de la partie</h2>
+        <h2 className="text-2xl font-bold text-white">Résumé de la partie</h2>
 
         <div className="flex flex-wrap items-center gap-3 sm:justify-end">
           {user && tournament?.status !== 'ended' && (
             <button
               onClick={() => setShowConfirmReopen(true)}
-              className="flex items-center rounded-md bg-blue-100 px-3 py-2 text-sm text-blue-700 transition-colors hover:bg-blue-200"
+              className="btn btn-blue"
             >
               <RotateCcw className="mr-2 h-4 w-4" />
               {lastEliminated ? 'Pardonner le 2ème (Réouvrir)' : 'Réouvrir la partie'}
@@ -107,7 +107,7 @@ export function GameSummary({ game }: GameSummaryProps) {
 
           <button
             onClick={handleBackToTournament}
-            className="rounded-md bg-poker-gold px-5 py-2.5 font-semibold text-white shadow-sm transition-colors hover:bg-yellow-600"
+            className="btn btn-gold px-5 py-2.5"
           >
             OK
           </button>
@@ -116,21 +116,21 @@ export function GameSummary({ game }: GameSummaryProps) {
 
       <div className="mb-6 grid grid-cols-1 gap-4 text-center md:grid-cols-3">
         <div>
-          <p className="text-sm font-medium text-gray-500">Début</p>
-          <p className="text-lg font-semibold text-gray-800">{formatTimestamp(game.startedAt)}</p>
+          <p className="text-sm font-medium text-gray-400">Début</p>
+          <p className="text-lg font-semibold text-white">{formatTimestamp(game.startedAt)}</p>
         </div>
         <div>
-          <p className="text-sm font-medium text-gray-500">Fin</p>
-          <p className="text-lg font-semibold text-gray-800">{formatTimestamp(game.endedAt)}</p>
+          <p className="text-sm font-medium text-gray-400">Fin</p>
+          <p className="text-lg font-semibold text-white">{formatTimestamp(game.endedAt)}</p>
         </div>
         <div>
-          <p className="text-sm font-medium text-gray-500">Durée</p>
-          <p className="text-lg font-semibold text-gray-800">{calculateDuration(game.startedAt, game.endedAt)}</p>
+          <p className="text-sm font-medium text-gray-400">Durée</p>
+          <p className="text-lg font-semibold text-white">{calculateDuration(game.startedAt, game.endedAt)}</p>
         </div>
       </div>
 
       {remainingPlayersCount > 1 && (
-        <div className="mb-6 flex items-center justify-center rounded-lg border border-orange-200 bg-orange-50 p-4 text-orange-800">
+        <div className="mb-6 flex items-center justify-center rounded-lg border border-orange-400/30 bg-orange-500/15 p-4 text-orange-200">
           <span className="text-center font-bold">
             ⚠️ Partie arrêtée avec {remainingPlayersCount} joueurs restants. Les gains ont été partagés et aucun point n'est attribué aux vainqueurs.
           </span>
@@ -139,9 +139,9 @@ export function GameSummary({ game }: GameSummaryProps) {
 
       <div className="space-y-4">
         <div className="mb-3 flex items-center gap-2">
-          <h3 className="text-xl font-semibold text-gray-800">Classement</h3>
+          <h3 className="text-xl font-semibold text-white">Classement</h3>
           {remainingPlayersCount > 1 && (
-            <span className="animate-pulse rounded-full border border-orange-200 bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+            <span className="animate-pulse rounded-full border border-orange-400/30 bg-orange-500/15 px-2 py-0.5 text-xs font-medium text-orange-200">
               Partie arrêtée
             </span>
           )}
@@ -158,16 +158,16 @@ export function GameSummary({ game }: GameSummaryProps) {
 
             if (mainPotWinnings > 0 || playerRebuyWinnings > 0) {
               const colorClass =
-                playerResult?.rank === 1 ? 'text-green-600 bg-green-100' :
-                playerResult?.rank === 2 ? 'text-blue-600 bg-blue-100' :
-                playerResult?.rank === 3 ? 'text-orange-600 bg-orange-100' :
-                'text-gray-600 bg-gray-100';
+                playerResult?.rank === 1 ? 'text-green-300 bg-green-500/20' :
+                playerResult?.rank === 2 ? 'text-blue-300 bg-blue-500/20' :
+                playerResult?.rank === 3 ? 'text-orange-300 bg-orange-500/20' :
+                'text-gray-300 bg-white/10';
 
               winningsDisplay = (
                 <span className={`rounded px-2 py-1 text-sm font-semibold ${colorClass}`}>
                   {mainPotWinnings.toFixed(2)} €
                   {playerRebuyWinnings > 0 && (
-                    <span className="ml-1 text-xs text-gray-500">
+                    <span className="ml-1 text-xs text-gray-400">
                       (dont {playerRebuyWinnings.toFixed(2)}€ de rebuy)
                     </span>
                   )}
@@ -177,20 +177,20 @@ export function GameSummary({ game }: GameSummaryProps) {
 
             const isWinner = !player.eliminated;
             const rankText = isWinner ? `🏆 ${rank}er` : `${rank}e`;
-            const bgColor = isWinner ? 'bg-yellow-50 border-yellow-300' : 'bg-gray-50 border-gray-200';
-            const rankColor = isWinner ? 'text-yellow-600' : 'text-gray-600';
+            const bgColor = isWinner ? 'bg-yellow-500/10 border-yellow-400/30' : 'glass-inset';
+            const rankColor = isWinner ? 'text-yellow-300' : 'text-gray-300';
 
             return (
               <div key={player.id} className={`flex items-center justify-between rounded-lg border p-3 ${bgColor}`}>
                 <div className="flex items-center">
                   <span className={`mr-3 w-12 text-center text-md font-semibold ${rankColor}`}>{rankText}</span>
-                  <span className="flex-grow text-gray-700">{player.nickname || player.name}</span>
+                  <span className="flex-grow text-gray-100">{player.nickname || player.name}</span>
                 </div>
 
                 <div className="flex flex-col items-end">
                   {winningsDisplay}
                   {!isWinner && (
-                    <span className="mt-1 text-xs text-gray-500">
+                    <span className="mt-1 text-xs text-gray-400">
                       Éliminé à : {formatTimestamp(player.eliminationTime)}
                     </span>
                   )}
@@ -204,7 +204,7 @@ export function GameSummary({ game }: GameSummaryProps) {
       <div className="mt-8 flex justify-center sm:justify-end">
         <button
           onClick={handleBackToTournament}
-          className="min-w-32 rounded-md bg-poker-gold px-6 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-yellow-600"
+          className="btn btn-gold min-w-32 px-6 py-3"
         >
           OK
         </button>
@@ -212,9 +212,9 @@ export function GameSummary({ game }: GameSummaryProps) {
 
       {showConfirmReopen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="mx-auto w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-            <h3 className="mb-2 text-lg font-bold text-gray-900">Réouvrir la partie ?</h3>
-            <p className="mb-6 flex flex-col gap-2 text-gray-600">
+          <div className="glass-card mx-auto w-full max-w-md p-6">
+            <h3 className="mb-2 text-lg font-bold text-white">Réouvrir la partie ?</h3>
+            <p className="mb-6 flex flex-col gap-2 text-gray-300">
               {lastEliminated ? (
                 <span>
                   Voulez-vous vraiment réouvrir cette partie et réintégrer <strong>{lastEliminated.nickname || lastEliminated.name}</strong> (le dernier éliminé) ?
@@ -222,7 +222,7 @@ export function GameSummary({ game }: GameSummaryProps) {
               ) : (
                 <span>Voulez-vous vraiment réouvrir cette partie ? Les joueurs classés seront remis en jeu.</span>
               )}
-              <span className="rounded bg-orange-50 p-2 text-sm font-medium text-orange-800">
+              <span className="rounded bg-orange-500/15 p-2 text-sm font-medium text-orange-300">
                 ⚠️ Cela annulera la fin de partie et supprimera les gains calculés. Le chronomètre reprendra au moment où il a été arrêté.
               </span>
             </p>
@@ -230,14 +230,14 @@ export function GameSummary({ game }: GameSummaryProps) {
               <button
                 onClick={() => setShowConfirmReopen(false)}
                 disabled={isReopening}
-                className="rounded-md px-4 py-2 text-gray-600 transition-colors hover:bg-gray-100"
+                className="btn btn-ghost"
               >
                 Annuler
               </button>
               <button
                 onClick={handleReopenGame}
                 disabled={isReopening}
-                className="flex items-center rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
+                className="btn btn-blue"
               >
                 {isReopening ? 'Réouverture...' : 'Oui, réouvrir la partie'}
               </button>

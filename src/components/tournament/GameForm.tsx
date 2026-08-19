@@ -362,14 +362,14 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
     <div className="space-y-6">
       <form onSubmit={handleCreateGame} className="space-y-6 pb-4">
         <div>
-          <label htmlFor="blindPreset" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="blindPreset" className="block text-sm font-medium text-gray-200 mb-1">
             Structure prédéfinie du groupe
           </label>
           <select
             id="blindPreset"
             value={selectedPresetId}
             onChange={(e) => applyPreset(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+            className="glass-input w-full"
           >
             <option value="">Choisir une structure enregistrée</option>
             {blindPresets.map((preset) => (
@@ -378,13 +378,13 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
               </option>
             ))}
           </select>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-400 mt-1">
             La structure est sélectionnée pour ce tournoi, mais elle est mémorisée au niveau du groupe.
           </p>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
-          <label htmlFor="presetName" className="block text-sm font-medium text-gray-700">
+        <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-3">
+          <label htmlFor="presetName" className="block text-sm font-medium text-gray-200">
             Enregistrer la configuration actuelle comme structure du groupe
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
@@ -394,22 +394,22 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
               value={newPresetName}
               onChange={(e) => setNewPresetName(e.target.value)}
               placeholder="Ex: Standard 25/50 - 20 min"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+              className="glass-input flex-1"
             />
             <button
               type="button"
               onClick={handleSavePreset}
               disabled={!newPresetName.trim()}
-              className="px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn btn-gold"
             >
               Enregistrer
             </button>
           </div>
-          {presetFeedback && <p className="text-xs text-gray-600">{presetFeedback}</p>}
+          {presetFeedback && <p className="text-xs text-gray-300">{presetFeedback}</p>}
         </div>
 
         <div>
-          <label htmlFor="startingStack" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="startingStack" className="block text-sm font-medium text-gray-200 mb-1">
             Stack de départ
           </label>
           <input
@@ -420,7 +420,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
               ...prev,
               startingStack: parseInt(e.target.value)
             }))}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+            className="glass-input w-full"
             min="1000"
             step="1000"
             required
@@ -430,25 +430,25 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-200 mb-1">
                 Structure complète des blindes
               </label>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-400">
                 Définissez au moins 10 niveaux à l'avance pour gérer une progression non linéaire.
               </p>
             </div>
             <button
               type="button"
               onClick={addLevelRow}
-              className="px-3 py-2 text-sm bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+              className="btn btn-ghost text-sm"
             >
               Ajouter un niveau
             </button>
           </div>
 
-          <div className="overflow-x-auto border border-gray-200 rounded-lg">
+          <div className="overflow-x-auto border border-white/10 rounded-lg">
             <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-gray-700">
+              <thead className="bg-white/5 text-gray-200">
                 <tr>
                   <th className="px-3 py-2 text-left">Niveau</th>
                   <th className="px-3 py-2 text-left">Petite blind</th>
@@ -458,14 +458,14 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
               </thead>
               <tbody>
                 {gameForm.levels.map((level, index) => (
-                  <tr key={index} className="border-t border-gray-100">
-                    <td className="px-3 py-2 font-medium text-gray-700">{index + 1}</td>
+                  <tr key={index} className="border-t border-white/10">
+                    <td className="px-3 py-2 font-medium text-gray-200">{index + 1}</td>
                     <td className="px-3 py-2">
                       <input
                         type="number"
                         value={level.blinds.small}
                         onChange={(e) => updateLevelField(index, 'small', parseInt(e.target.value, 10) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+                        className="glass-input w-full"
                         min="1"
                         step="1"
                         required
@@ -476,7 +476,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                         type="number"
                         value={level.blinds.big}
                         onChange={(e) => updateLevelField(index, 'big', parseInt(e.target.value, 10) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+                        className="glass-input w-full"
                         min="2"
                         step="1"
                         required
@@ -487,7 +487,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                         type="number"
                         value={level.duration}
                         onChange={(e) => updateLevelField(index, 'duration', parseInt(e.target.value, 10) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+                        className="glass-input w-full"
                         min="1"
                         step="1"
                         required
@@ -499,7 +499,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
             </table>
           </div>
           {gameForm.levels.length < DEFAULT_LEVEL_COUNT && (
-            <p className="text-xs text-amber-600">
+            <p className="text-xs text-amber-300">
               Il manque encore {DEFAULT_LEVEL_COUNT - gameForm.levels.length} niveau(x) pour atteindre le minimum recommandé de 10.
             </p>
           )}
@@ -507,7 +507,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
 
         <div className="space-y-3">
           <div>
-            <label htmlFor="rebuyLimitMode" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="rebuyLimitMode" className="block text-sm font-medium text-gray-200 mb-1">
               Mode de limitation des recaves
             </label>
             <select
@@ -520,7 +520,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                   setRebuyLevel(4);
                 }
               }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+              className="glass-input w-full"
             >
               <option value="max_per_player">Nombre max de recaves par joueur</option>
               <option value="until_level">Jusqu'au niveau</option>
@@ -529,7 +529,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
 
           {rebuyLimitMode === 'max_per_player' ? (
             <div>
-              <label htmlFor="maxRebuysPerPlayer" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="maxRebuysPerPlayer" className="block text-sm font-medium text-gray-200 mb-1">
                 Nombre max de recaves par joueur
               </label>
               <input
@@ -537,16 +537,16 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                 id="maxRebuysPerPlayer"
                 value={maxRebuysPerPlayer}
                 onChange={(e) => setMaxRebuysPerPlayer(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+                className="glass-input w-full"
                 min="0"
                 step="1"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">0 = aucune recave. 1 = une seule recave maximum par joueur.</p>
+              <p className="text-xs text-gray-400 mt-1">0 = aucune recave. 1 = une seule recave maximum par joueur.</p>
             </div>
           ) : (
             <div>
-              <label htmlFor="rebuyLevel" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="rebuyLevel" className="block text-sm font-medium text-gray-200 mb-1">
                 Recave autorisée jusqu'au niveau (inclus)
               </label>
               <input
@@ -554,30 +554,30 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                 id="rebuyLevel"
                 value={rebuyLevel}
                 onChange={(e) => setRebuyLevel(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+                className="glass-input w-full"
                 min="0"
                 step="1"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">Niveau 0 = pas de recave après le début. Niveau 2 = recave possible pendant les niveaux 1 et 2.</p>
+              <p className="text-xs text-gray-400 mt-1">Niveau 0 = pas de recave après le début. Niveau 2 = recave possible pendant les niveaux 1 et 2.</p>
             </div>
           )}
         </div>
 
         <div>
-          <label htmlFor="rebuyDistributionRule" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="rebuyDistributionRule" className="block text-sm font-medium text-gray-200 mb-1">
             Règle de distribution des rebuy
           </label>
           <select
             id="rebuyDistributionRule"
             value={rebuyDistributionRule}
             onChange={(e) => setRebuyDistributionRule(e.target.value as 'winner_takes_all' | 'cyclic_distribution')}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-red focus:border-transparent"
+            className="glass-input w-full"
           >
             <option value="winner_takes_all">Tous les rebuy au vainqueur</option>
             <option value="cyclic_distribution">Distribution cyclique (1er, 2ème, 3ème)</option>
           </select>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-400 mt-1">
             {rebuyDistributionRule === 'winner_takes_all'
               ? 'Tous les rebuy iront au 1er place (règle actuelle).'
               : 'Les rebuy seront distribués en cycle : 1er rebuy → 1er place, 2ème rebuy → 2ème place, 3ème rebuy → 3ème place, puis recommence.'}
@@ -585,7 +585,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-200 mb-2">
             Joueurs à la table ({selectedPlayers.size} / {tournament.registrations.length})
           </label>
           <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
@@ -595,7 +595,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                 className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${
                   selectedPlayers.has(player.id)
                     ? 'bg-poker-gold/10 border-poker-gold'
-                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                    : 'bg-white/5 border-white/10 hover:bg-white/10'
                 }`}
               >
                 <input
@@ -616,7 +616,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
         {/* ADDED: Pot Management Section */}
         <div className="border-t pt-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-poker-black">Gestion du Pot</h3>
+            <h3 className="text-lg font-semibold text-white">Gestion du Pot</h3>
             <label className="flex items-center space-x-2">
               <input
                 type="checkbox"
@@ -624,13 +624,13 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                 onChange={(e) => setUsePotSystem(e.target.checked)}
                 className="w-4 h-4 text-poker-red border-gray-300 rounded focus:ring-poker-red"
               />
-              <span className="text-sm text-gray-700">Utiliser un pot centralisé</span>
+              <span className="text-sm text-gray-200">Utiliser un pot centralisé</span>
             </label>
           </div>
 
           {usePotSystem && selectedPlayers.size > 0 && (
-           <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-             <p className="text-sm text-gray-600">
+           <div className="bg-white/5 p-4 rounded-lg space-y-3">
+             <p className="text-sm text-gray-300">
                Qui a payé son buy-in ({tournament.buyin}€) au pot :
              </p>
              
@@ -645,10 +645,10 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                    <label
                      key={playerId}
                      className={`flex items-center justify-between p-2 rounded cursor-pointer ${
-                       hasPaidToPot ? 'bg-poker-gold/10 border-poker-gold' : 'bg-white border-gray-200'
+                       hasPaidToPot ? 'bg-poker-gold/10 border-poker-gold' : 'bg-white/5 border-white/10'
                      } border`}
                    >
-                     <span className="font-medium text-gray-800 text-sm">
+                     <span className="font-medium text-white text-sm">
                        {player.nickname || player.name}
                      </span>
                      <div className="flex items-center space-x-2">
@@ -658,7 +658,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                          onChange={() => togglePlayerPotPayment(playerId)}
                          className="w-4 h-4 text-poker-red border-gray-300 rounded focus:ring-poker-red"
                        />
-                       <span className="text-sm text-gray-600">
+                       <span className="text-sm text-gray-300">
                          {hasPaidToPot ? `${tournament.buyin}€` : '0€'}
                        </span>
                      </div>
@@ -668,12 +668,12 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
              </div>
 
              <div className="flex justify-between items-center bg-poker-red/10 p-3 rounded border-l-4 border-poker-red">
-               <span className="font-semibold text-gray-800">Total du Pot :</span>
+               <span className="font-semibold text-white">Total du Pot :</span>
                <span className="font-bold text-xl text-poker-red">{totalPotAmount} €</span>
              </div>
 
              {totalPotAmount > 0 && (
-               <p className="text-xs text-gray-500">
+               <p className="text-xs text-gray-400">
                  Le prize pool sera distribué à partir de ce pot. Les règlements tiendront compte des contributions individuelles.
                </p>
              )}
@@ -681,24 +681,24 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
          )}
 
           {usePotSystem && selectedPlayers.size === 0 && (
-            <p className="text-sm text-gray-500 italic">
+            <p className="text-sm text-gray-400 italic">
               Sélectionnez d'abord les joueurs pour configurer le pot.
             </p>
           )}
         </div>
 
         <div className="border-t pt-6 space-y-4">
-            <h3 className="text-lg font-semibold text-poker-black">Prize Pool & Répartition</h3>
-            <div className="flex justify-between items-center bg-gray-100 p-3 rounded-md">
-                <span className="font-medium text-gray-800">
+            <h3 className="text-lg font-semibold text-white">Prize Pool & Répartition</h3>
+            <div className="flex justify-between items-center glass-inset p-3">
+                <span className="font-medium text-white">
                  Prize Pool Total:
                </span>
                 <span className="font-bold text-xl text-poker-red">{prizePool} €</span>
             </div>
 
             {usePotSystem && totalPotAmount < prizePool && (
-              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3">
-                <p className="text-sm text-yellow-800">
+              <div className="bg-yellow-500/10 border-l-4 border-yellow-400 p-3">
+                <p className="text-sm text-yellow-200">
                   ⚠️ Le pot ({totalPotAmount}€) ne couvre pas entièrement le prize pool ({prizePool}€).
                   Les manquants devront être réglés entre joueurs.
                 </p>
@@ -707,37 +707,37 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
 
              {selectedPlayers.size >= 3 ? (
                 <div className="space-y-3">
-                    <p className="text-sm text-gray-600">Ajuster la répartition (total doit faire 100%):</p>
+                    <p className="text-sm text-gray-300">Ajuster la répartition (total doit faire 100%):</p>
                     <div className="flex flex-wrap items-center justify-between gap-y-1">
                         <span className="w-16 shrink-0">1ère Place:</span>
                         <div className="flex items-center space-x-2">
-                            <button type="button" onClick={() => adjustPercentage('first', -5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.first <= 0}><Minus size={16} /></button>
+                            <button type="button" onClick={() => adjustPercentage('first', -5)} className="p-1 rounded bg-white/10 text-gray-200 hover:bg-white/20 disabled:opacity-50" disabled={distributionPercentages.first <= 0}><Minus size={16} /></button>
                             <span className="font-semibold w-10 text-center">{distributionPercentages.first}%</span>
-                            <button type="button" onClick={() => adjustPercentage('first', 5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.first >= 100}><Plus size={16} /></button>
+                            <button type="button" onClick={() => adjustPercentage('first', 5)} className="p-1 rounded bg-white/10 text-gray-200 hover:bg-white/20 disabled:opacity-50" disabled={distributionPercentages.first >= 100}><Plus size={16} /></button>
                         </div>
-                        <span className="text-gray-700 w-20 text-right">{estimatedWinnings.first} €</span>
+                        <span className="text-gray-200 w-20 text-right">{estimatedWinnings.first} €</span>
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-y-1">
                         <span className="w-16 shrink-0">2ème Place:</span>
                          <div className="flex items-center space-x-2">
-                            <button type="button" onClick={() => adjustPercentage('second', -5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.second <= 0}><Minus size={16} /></button>
+                            <button type="button" onClick={() => adjustPercentage('second', -5)} className="p-1 rounded bg-white/10 text-gray-200 hover:bg-white/20 disabled:opacity-50" disabled={distributionPercentages.second <= 0}><Minus size={16} /></button>
                             <span className="font-semibold w-10 text-center">{distributionPercentages.second}%</span>
-                            <button type="button" onClick={() => adjustPercentage('second', 5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.second >= 100}><Plus size={16} /></button>
+                            <button type="button" onClick={() => adjustPercentage('second', 5)} className="p-1 rounded bg-white/10 text-gray-200 hover:bg-white/20 disabled:opacity-50" disabled={distributionPercentages.second >= 100}><Plus size={16} /></button>
                         </div>
-                        <span className="text-gray-700 w-20 text-right">{estimatedWinnings.second} €</span>
+                        <span className="text-gray-200 w-20 text-right">{estimatedWinnings.second} €</span>
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-y-1">
                         <span className="w-16 shrink-0">3ème Place:</span>
                          <div className="flex items-center space-x-2">
-                            <button type="button" onClick={() => adjustPercentage('third', -5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.third <= 0}><Minus size={16} /></button>
+                            <button type="button" onClick={() => adjustPercentage('third', -5)} className="p-1 rounded bg-white/10 text-gray-200 hover:bg-white/20 disabled:opacity-50" disabled={distributionPercentages.third <= 0}><Minus size={16} /></button>
                             <span className="font-semibold w-10 text-center">{distributionPercentages.third}%</span>
-                            <button type="button" onClick={() => adjustPercentage('third', 5)} className="p-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50" disabled={distributionPercentages.third >= 100}><Plus size={16} /></button>
+                            <button type="button" onClick={() => adjustPercentage('third', 5)} className="p-1 rounded bg-white/10 text-gray-200 hover:bg-white/20 disabled:opacity-50" disabled={distributionPercentages.third >= 100}><Plus size={16} /></button>
                         </div>
-                        <span className="text-gray-700 w-20 text-right">{estimatedWinnings.third} €</span>
+                        <span className="text-gray-200 w-20 text-right">{estimatedWinnings.third} €</span>
                     </div>
                 </div>
              ) : (
-                <p className="text-sm text-gray-500 text-center italic">Sélectionnez au moins 3 joueurs pour définir la répartition des gains.</p>
+                <p className="text-sm text-gray-400 text-center italic">Sélectionnez au moins 3 joueurs pour définir la répartition des gains.</p>
              )}
         </div>
 
@@ -746,14 +746,14 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-poker-red"
+            className="btn btn-ghost w-full sm:w-auto"
           >
              Annuler
           </button>
           <button
             type="submit"
             disabled={selectedPlayers.size < 2 || gameForm.levels.length < DEFAULT_LEVEL_COUNT || hasInvalidLevels}
-            className="w-full sm:w-auto bg-poker-red text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn btn-red w-full sm:w-auto px-6"
           >
             {editingGame ? 'Mettre à jour' : 'Créer la partie'}
           </button>

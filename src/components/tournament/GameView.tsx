@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Confetti from 'react-confetti';
 import { useTournamentStore } from '../../store/tournamentStore';
 import { StopCircle } from 'lucide-react';
@@ -8,7 +9,7 @@ import { GameSummary } from './GameSummary';
 import { GamePlayersPanel } from './GamePlayersPanel';
 import { GameBlindsPanel } from './GameBlindsPanel';
 import { GamePrizePoolPanel } from './GamePrizePoolPanel';
-import { Users, DollarSign, Settings2, X } from 'lucide-react';
+import { Users, DollarSign, Settings2 } from 'lucide-react';
 
 interface GameViewProps {
   gameId: string;
@@ -173,8 +174,8 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
   if (!game || !tournament) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">Chargement de la partie...</p>
-        <button onClick={onClose} className="mt-4 text-blue-600 hover:underline">Retour</button>
+        <p className="text-gray-300">Chargement de la partie...</p>
+        <button onClick={onClose} className="btn btn-ghost mt-4">Retour</button>
       </div>
     );
   }
@@ -190,7 +191,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
 
   // Render active game view
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 relative">
+    <div className="glass-card p-6 relative">
       {/* Victory Animation */}
       {winnerName && (
         <div className="fixed inset-0 z-[100] pointer-events-none">
@@ -226,12 +227,18 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
           {game.status === 'in_progress' && canManageGame && (
             <button
               onClick={handleEndGame}
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors flex items-center"
+              className="btn btn-red"
             >
               <StopCircle className="w-5 h-5 mr-2" />
               Arrêter la partie
             </button>
           )}
+          <button
+            onClick={onClose}
+            className="btn btn-gold"
+          >
+            OK
+          </button>
         </div>
       </div>
 
@@ -247,42 +254,44 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
       <div className="grid grid-cols-3 gap-3 mt-6">
         <button
           onClick={() => setActivePanel('players')}
-          className="flex flex-col items-center justify-center p-3 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors border border-indigo-200"
+          className="flex flex-col items-center justify-center p-3 rounded-xl bg-indigo-500/15 text-indigo-200 hover:bg-indigo-500/25 transition-colors border border-indigo-400/30"
         >
           <Users className="w-6 h-6 mb-1" />
           <span className="text-sm font-medium">Joueurs</span>
         </button>
         <button
           onClick={() => setActivePanel('prizePool')}
-          className="flex flex-col items-center justify-center p-3 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors border border-emerald-200"
+          className="flex flex-col items-center justify-center p-3 rounded-xl bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25 transition-colors border border-emerald-400/30"
         >
           <DollarSign className="w-6 h-6 mb-1" />
           <span className="text-sm font-medium">Prize Pool</span>
         </button>
         <button
           onClick={() => setActivePanel('blinds')}
-          className="flex flex-col items-center justify-center p-3 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors border border-amber-200"
+          className="flex flex-col items-center justify-center p-3 rounded-xl bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 transition-colors border border-amber-400/30"
         >
           <Settings2 className="w-6 h-6 mb-1" />
           <span className="text-sm font-medium">Réglages</span>
         </button>
       </div>
 
-      {/* activePanel modal */}
-      {activePanel && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-end sm:items-center z-50 p-0 sm:p-4 pb-20 sm:pb-4">
-          <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-slide-up sm:animate-fade-in relative z-50">
-            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-lg font-bold text-gray-800">
+      {/* activePanel modal — portaled so it sits above the sticky header */}
+      {activePanel && createPortal(
+        <div className="fixed inset-0 z-[200] flex justify-center items-end sm:items-center p-3 sm:p-4">
+          <div className="modal-backdrop" onClick={() => setActivePanel(null)} />
+          <div className="modal-gold-wash" aria-hidden="true" />
+          <div className="modal-sheet glass-card rounded-2xl w-full max-w-2xl max-h-[min(90vh,calc(100dvh-1.5rem))] overflow-hidden flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b border-white/10 bg-black/40 shrink-0">
+              <h2 className="text-lg font-bold text-white">
                 {activePanel === 'players' && 'Gestion des Joueurs'}
                 {activePanel === 'blinds' && 'Réglages de la partie'}
                 {activePanel === 'prizePool' && 'Prize Pool'}
               </h2>
               <button
                 onClick={() => setActivePanel(null)}
-                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-full transition-colors"
+                className="btn btn-gold"
               >
-                <X className="w-6 h-6" />
+                OK
               </button>
             </div>
             
@@ -317,21 +326,24 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {showConfirmEndGame && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-auto shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Arrêter la partie ?</h3>
-            <p className="text-gray-600 mb-6 flex flex-col gap-2">
+      {showConfirmEndGame && createPortal(
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="modal-backdrop" onClick={() => setShowConfirmEndGame(false)} />
+          <div className="modal-gold-wash" aria-hidden="true" />
+          <div className="modal-sheet glass-card p-6 max-w-sm w-full mx-auto">
+            <h3 className="text-lg font-bold text-white mb-2">Arrêter la partie ?</h3>
+            <p className="text-gray-300 mb-6 flex flex-col gap-2">
               <span>Voulez-vous vraiment arrêter cette partie en cours ?</span>
-              <span className="bg-orange-50 text-orange-800 p-2 rounded text-sm">⚠️ Les joueurs restants seront classés à égalité et se partageront les gains restants.</span>
+              <span className="bg-orange-500/15 text-orange-300 p-2 rounded text-sm">⚠️ Les joueurs restants seront classés à égalité et se partageront les gains restants.</span>
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowConfirmEndGame(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                className="btn btn-ghost"
               >
                 Annuler
               </button>
@@ -340,27 +352,30 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
                   setShowConfirmEndGame(false);
                   endGame(tournamentId, gameId);
                 }}
-                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium"
+                className="btn btn-red"
               >
                 Oui, l'arrêter
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {playerToEliminateFinal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-auto shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Dernière élimination ?</h3>
-            <p className="text-gray-600 mb-6 flex flex-col gap-2">
+      {playerToEliminateFinal && createPortal(
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="modal-backdrop" onClick={() => setPlayerToEliminateFinal(null)} />
+          <div className="modal-gold-wash" aria-hidden="true" />
+          <div className="modal-sheet glass-card p-6 max-w-sm w-full mx-auto">
+            <h3 className="text-lg font-bold text-white mb-2">Dernière élimination ?</h3>
+            <p className="text-gray-300 mb-6 flex flex-col gap-2">
               <span>Êtes-vous sûr de vouloir éliminer ce joueur ?</span>
-              <span className="bg-red-50 text-red-800 p-2 rounded text-sm font-medium">⚠️ Cela mettra immédiatement fin à la partie.</span>
+              <span className="bg-red-500/15 text-red-300 p-2 rounded text-sm font-medium">⚠️ Cela mettra immédiatement fin à la partie.</span>
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setPlayerToEliminateFinal(null)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                className="btn btn-ghost"
               >
                 Annuler
               </button>
@@ -370,13 +385,14 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
                   setPlayerToEliminateFinal(null);
                   performElimination(playerId);
                 }}
-                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium"
+                className="btn btn-red"
               >
                 Oui, l'éliminer
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

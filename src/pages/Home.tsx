@@ -59,20 +59,20 @@ const Home: React.FC = () => {
                     return {
                         label: 'Voir le résumé',
                         icon: <Trophy className='w-4 h-4 mr-2' />,
-                        className: "bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors flex items-center justify-center sm:justify-start w-full sm:w-auto"
+                        className: "btn btn-ghost w-full sm:w-auto"
                     };
                 case 'in_progress':
                     return {
                         label: 'Accéder',
                         icon: <PlayCircle className='w-4 h-4 mr-2' />,
-                        className: "bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors flex items-center justify-center sm:justify-start w-full sm:w-auto"
+                        className: "btn btn-green w-full sm:w-auto"
                     };
                 case 'scheduled':
                 default:
                     return {
                         label: 'Rejoindre',
                         icon: <PlayCircle className='w-4 h-4 mr-2' />,
-                        className: "bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center justify-center sm:justify-start w-full sm:w-auto"
+                        className: "btn btn-gold w-full sm:w-auto"
                     };
             }
         };
@@ -81,12 +81,12 @@ const Home: React.FC = () => {
 
         return (
             // Responsive Card Layout: stack vertically below sm, row sm and up
-            <div key={tournament.id} className="bg-white rounded-lg shadow-md p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div key={tournament.id} className="glass-card p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 {/* Details Section */}
                 <div className="min-w-0"> {/* Allow shrinking */}
-                    <h3 className="font-semibold text-lg">{tournament.name}</h3>
+                    <h3 className="font-semibold text-lg text-white">{tournament.name}</h3>
                     {/* Responsive Details Row: wrap items */}
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-gray-600 text-sm"> {/* Use text-sm for smaller text */}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-gray-300 text-sm"> {/* Use text-sm for smaller text */}
                         <span className="flex items-center shrink-0"><Calendar className="w-4 h-4 mr-1" /> {new Date(tournament.date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</span>
                         <span className="flex items-center shrink-0"><MapPin className="w-4 h-4 mr-1" /> {tournament.location}</span>
                         <span className="flex items-center shrink-0"><Users className="w-4 h-4 mr-1" /> {tournament.registrations.length} / {tournament.maxPlayers}</span>
@@ -122,13 +122,13 @@ const Home: React.FC = () => {
 
                     {/* Guidance Message */}
                     {teams.length === 0 && (
-                        <section className="mb-8 p-4 bg-blue-100 border border-blue-300 rounded-lg text-center">
-                            <p className="text-blue-800">
+                        <section className="mb-8 p-4 glass-card text-center">
+                            <p className="text-gray-100">
                                 Vous ne faites partie d'aucun groupe pour le moment.
                             </p>
-                            <p className="text-blue-700 mt-2">
+                            <p className="text-gray-300 mt-2">
                                 Pour participer ou organiser des tournois, commencez par{' '}
-                                <button onClick={() => navigate('/teams')} className="text-blue-900 font-semibold underline hover:text-blue-700">
+                                <button onClick={() => navigate('/teams')} className="text-poker-gold font-semibold underline hover:text-yellow-300">
                                     rejoindre un groupe ou en créer un
                                 </button>.
                             </p>
@@ -138,32 +138,32 @@ const Home: React.FC = () => {
                     {/* Main Actions */}
                     <div className="grid md:grid-cols-2 gap-8 mb-12">
                         {/* Create Tournament */}
-                        <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                        <div className="glass-card p-6 transition-shadow hover:shadow-2xl">
                             <h2 className="text-2xl font-bold text-poker-red mb-4 flex items-center">
                                 <Plus className="w-6 h-6 mr-2" /> Créer un Tournoi
                             </h2>
-                            <p className="text-gray-600 mb-4">
+                            <p className="text-gray-300 mb-4">
                                 Configurez rapidement votre prochain tournoi avec notre interface intuitive
                             </p>
                             <button
                                 onClick={handleCreateTournament}
-                                className="bg-poker-red text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors"
+                                className="btn btn-red px-6"
                             >
                                 Commencer
                             </button>
                         </div>
 
                         {/* Join Tournament */}
-                        <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                        <div className="glass-card p-6 transition-shadow hover:shadow-2xl">
                             <h2 className="text-2xl font-bold text-poker-gold mb-4 flex items-center">
                                 <Users className="w-6 h-6 mr-2" /> Rejoindre un Tournoi
                             </h2>
-                            <p className="text-gray-600 mb-4">
+                            <p className="text-gray-300 mb-4">
                                 Participez à des tournois existants et suivez vos performances
                             </p>
                             <button
                                 onClick={() => navigate('/tournaments')}
-                                className="bg-poker-gold text-white px-6 py-2 rounded-md hover:bg-yellow-600 transition-colors"
+                                className="btn btn-gold px-6"
                             >
                                 Voir les tournois
                             </button>

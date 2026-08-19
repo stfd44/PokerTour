@@ -42,8 +42,8 @@ export function GamePlayersPanel({
         key={player.id}
         className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border gap-3 ${
           player.eliminated
-            ? 'bg-red-50 border-red-200 opacity-80'
-            : 'bg-green-50 border-green-200'
+            ? 'bg-red-500/10 border-red-400/30 opacity-80'
+            : 'bg-green-500/10 border-green-400/30'
         }`}
       >
         <div className="flex items-center">
@@ -52,7 +52,7 @@ export function GamePlayersPanel({
           ) : (
             <UserCheck className="w-5 h-5 text-green-500 mr-2" />
           )}
-          <span className={player.eliminated ? 'line-through text-gray-500' : 'font-medium'}>
+          <span className={player.eliminated ? 'line-through text-gray-400' : 'font-medium text-white'}>
             {player.nickname || player.name}
             {rebuyLimitMode === 'max_per_player' && ` (${player.rebuysMade || 0}/${game.maxRebuysPerPlayer ?? 0} recaves)`}
           </span>
@@ -64,7 +64,7 @@ export function GamePlayersPanel({
               <button
                 onClick={() => onRebuy(player.id)}
                 disabled={isLoadingRebuy}
-                className="px-3 py-1.5 rounded-md text-sm flex items-center transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-wait"
+                className="btn btn-blue px-3 py-1.5 text-sm"
               >
                 <RefreshCcw className={`w-4 h-4 mr-1.5 ${isLoadingRebuy ? 'animate-spin' : ''}`} />
                 {isLoadingRebuy ? '...' : `Rebuy (${game.rebuyAmount}EUR)`}
@@ -74,11 +74,9 @@ export function GamePlayersPanel({
             <button
               onClick={() => onEliminate(player.id, player.eliminated)}
               disabled={game.status !== 'in_progress' || isLoadingRebuy}
-              className={`px-3 py-1.5 rounded-md text-sm flex items-center transition-colors ${
-                player.eliminated
-                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                  : 'bg-red-100 text-red-700 hover:bg-red-200'
-              } ${game.status !== 'in_progress' || isLoadingRebuy ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`btn px-3 py-1.5 text-sm ${
+                player.eliminated ? 'btn-green' : 'btn-red'
+              }`}
             >
               {player.eliminated ? (
                 <>
@@ -101,17 +99,17 @@ export function GamePlayersPanel({
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-semibold text-gray-800">Gestion des joueurs</h3>
+        <h3 className="text-xl font-semibold text-white">Gestion des joueurs</h3>
       </div>
 
       {!canManageGame && (
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+        <div className="p-3 bg-blue-500/15 border border-blue-400/30 rounded-md text-sm text-blue-200">
           Mode visiteur : suivi des joueurs sans interaction.
         </div>
       )}
 
       {game.status === 'in_progress' && (
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 mb-4">
+        <div className="p-3 bg-blue-500/15 border border-blue-400/30 rounded-md text-sm text-blue-200 mb-4">
           {rebuyLimitMode === 'max_per_player'
             ? `Recave limitee a ${game.maxRebuysPerPlayer ?? 0} fois par joueur.`
             : `Recave autorisee jusqu'a la fin du niveau ${game.rebuyAllowedUntilLevel}.`}
@@ -120,7 +118,7 @@ export function GamePlayersPanel({
       )}
 
       {rebuyError && (
-        <div className="p-3 bg-red-100 border border-red-300 rounded-md text-sm text-red-700 mb-4">
+        <div className="p-3 bg-red-500/15 border border-red-400/30 rounded-md text-sm text-red-300 mb-4">
           Erreur : {rebuyError}
         </div>
       )}
@@ -128,8 +126,8 @@ export function GamePlayersPanel({
       <div className="max-h-[60vh] overflow-y-auto pr-2 pb-4 space-y-5">
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold uppercase tracking-wide text-green-700">En jeu</h4>
-            <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-green-300">En jeu</h4>
+            <span className="text-xs font-medium text-green-300 bg-green-500/20 px-2 py-1 rounded-full">
               {activePlayers.length}
             </span>
           </div>
@@ -138,7 +136,7 @@ export function GamePlayersPanel({
               {activePlayers.map(renderPlayerCard)}
             </div>
           ) : (
-            <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+            <div className="rounded-lg border border-dashed border-white/15 p-4 text-sm text-gray-400">
               Aucun joueur encore en jeu.
             </div>
           )}
@@ -146,8 +144,8 @@ export function GamePlayersPanel({
 
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold uppercase tracking-wide text-red-700">Elimines</h4>
-            <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-red-300">Elimines</h4>
+            <span className="text-xs font-medium text-red-300 bg-red-500/20 px-2 py-1 rounded-full">
               {eliminatedPlayers.length}
             </span>
           </div>
@@ -156,7 +154,7 @@ export function GamePlayersPanel({
               {eliminatedPlayers.map(renderPlayerCard)}
             </div>
           ) : (
-            <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+            <div className="rounded-lg border border-dashed border-white/15 p-4 text-sm text-gray-400">
               Aucun joueur elimine pour le moment.
             </div>
           )}

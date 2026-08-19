@@ -208,38 +208,38 @@ const Teams: React.FC = () => {
       </div>
 
       {/* Create Group Section */}
-      <div className="mb-6 p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold mb-1 text-gray-800">Créer un Championnat, un Circuit ou un Groupe</h2>
-        <p className="text-sm text-gray-500 mb-4">Vous en deviendrez automatiquement le créateur et pourrez inviter vos joueurs.</p>
+      <div className="mb-6 p-6 glass-card">
+        <h2 className="text-lg font-semibold mb-1 text-white">Créer un Championnat, un Circuit ou un Groupe</h2>
+        <p className="text-sm text-gray-300 mb-4">Vous en deviendrez automatiquement le créateur et pourrez inviter vos joueurs.</p>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <input
             type="text"
             placeholder="Nom de votre groupe, circuit ou championnat"
-            className="border border-gray-300 px-3 py-2 rounded-lg flex-grow focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+            className="glass-input flex-grow text-sm"
             value={newTeamName}
             onChange={(e) => setNewTeamName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreateTeam()}
           />
           <button
             onClick={handleCreateTeam}
-            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+            className="btn btn-blue w-full sm:w-auto px-5"
           >
             <UserPlus className="w-4 h-4" />
             Créer
           </button>
         </div>
         {joinMessage && (
-          <p className={`text-sm mt-2 ${joinMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+          <p className={`text-sm mt-2 ${joinMessage.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
             {joinMessage.text}
           </p>
         )}
       </div>
 
       {/* Join Group Section */}
-      <div className="mb-8 p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-        <h2 className="text-lg font-semibold mb-1 text-gray-800">Rejoindre un Championnat, un Circuit ou un Groupe</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Entrez le code unique du groupe (ex&nbsp;: <span className="font-mono bg-gray-100 px-1 rounded">nom_groupe_1234</span>) partagé par son créateur.
+      <div className="mb-8 p-6 glass-card">
+        <h2 className="text-lg font-semibold mb-1 text-white">Rejoindre un Championnat, un Circuit ou un Groupe</h2>
+        <p className="text-sm text-gray-300 mb-4">
+          Entrez le code unique du groupe (ex&nbsp;: <span className="font-mono bg-white/10 px-1 rounded">nom_groupe_1234</span>) partagé par son créateur.
         </p>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-2">
           <div className="relative flex-grow">
@@ -247,7 +247,7 @@ const Teams: React.FC = () => {
             <input
               type="text"
               placeholder="Code du groupe (ex : amis_poker_2847)"
-              className="border border-gray-300 pl-9 pr-3 py-2 rounded-lg w-full focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-sm"
+              className="glass-input pl-9 w-full text-sm"
               value={joinTag}
               onChange={(e) => setJoinTag(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleJoinByTag()}
@@ -255,21 +255,21 @@ const Teams: React.FC = () => {
           </div>
           <button
             onClick={handleJoinByTag}
-            className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+            className="btn btn-green w-full sm:w-auto px-5"
           >
             <LogIn className="w-4 h-4" />
             Rejoindre
           </button>
         </div>
         {joinMessage && (
-          <p className={`text-sm mt-1 ${joinMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+          <p className={`text-sm mt-1 ${joinMessage.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
             {joinMessage.text}
           </p>
         )}
       </div>
 
       {/* Group List */}
-      <h2 className="text-xl font-semibold mb-4 text-gray-800">Mes Groupes</h2>
+      <h2 className="text-xl font-semibold mb-4 text-white drop-shadow-sm">Mes Groupes</h2>
       {teams.length > 0 ? (
         <ul className="space-y-4">
           {teams.map((team: Team) => {
@@ -278,14 +278,14 @@ const Teams: React.FC = () => {
             const totalCount = team.members.length + pendingMembers.length;
 
             return (
-              <li key={team.id} className="bg-white border border-gray-200 p-5 rounded-xl shadow-sm">
+              <li key={team.id} className="glass-card p-5">
                 {/* Team Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                   <div className="mb-1 sm:mb-0">
-                    <span className="font-semibold text-lg text-gray-900">{team.name}</span>
+                    <span className="font-semibold text-lg text-white">{team.name}</span>
                     <div className="flex items-center mt-1 gap-1">
                       <Hash className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded select-all">{team.tag}</span>
+                      <span className="text-xs text-gray-300 font-mono bg-white/10 px-2 py-0.5 rounded select-all">{team.tag}</span>
                     </div>
                     <p className="text-xs text-gray-400 mt-1">Créé le : {team.createdAt.toLocaleDateString()}</p>
                   </div>
@@ -295,7 +295,7 @@ const Teams: React.FC = () => {
                       <button
                         onClick={() => openAddMemberModal(team.id)}
                         title="Ajouter un membre"
-                        className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1.5 text-sm transition-colors border border-blue-200"
+                        className="btn btn-blue py-1.5 px-3 text-sm"
                       >
                         <UserSearch className="w-4 h-4" />
                         <span className="hidden sm:inline">Ajouter</span>
@@ -305,7 +305,7 @@ const Teams: React.FC = () => {
                       <button
                         onClick={() => handleDeleteTeam(team.id)}
                         title="Supprimer le groupe"
-                        className="bg-red-50 hover:bg-red-100 text-red-700 font-bold py-1.5 px-2 rounded-lg flex items-center text-sm transition-colors border border-red-200"
+                        className="btn btn-red py-1.5 px-2"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -314,7 +314,7 @@ const Teams: React.FC = () => {
                       <button
                         onClick={() => handleLeaveTeam(team.id)}
                         title="Quitter le groupe"
-                        className="bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-semibold py-1.5 px-2 rounded-lg flex items-center text-sm transition-colors border border-yellow-200"
+                        className="btn btn-gold py-1.5 px-2"
                       >
                         <UserMinus className="w-4 h-4" />
                       </button>
@@ -322,7 +322,7 @@ const Teams: React.FC = () => {
                       <button
                         onClick={() => handleJoinTeam(team.id)}
                         title="Rejoindre le groupe"
-                        className="bg-green-50 hover:bg-green-100 text-green-700 font-semibold py-1.5 px-2 rounded-lg flex items-center text-sm transition-colors border border-green-200"
+                        className="btn btn-green py-1.5 px-2"
                       >
                         <UserPlus className="w-4 h-4" />
                       </button>
@@ -331,12 +331,12 @@ const Teams: React.FC = () => {
                 </div>
 
                 {/* Members List */}
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <h4 className="text-sm font-semibold mb-3 flex items-center text-gray-700">
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <h4 className="text-sm font-semibold mb-3 flex items-center text-gray-200">
                     <Users className="w-4 h-4 mr-1.5 text-gray-400" />
                     Membres ({totalCount})
                     {pendingMembers.length > 0 && (
-                      <span className="ml-2 text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-medium">
+                      <span className="ml-2 text-xs bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded-full font-medium">
                         {pendingMembers.length} non vérifié{pendingMembers.length > 1 ? 's' : ''}
                       </span>
                     )}
@@ -344,19 +344,19 @@ const Teams: React.FC = () => {
 
                   {/* Verified members */}
                   {loadingMemberDetails && team.members.some(id => !memberDetails[id]) ? (
-                    <p className="text-xs text-gray-500 italic mb-2">Chargement des membres...</p>
+                    <p className="text-xs text-gray-400 italic mb-2">Chargement des membres...</p>
                   ) : (
                     <ul className="space-y-1.5 mb-3">
                       {team.members.map(memberId => (
-                        <li key={memberId} className="text-sm text-gray-700 flex items-center gap-2">
-                          <ShieldCheck className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                        <li key={memberId} className="text-sm text-gray-200 flex items-center gap-2">
+                          <ShieldCheck className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
                           <span>{memberDetails[memberId]?.name || memberId}</span>
                           <div className="flex items-center gap-1 ml-auto">
                             {memberId === user?.uid && (
-                              <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">Vous</span>
+                              <span className="text-xs bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full">Vous</span>
                             )}
                             {memberId === team.creatorId && (
-                              <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Créateur</span>
+                              <span className="text-xs bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full">Créateur</span>
                             )}
                           </div>
                         </li>
@@ -367,8 +367,8 @@ const Teams: React.FC = () => {
                   {/* Pending / unverified members */}
                   {pendingMembers.length > 0 && (
                     <>
-                      <div className="border-t border-dashed border-orange-200 pt-3 mt-1">
-                        <p className="text-xs text-orange-500 font-medium mb-2 flex items-center gap-1">
+                      <div className="border-t border-dashed border-orange-400/30 pt-3 mt-1">
+                        <p className="text-xs text-orange-300 font-medium mb-2 flex items-center gap-1">
                           <ShieldAlert className="w-3.5 h-3.5" />
                           Membres non vérifiés — en attente de création de compte
                         </p>
@@ -376,8 +376,8 @@ const Teams: React.FC = () => {
                           {pendingMembers.map((pm) => (
                             <li key={pm.name} className="text-sm flex items-center gap-2">
                               <ShieldAlert className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
-                              <span className="text-gray-600">{pm.name}</span>
-                              <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-medium">
+                              <span className="text-gray-200">{pm.name}</span>
+                              <span className="text-xs bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded-full font-medium">
                                 Non vérifié
                               </span>
                               {/* Only creator can remove pending members */}
@@ -398,8 +398,8 @@ const Teams: React.FC = () => {
                   )}
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <h4 className="text-sm font-semibold mb-3 flex items-center text-gray-700">
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <h4 className="text-sm font-semibold mb-3 flex items-center text-gray-200">
                     <Layers className="w-4 h-4 mr-1.5 text-gray-400" />
                     Structures de blindes ({team.blindPresets?.length || 0})
                   </h4>
@@ -407,10 +407,10 @@ const Teams: React.FC = () => {
                   {team.blindPresets && team.blindPresets.length > 0 ? (
                     <ul className="space-y-2">
                       {team.blindPresets.map((preset) => (
-                        <li key={preset.id} className="flex items-center justify-between gap-3 text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                        <li key={preset.id} className="flex items-center justify-between gap-3 text-sm glass-inset px-3 py-2">
                           <div className="min-w-0">
-                            <p className="font-medium text-gray-800 truncate">{preset.name}</p>
-                            <p className="text-xs text-gray-500">
+                            <p className="font-medium text-white truncate">{preset.name}</p>
+                            <p className="text-xs text-gray-400">
                               Stack {preset.startingStack.toLocaleString()} | {preset.levels.length} niveaux | Départ {preset.levels[0]?.blinds.small}/{preset.levels[0]?.blinds.big} | Rebuy jusqu'au niveau {preset.rebuyAllowedUntilLevel}
                             </p>
                           </div>
@@ -427,7 +427,7 @@ const Teams: React.FC = () => {
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-400">
                       Aucune structure enregistrée. Vous pourrez en créer directement depuis la création d'une partie de tournoi.
                     </p>
                   )}
@@ -437,8 +437,8 @@ const Teams: React.FC = () => {
           })}
         </ul>
       ) : (
-        <div className="text-center py-12 text-gray-500">
-          <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+        <div className="text-center py-12 text-gray-400">
+          <Users className="w-12 h-12 mx-auto mb-3 text-gray-500" />
           <p className="italic">Vous n'êtes membre d'aucun groupe pour le moment.</p>
           <p className="text-sm mt-1">Créez votre premier groupe ou rejoignez-en un avec un code.</p>
         </div>
@@ -447,14 +447,14 @@ const Teams: React.FC = () => {
       {/* ── Modal: Add Member by Name ── */}
       {addMemberTeamId && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-auto shadow-xl">
+          <div className="glass-card p-6 max-w-sm w-full mx-auto">
             <div className="flex justify-between items-start mb-1">
-              <h3 className="text-lg font-bold text-gray-900">Ajouter un membre</h3>
-              <button onClick={closeAddMemberModal} className="text-gray-400 hover:text-gray-600 p-1">
-                <X className="w-5 h-5" />
+              <h3 className="text-lg font-bold text-white">Ajouter un membre</h3>
+              <button onClick={closeAddMemberModal} className="btn btn-gold">
+                OK
               </button>
             </div>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-gray-300 mb-4">
               Saisissez le pseudo exact du joueur. S'il n'existe pas encore dans l'application,
               il sera ajouté comme <span className="font-medium text-orange-600">membre non vérifié</span> jusqu'à
               ce qu'il crée son compte.
@@ -463,7 +463,7 @@ const Teams: React.FC = () => {
               <input
                 type="text"
                 placeholder="Pseudo du joueur"
-                className="border border-gray-300 px-3 py-2 rounded-lg flex-grow focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                className="glass-input flex-grow text-sm"
                 value={addMemberNickname}
                 onChange={(e) => setAddMemberNickname(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddMemberByName()}
@@ -472,7 +472,7 @@ const Teams: React.FC = () => {
               <button
                 onClick={handleAddMemberByName}
                 disabled={addingMember}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm flex items-center gap-1.5"
+                className="btn btn-blue"
               >
                 {addingMember ? (
                   <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
@@ -486,21 +486,14 @@ const Teams: React.FC = () => {
             {addMemberMessage && (
               <div className={`text-sm px-3 py-2 rounded-lg ${
                 addMemberMessage.type === 'success'
-                  ? 'bg-green-50 text-green-700 border border-green-200'
-                  : 'bg-red-50 text-red-700 border border-red-200'
+                  ? 'bg-green-500/15 text-green-300 border border-green-400/30'
+                  : 'bg-red-500/15 text-red-300 border border-red-400/30'
               }`}>
                 {addMemberMessage.text}
               </div>
             )}
 
-            <div className="flex justify-end mt-4">
-              <button
-                onClick={closeAddMemberModal}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-sm"
-              >
-                Fermer
-              </button>
-            </div>
+
           </div>
         </div>
       )}
@@ -508,22 +501,22 @@ const Teams: React.FC = () => {
       {/* ── Modal: Confirm remove pending member ── */}
       {confirmRemovePending && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-auto shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Retirer le membre ?</h3>
-            <p className="text-gray-600 mb-1">
+          <div className="glass-card p-6 max-w-sm w-full mx-auto">
+            <h3 className="text-lg font-bold text-white mb-2">Retirer le membre ?</h3>
+            <p className="text-gray-300 mb-1">
               Voulez-vous retirer <span className="font-semibold">"{confirmRemovePending.name}"</span> de la liste des membres ?
             </p>
             <p className="text-sm text-gray-400 mb-6">Ce membre n'est pas encore inscrit dans l'application.</p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setConfirmRemovePending(null)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="btn btn-ghost"
               >
                 Annuler
               </button>
               <button
                 onClick={handleRemovePendingMember}
-                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors font-medium"
+                className="btn btn-red"
               >
                 Oui, retirer
               </button>
@@ -535,21 +528,21 @@ const Teams: React.FC = () => {
       {/* ── Modal: Confirm delete group ── */}
       {confirmDeleteTeamId && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-auto shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Supprimer le groupe ?</h3>
-            <p className="text-gray-600 mb-6">
+          <div className="glass-card p-6 max-w-sm w-full mx-auto">
+            <h3 className="text-lg font-bold text-white mb-2">Supprimer le groupe ?</h3>
+            <p className="text-gray-300 mb-6">
               Êtes-vous sûr de vouloir supprimer ce groupe ? Cette action est irréversible.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setConfirmDeleteTeamId(null)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="btn btn-ghost"
               >
                 Annuler
               </button>
               <button
                 onClick={confirmDeleteTeam}
-                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors font-medium"
+                className="btn btn-red"
               >
                 Oui, supprimer
               </button>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Edit, Check, Loader2, Plus } from 'lucide-react';
+import { Check, Loader2, Plus } from 'lucide-react';
 import { useTournamentStore } from '../../store/tournamentStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTeamStore } from '../../store/useTeamStore';
@@ -244,17 +244,17 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
     const isLoading = loadingStatus === type;
 
     let children: React.ReactNode = defaultLabel;
-    let bgClass = 'bg-indigo-600 hover:bg-indigo-700';
+    let variant = 'btn-gold';
 
     if (isLoading) {
       children = <><Loader2 className="w-4 h-4 mr-1 animate-spin" />...</>;
     } else if (isSaved) {
       children = <><Check className="w-4 h-4 mr-1" />OK</>;
-      bgClass = 'bg-green-500 hover:bg-green-600';
+      variant = 'btn-green';
     }
 
     return {
-      className: `px-4 py-2 text-white rounded-md transition-colors disabled:opacity-50 flex items-center justify-center min-w-[90px] ${bgClass}`,
+      className: `btn ${variant} min-w-[90px]`,
       disabled: disabledCondition || isSaved || isLoading,
       children
     };
@@ -271,20 +271,15 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
 
   return (
     <div className="space-y-6">
-      <h3 className="text-xl font-semibold text-gray-800 flex items-center">
-        <Edit className="w-5 h-5 mr-2" />
-        Réglages de la partie
-      </h3>
-
       {!canManageGame && (
-        <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+        <div className="rounded-md border border-blue-400/30 bg-blue-500/15 px-3 py-2 text-sm text-blue-200">
           Mode visiteur : consultation uniquement.
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-200">
             Blinds du niveau {game.currentLevel + 2}
           </label>
           <div className="flex items-center gap-2">
@@ -294,7 +289,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
               value={newSmallBlind}
               onChange={(e) => setNewSmallBlind(e.target.value)}
               disabled={!canManageGame}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="glass-input w-full sm:text-sm"
               min="1"
               step="1"
             />
@@ -304,7 +299,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
               value={newBigBlind}
               onChange={(e) => setNewBigBlind(e.target.value)}
               disabled={!canManageGame}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="glass-input w-full sm:text-sm"
               min="2"
               step="1"
             />
@@ -316,7 +311,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-200">
             Durée du niveau {game.currentLevel + 2}
           </label>
           <div className="flex items-center gap-2">
@@ -326,7 +321,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
               value={newLevelDuration}
               onChange={(e) => setNewLevelDuration(e.target.value)}
               disabled={!canManageGame}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="glass-input w-full sm:text-sm"
               min="1"
               step="1"
             />
@@ -338,7 +333,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-200">
             {rebuyLimitMode === 'max_per_player'
               ? 'Recaves max par joueur pour cette partie'
               : `Recaves autorisees jusqu'au niveau pour cette partie`}
@@ -350,7 +345,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
               value={newRebuyLevel}
               onChange={(e) => setNewRebuyLevel(e.target.value)}
               disabled={!canManageGame}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="glass-input w-full sm:text-sm"
               min="0"
               step="1"
             />
@@ -362,10 +357,10 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-4">
+      <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
           <div className="flex-1">
-            <label htmlFor="activeBlindPreset" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="activeBlindPreset" className="block text-sm font-medium text-gray-200 mb-1">
               Changer de structure
             </label>
             <select
@@ -373,7 +368,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
               value={selectedPresetId}
               onChange={(e) => handleApplyPreset(e.target.value)}
               disabled={!canManageGame}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+              className="glass-input w-full px-3 py-2"
             >
               <option value="">Structure actuelle</option>
               {blindPresets.map((preset) => (
@@ -382,7 +377,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
                 </option>
               ))}
             </select>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-400 mt-1">
               Sélectionne une structure du groupe, puis enregistre pour l’appliquer à la partie en cours.
             </p>
           </div>
@@ -391,16 +386,16 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
             type="button"
             onClick={handleAddLevel}
             disabled={!canManageGame}
-            className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-100 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn btn-ghost"
           >
             <Plus className="w-4 h-4" />
             Ajouter un niveau
           </button>
         </div>
 
-        <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white">
+        <div className="overflow-x-auto border border-white/10 rounded-lg bg-black/20">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-gray-700">
+            <thead className="bg-white/5 text-gray-200">
               <tr>
                 <th className="px-3 py-2 text-left">Niveau</th>
                 <th className="px-3 py-2 text-left">Petite blind</th>
@@ -410,8 +405,8 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
             </thead>
             <tbody>
               {editableLevels.map((level, index) => (
-                <tr key={index} className={index === game.currentLevel ? 'bg-amber-50' : 'border-t border-gray-100'}>
-                  <td className="px-3 py-2 font-medium text-gray-700">
+                <tr key={index} className={index === game.currentLevel ? 'bg-poker-gold/15' : 'border-t border-white/10'}>
+                  <td className={`px-3 py-2 font-medium ${index === game.currentLevel ? 'text-poker-gold' : 'text-gray-200'}`}>
                     {index + 1}
                     {index === game.currentLevel ? ' (en cours)' : ''}
                   </td>
@@ -421,7 +416,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
                       value={level.blinds.small}
                       onChange={(e) => updateEditableLevel(index, 'small', parseInt(e.target.value, 10) || 0)}
                       disabled={!canManageGame}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="glass-input w-full"
                       min="1"
                       step="1"
                     />
@@ -432,7 +427,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
                       value={level.blinds.big}
                       onChange={(e) => updateEditableLevel(index, 'big', parseInt(e.target.value, 10) || 0)}
                       disabled={!canManageGame}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="glass-input w-full"
                       min="2"
                       step="1"
                     />
@@ -443,7 +438,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
                       value={level.duration}
                       onChange={(e) => updateEditableLevel(index, 'duration', parseInt(e.target.value, 10) || 0)}
                       disabled={!canManageGame}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="glass-input w-full"
                       min="1"
                       step="1"
                     />
@@ -456,7 +451,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
 
         <div className="flex flex-col md:flex-row md:items-end gap-3">
           <div className="w-full md:max-w-xs">
-            <label htmlFor="panelRebuyMode" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="panelRebuyMode" className="block text-sm font-medium text-gray-200 mb-1">
               Mode de recave
             </label>
             <select
@@ -476,7 +471,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
                 }
               }}
               disabled={!canManageGame}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="glass-input w-full"
             >
               <option value="max_per_player">Nombre max par joueur</option>
               <option value="until_level">Jusqu'au niveau</option>
@@ -486,7 +481,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
           <div className="w-full md:max-w-xs">
             {rebuyLimitMode === 'max_per_player' ? (
               <>
-                <label htmlFor="maxRebuysPerPlayer" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="maxRebuysPerPlayer" className="block text-sm font-medium text-gray-200 mb-1">
                   Nombre max de recaves
                 </label>
                 <input
@@ -495,14 +490,14 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
                   value={maxRebuysPerPlayer}
                   onChange={(e) => setMaxRebuysPerPlayer(Math.max(0, parseInt(e.target.value, 10) || 0))}
                   disabled={!canManageGame}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="glass-input w-full"
                   min="0"
                   step="1"
                 />
               </>
             ) : (
               <>
-                <label htmlFor="structureRebuyLevel" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="structureRebuyLevel" className="block text-sm font-medium text-gray-200 mb-1">
                   Recave jusqu'au niveau
                 </label>
                 <input
@@ -511,7 +506,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
                   value={structureRebuyLevel}
                   onChange={(e) => setStructureRebuyLevel(Math.max(0, parseInt(e.target.value, 10) || 0))}
                   disabled={!canManageGame}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="glass-input w-full"
                   min="0"
                   step="1"
                 />
@@ -531,7 +526,7 @@ export function GameBlindsPanel({ game, tournamentId, gameId, canManageGame }: G
         <button
           onClick={handleResetTimer}
           disabled={!canManageGame}
-          className="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn btn-ghost text-sm py-1"
         >
           Réinit. timer du niveau en cours
         </button>

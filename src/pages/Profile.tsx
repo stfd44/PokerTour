@@ -306,8 +306,8 @@ const Profile: React.FC = () => {
       <h1 className="text-3xl font-bold text-white mb-6 drop-shadow-sm">Profil de {user.nickname || user.displayName}</h1>
 
       {/* Nickname Section */}
-      <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-        <h2 className="text-xl font-semibold text-poker-black mb-4">Changer de Surnom</h2>
+      <div className="glass-card p-6">
+        <h2 className="text-xl font-semibold text-white mb-4">Changer de Surnom</h2>
         {/* Responsive Nickname Input/Button */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4"> {/* Use gap instead of space-x */}
           <input
@@ -315,30 +315,30 @@ const Profile: React.FC = () => {
             value={nicknameInput}
             onChange={(e) => setNicknameInput(e.target.value)}
             placeholder="Entrez votre nouveau surnom"
-            className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-blue focus:border-poker-blue" // Removed space-x related classes if any
+            className="glass-input flex-grow"
             disabled={isSavingNickname}
           />
           <button
             onClick={handleSaveNickname}
             disabled={isSavingNickname || !nicknameInput.trim() || nicknameInput.trim() === user.nickname}
-            className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center sm:justify-start" // Added w-full sm:w-auto, justify-center
+            className="btn btn-blue w-full sm:w-auto"
           >
             {isSavingNickname ? 'Sauvegarde...' : 'Sauvegarder'}
           </button>
         </div>
         {saveMessage && (
-          <p className={`mt-2 text-sm ${saveMessage.includes('Erreur') ? 'text-red-600' : 'text-green-600'}`}>
+          <p className={`mt-2 text-sm ${saveMessage.includes('Erreur') ? 'text-red-400' : 'text-green-400'}`}>
             {saveMessage}
           </p>
         )}
       </div>
 
       {/* Notifications Section */}
-      <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+      <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
-            <Bell className="w-6 h-6 text-poker-blue" />
-            <h2 className="text-xl font-semibold text-poker-black">Notifications Push</h2>
+            <Bell className="w-6 h-6 text-poker-gold" />
+            <h2 className="text-xl font-semibold text-white">Notifications Push</h2>
           </div>
           {/* Toggle Switch */}
           <label className="relative inline-flex items-center cursor-pointer">
@@ -349,33 +349,33 @@ const Profile: React.FC = () => {
               onChange={handleToggleNotifications}
               disabled={isTogglingNotifications || !user?.uid}
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-poker-blue/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-poker-blue"></div>
+            <div className="w-11 h-6 bg-white/15 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-poker-blue/20 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white/90 after:border-white/30 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-poker-blue/80"></div>
           </label>
         </div>
 
-        <p className="text-gray-600 mb-4 text-sm">
+        <p className="text-gray-300 mb-4 text-sm">
           Recevez des alertes en temps réel pour les fins de niveaux et les événements importants de vos tournois.
         </p>
 
         {/* Status Info */}
-        <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-gray-100">
+        <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-white/10">
           <div className="flex items-center text-sm">
-            <span className="text-gray-500 mr-2">État :</span>
+            <span className="text-gray-400 mr-2">État :</span>
             {isTogglingNotifications ? (
               <span className="text-poker-blue animate-pulse">Mise à jour...</span>
             ) : pushDebugState?.subscriptionFound && pushDebugState?.firestoreDeviceDocFound ? (
-              <span className="text-green-600 font-medium flex items-center">
+              <span className="text-green-400 font-medium flex items-center">
                 <Bell className="w-4 h-4 mr-1" /> Activées sur cet appareil
               </span>
             ) : (
-              <span className="text-gray-500 flex items-center">
+              <span className="text-gray-400 flex items-center">
                 <BellOff className="w-4 h-4 mr-1" /> Désactivées
               </span>
             )}
           </div>
           
           {pushDebugState?.permission === 'denied' && (
-            <div className="flex items-start bg-red-50 p-3 rounded text-red-700 text-xs mt-2 font-medium">
+            <div className="flex items-start bg-red-500/15 p-3 rounded text-red-300 text-xs mt-2 font-medium">
               <Info className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
               <p>
                 Les notifications sont bloquées par votre navigateur. 
@@ -385,7 +385,7 @@ const Profile: React.FC = () => {
           )}
           
           {pushDebugState && !pushDebugState.standalone && /iPhone|iPad|iPod/.test(navigator.userAgent) && (
-            <div className="flex items-start bg-blue-50 p-3 rounded text-blue-700 text-xs mt-2">
+            <div className="flex items-start bg-blue-500/15 p-3 rounded text-blue-200 text-xs mt-2">
               <Info className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
               <p>
                 Sur iPhone, ajoutez l'application à votre écran d'accueil pour pouvoir recevoir des notifications.
@@ -397,10 +397,10 @@ const Profile: React.FC = () => {
 
       {/* Developer Section - Conditionally Rendered */}
       {user?.isDev && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-lg shadow mt-8 space-y-6">
-          <h2 className="text-xl font-semibold text-poker-black mb-4">Options Développeur</h2>
+        <div className="glass-card border-l-4 border-yellow-500 p-4 mt-8 space-y-6">
+          <h2 className="text-xl font-semibold text-white mb-4">Options Développeur</h2>
           <div className="flex items-center space-x-4">
-            <label htmlFor="testDbToggle" className="font-medium">
+            <label htmlFor="testDbToggle" className="font-medium text-gray-200">
               Utiliser la base de données de test :
             </label>
             <button
@@ -416,30 +416,26 @@ const Profile: React.FC = () => {
                 window.location.reload();
               }}
               disabled={!canUseTestDb}
-              className={`px-4 py-2 rounded font-semibold transition-colors ${
-                useTestDb
-                  ? 'bg-red-500 hover:bg-red-600 text-white'
-                  : 'bg-green-500 hover:bg-green-600 text-white'
-              } ${!canUseTestDb ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`btn ${useTestDb ? 'btn-red' : 'btn-green'}`}
             >
               {useTestDb ? 'Passer en Prod' : 'Passer en Test'}
             </button>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-400">
               (Rechargement de la page requis)
             </span>
           </div>
-           <p className="text-sm mt-2 text-gray-700">
+           <p className="text-sm mt-2 text-gray-300">
              Actuellement connecté à : <span className="font-bold">{useTestDb ? 'TEST (pokertourdev)' : 'PRODUCTION'}</span>
            </p>
 
-          <div className="bg-white border border-yellow-300 rounded-lg p-4 text-sm text-gray-700 space-y-4">
+          <div className="glass-inset p-4 text-sm text-gray-300 space-y-4">
             <div>
-              <h3 className="text-lg font-semibold text-poker-black">Tests Push iPhone</h3>
+              <h3 className="text-lg font-semibold text-white">Tests Push iPhone</h3>
               <p className="mt-1">
                 Ce panneau permet de verifier la permission web, la souscription navigateur et la presence du device dans Firestore.
               </p>
               {useTestDb && (
-                <p className="mt-2 text-amber-700">
+                <p className="mt-2 text-amber-300">
                   Ces tests ne sont fiables qu'en production HTTPS. La base de test locale/dev ne doit pas etre utilisee pour valider le web push iPhone.
                 </p>
               )}
@@ -449,14 +445,14 @@ const Profile: React.FC = () => {
               <button
                 onClick={refreshPushDebugState}
                 disabled={useTestDb || isRefreshingPushDebug || isRunningPushTest}
-                className="rounded bg-slate-700 px-4 py-2 font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-ghost"
               >
                 {isRefreshingPushDebug ? 'Actualisation...' : 'Actualiser le diagnostic'}
               </button>
               <button
                 onClick={handleRunPushActivationTest}
                 disabled={useTestDb || isRunningPushTest || isRefreshingPushDebug || isSendingPushNotificationTest}
-                className="rounded bg-poker-gold px-4 py-2 font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-gold"
               >
                 {isRunningPushTest ? 'Test en cours...' : "Tester l'activation push"}
               </button>
@@ -468,7 +464,7 @@ const Profile: React.FC = () => {
                   isRefreshingPushDebug ||
                   isSendingPushNotificationTest
                 }
-                className="rounded bg-blue-600 px-4 py-2 font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-blue"
               >
                 {isSendingPushNotificationTest ? 'Envoi...' : 'Envoyer un push test'}
               </button>
@@ -480,22 +476,22 @@ const Profile: React.FC = () => {
                   isRefreshingPushDebug ||
                   isSendingPushNotificationTest
                 }
-                className="rounded bg-red-500 px-4 py-2 font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-red"
               >
                 Supprimer l'abonnement local
               </button>
             </div>
 
             {pushTestMessage && (
-              <p className="text-sm text-gray-700">{pushTestMessage}</p>
+              <p className="text-sm text-gray-300">{pushTestMessage}</p>
             )}
 
             {lastTimerPushMessage && (
-              <p className="text-sm text-gray-700">{lastTimerPushMessage}</p>
+              <p className="text-sm text-gray-300">{lastTimerPushMessage}</p>
             )}
 
             {pushDebugState && (
-              <div className="space-y-1 font-mono text-xs text-gray-600">
+              <div className="space-y-1 font-mono text-xs text-gray-400">
                 <div>mode: {pushDebugState.mode}</div>
                 <div>permission: {pushDebugState.permission}</div>
                 <div>supported: {pushDebugState.supported ? 'yes' : 'no'}</div>

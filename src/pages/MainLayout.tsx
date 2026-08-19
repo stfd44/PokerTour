@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { Breadcrumbs } from '../components/layout/Breadcrumbs'; // Import Breadcrumbs
 import { TournamentList } from '../components/tournament/TournamentList';
 import { TournamentGames } from '../components/tournament/TournamentGames';
@@ -11,10 +11,13 @@ import Teams from './Teams/Teams';
 import SettleAccounts from '../components/tournament/SettleAccounts'; // Import the new component
 
 export function MainLayout() {
+  const location = useLocation();
+
   return (
     <div className="min-h-screen container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
-        <Breadcrumbs /> {/* Add Breadcrumbs component here */}
+        <Breadcrumbs />
+        <div key={location.pathname} className="page-enter">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/tournaments" element={<TournamentList />} />
@@ -29,6 +32,7 @@ export function MainLayout() {
           {/* ADDED: Route for the settlement page */}
           <Route path="/tournament/:tournamentId/settle" element={<SettleAccounts />} />
         </Routes>
+        </div>
       </div>
     </div>
   );

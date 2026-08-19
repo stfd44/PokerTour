@@ -118,6 +118,7 @@ export const createRegistrationActionSlice: StateCreator<
       }
     } catch (error) {
       handleDatabaseError(error);
+      throw error;
     }
   },
 
@@ -233,6 +234,7 @@ export const createRegistrationActionSlice: StateCreator<
         }));
     } catch (error) {
         handleDatabaseError(error);
+        throw error;
     }
   },
 
@@ -283,6 +285,7 @@ export const createRegistrationActionSlice: StateCreator<
         }));
     } catch (error) {
         handleDatabaseError(error);
+        throw error;
     }
   },
 });

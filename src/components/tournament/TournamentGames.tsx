@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useLocation, useNavigate, Link } from 'react-router-dom'; // Import useLocation, useNavigate, Link
 import { useTournamentStore } from '../../store/tournamentStore';
 import { GameForm } from './GameForm';
@@ -13,13 +14,13 @@ import { Modal } from '../common/Modal';
 const getStatusInfo = (status: Tournament['status']) => {
   switch (status) {
     case 'scheduled':
-      return { text: 'Prévu', color: 'bg-blue-500' };
+      return { text: 'Prévu', color: 'badge-blue' };
     case 'in_progress':
-      return { text: 'En cours', color: 'bg-green-500' };
+      return { text: 'En cours', color: 'badge-green' };
     case 'ended':
-      return { text: 'Terminé', color: 'bg-gray-500' };
+      return { text: 'Terminé', color: 'badge-gray' };
     default:
-      return { text: 'Inconnu', color: 'bg-gray-400' };
+      return { text: 'Inconnu', color: 'badge-gray' };
   }
 };
 
@@ -168,7 +169,7 @@ export function TournamentGames() {
   if (isLoadingTournament) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">Chargement du tournoi...</p>
+        <p className="text-gray-300">Chargement du tournoi...</p>
       </div>
     );
   }
@@ -177,7 +178,7 @@ export function TournamentGames() {
   if (!tournament) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">Tournoi introuvable.</p>
+        <p className="text-gray-300">Tournoi introuvable.</p>
         {/* Optional: Add a link back to the tournaments list */}
         <Link to="/tournaments" className="text-poker-gold hover:underline mt-4 inline-block">Retour à la liste</Link>
       </div>
@@ -194,16 +195,6 @@ export function TournamentGames() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Conditionally render GameView if a game ID is set and the game exists */}
-      {viewingGameId && gameToView ? (
-        // Pass gameId and a function to clear the viewingGameId
-        <GameView
-          gameId={viewingGameId}
-          tournamentId={tournamentId}
-          onClose={() => setViewingGameId(null)} // Provide a way to close the view
-        />
-      ) : (
-        // Otherwise, show the list and potentially the creation form
         <>
           {/* --- Tournament Header --- */}
           <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 space-y-4 sm:space-y-0">
@@ -214,18 +205,18 @@ export function TournamentGames() {
           </div>
 
           {/* --- Tournament Details Section --- */}
-          <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border border-gray-200 relative">
+          <div className="glass-card p-4 mb-6 relative">
             {/* Edit Icon Button - Top Right */}
             {user?.uid === tournament.creatorId && (tournament.status === 'scheduled' || tournament.status === 'in_progress') && (
                 <Link
                     to={`/tournament/${tournament.id}/edit`}
-                    className="absolute top-4 right-4 text-gray-500 hover:text-poker-gold transition-colors"
+                    className="absolute top-4 right-4 text-gray-400 hover:text-poker-gold transition-colors"
                     title="Modifier le tournoi / Gérer les invités"
                 >
                     <Edit className="h-6 w-6" />
                 </Link>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-200">
               {/* Left Column */}
               <div className="space-y-2">
                 <div className="flex items-center">
@@ -242,7 +233,7 @@ export function TournamentGames() {
                     <span>Organisé par : {tournament.creatorNickname}</span>
                   </div>
                 )}
-                 <div className={`inline-flex items-center text-white px-2 py-0.5 rounded text-xs font-medium ${getStatusInfo(tournament.status).color}`}>
+                 <div className={`badge ${getStatusInfo(tournament.status).color}`}>
                     {getStatusInfo(tournament.status).text}
                  </div>
               </div>
@@ -267,32 +258,32 @@ export function TournamentGames() {
             </div>
             {/* Collapsible Participant List */}
             <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isParticipantsExpanded ? 'max-h-60 mt-4' : 'max-h-0'}`}>
-              <div className="border-t pt-3 mt-3 space-y-1 max-h-52 overflow-y-auto">
+              <div className="border-t border-white/10 pt-3 mt-3 space-y-1 max-h-52 overflow-y-auto">
                 {tournament.registrations.length > 0 ? (
                   tournament.registrations.map((player, index) => (
-                    <div key={player.id} className={`flex items-center text-sm py-1 px-2 ${player.status === 'invited' ? 'text-orange-500' : 'text-gray-700'}`}>
+                    <div key={player.id} className={`flex items-center text-sm py-1 px-2 ${player.status === 'invited' ? 'text-orange-400' : 'text-gray-200'}`}>
                       <span className="w-6 text-poker-gold shrink-0">{index + 1}.</span>
                       <span className="truncate">{player.nickname || player.name}</span>
                       {player.status === 'invited' && (
                         <span className="ml-2 text-xs italic opacity-80">(En attente)</span>
                       )}
                       {user && player.id === user.uid && (
-                        <span className="ml-2 text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full shrink-0">Vous</span>
+                        <span className="badge badge-green ml-2 shrink-0">Vous</span>
                       )}
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-gray-500 italic px-2">Aucun joueur inscrit</p>
+                  <p className="text-sm text-gray-400 italic px-2">Aucun joueur inscrit</p>
                 )}
               </div>
             </div>
             {/* --- Action Buttons Container --- */}
-            <div className="border-t mt-4 pt-4 flex flex-wrap items-center justify-end gap-4">
+            <div className="border-t border-white/10 mt-4 pt-4 flex flex-wrap items-center justify-end gap-4">
                 {/* Bilan Button - visible to team members if tournament is settled */}
                 {tournament.status === 'ended' && (
                   <Link
                     to={`/tournament/${tournament.id}/settle`}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center"
+                    className="btn btn-blue"
                     title="Faire le bilan"
                   >
                     <Calculator className="h-4 w-4 mr-2" />
@@ -308,20 +299,20 @@ export function TournamentGames() {
                                {isInvited ? (
                                  <button
                                    onClick={handleValidateInvitation}
-                                   className="bg-orange-500 text-white px-4 py-2 rounded transition-colors flex items-center hover:bg-orange-600"
+                                   className="btn btn-orange"
                                  >
                                    <Check className="w-5 h-5 mr-1" />
                                    Valider l'invitation
                                  </button>
                                ) : (
                                 <div className="flex items-center gap-4">
-                                    <span className="flex items-center text-green-600">
+                                    <span className="flex items-center text-green-400">
                                         <Check className="w-5 h-5 mr-1" />
                                         Inscrit
                                     </span>
                                     <button
                                         onClick={handleUnregistration}
-                                        className="flex items-center text-red-600 hover:text-red-700"
+                                        className="btn btn-red"
                                     >
                                         <X className="w-5 h-5 mr-1" />
                                         Se désinscrire
@@ -330,7 +321,7 @@ export function TournamentGames() {
                                )}
                              </>
                             ) : registrationStates[tournamentId] === 'pending' ? (
-                                <div className="flex items-center text-gray-600">
+                                <div className="flex items-center text-gray-300">
                                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-poker-gold mr-2"></div>
                                     Inscription en cours...
                                 </div>
@@ -338,7 +329,7 @@ export function TournamentGames() {
                                 <button
                                     onClick={handleRegistration}
                                     disabled={tournament.registrations.length >= tournament.maxPlayers}
-                                    className={`bg-poker-gold text-white px-4 py-2 rounded transition-colors flex items-center ${tournament.registrations.length >= tournament.maxPlayers ? 'opacity-50 cursor-not-allowed' : 'hover:bg-yellow-600'}`}
+                                    className="btn btn-gold"
                                 >
                                     {tournament.registrations.length >= tournament.maxPlayers ? 'Complet' : 'S\'inscrire'}
                                 </button>
@@ -350,7 +341,7 @@ export function TournamentGames() {
                 {!isCreating && !viewingGameId && tournament.status !== 'ended' && tournament.registrations.some(p => p.id === user?.uid) && (
                   <button
                     onClick={handleCreateGameClick}
-                    className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
+                    className="btn btn-gold"
                   >
                     Nouvelle partie
                   </button>
@@ -358,7 +349,7 @@ export function TournamentGames() {
                 {tournament.registrations.some(p => p.id === user?.uid) && tournament.status === 'in_progress' && !isCreating && !viewingGameId && (
                   <button
                     onClick={handleEndTournament}
-                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors flex items-center"
+                    className="btn btn-red"
                     title="Terminer le tournoi (irréversible)"
                   >
                     <FlagOff className="w-4 h-4 mr-2" />
@@ -392,26 +383,40 @@ export function TournamentGames() {
             userId={user?.uid} // Pass potentially undefined userId
           />
         </>
+
+      {viewingGameId && gameToView && createPortal(
+        <div className="fixed inset-0 z-[180] flex items-start sm:items-center justify-center p-3 sm:p-6">
+          <div className="modal-backdrop" onClick={() => setViewingGameId(null)} />
+          <div className="modal-gold-wash" aria-hidden="true" />
+          <div className="modal-sheet w-full max-w-4xl max-h-[min(92vh,calc(100dvh-1.5rem))] overflow-y-auto">
+            <GameView
+              gameId={viewingGameId}
+              tournamentId={tournamentId}
+              onClose={() => setViewingGameId(null)}
+            />
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Confirmation Modal for Ending Tournament */}
       {showConfirmEndTournament && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-auto shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Terminer le tournoi ?</h3>
-            <p className="text-gray-600 mb-6">
+          <div className="glass-card p-6 max-w-md w-full mx-auto">
+            <h3 className="text-lg font-bold text-white mb-2">Terminer le tournoi ?</h3>
+            <p className="text-gray-300 mb-6">
               Êtes-vous sûr de vouloir terminer le tournoi "{tournament?.name}" ? Cette action est irréversible.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowConfirmEndTournament(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                className="btn btn-ghost"
               >
                 Annuler
               </button>
               <button
                 onClick={confirmEndTournament}
-                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium"
+                className="btn btn-red"
               >
                 Oui, terminer
               </button>

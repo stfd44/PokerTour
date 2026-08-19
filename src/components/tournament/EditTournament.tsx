@@ -5,7 +5,7 @@ import type { Tournament } from '../../store/types/tournamentTypes'; // Correct 
 import { useAuthStore } from '../../store/useAuthStore';
 import { useTeamStore } from '../../store/useTeamStore';
 import { getUserData } from '../../lib/firebase';
-import { X, UserPlus, AlertCircle, Check, ShieldCheck, ShieldAlert } from 'lucide-react'; // Import icons
+import { X, UserPlus, User, AlertCircle, Check, ShieldCheck, ShieldAlert } from 'lucide-react'; // Import icons
 
 export function EditTournament() {
   const { tournamentId } = useParams<{ tournamentId: string }>();
@@ -151,12 +151,16 @@ export function EditTournament() {
 
     const trimmedGuestName = currentGuest.trim();
     const currentTournament = tournaments.find(t => t.id === tournamentId);
+    const existingGuests = Array.from(new Set([...(currentTournament?.guests || []), ...guests]));
+    const alreadyRegistered = (currentTournament?.registrations || []).some(
+      (player) => player.name === trimmedGuestName || player.nickname === trimmedGuestName
+    );
 
     if (currentTournament?.status === 'ended') {
         showInlineError("Impossible d'ajouter à un tournoi terminé.");
         return;
     }
-    if (guests.includes(trimmedGuestName)) {
+    if (existingGuests.includes(trimmedGuestName) || alreadyRegistered) {
         showInlineError('Ce nom est déjà dans la liste des invités.');
         return;
     }
@@ -169,7 +173,7 @@ export function EditTournament() {
       const elapsed = Date.now() - start;
       if (elapsed < 300) await new Promise(r => setTimeout(r, 300 - elapsed));
 
-      setGuests([...guests, trimmedGuestName]);
+      setGuests(prev => prev.includes(trimmedGuestName) ? prev : [...prev, trimmedGuestName]);
       setCurrentGuest('');
       
       setGuestStatus('success');
@@ -337,11 +341,11 @@ export function EditTournament() {
   }
 
   return (
-    <div className="max-w-lg mx-auto bg-white p-8 rounded-lg shadow-md relative">
-      <h2 className="text-2xl font-bold mb-6 text-poker-black">Modifier le Tournoi</h2>
+    <div className="max-w-lg mx-auto glass-card p-8 relative">
+      <h2 className="text-2xl font-bold mb-6 text-white">Modifier le Tournoi</h2>
       
       {inlineError && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative flex items-center">
+        <div className="mb-4 bg-red-500/15 border border-red-400/40 text-red-300 px-4 py-3 rounded relative flex items-center">
           <AlertCircle className="w-5 h-5 mr-2" />
           <span className="block sm:inline text-sm">{inlineError.message}</span>
         </div>
@@ -349,7 +353,7 @@ export function EditTournament() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nom du Tournoi</label>
+          <label htmlFor="name" className="block text-sm font-medium text-gray-200">Nom du Tournoi</label>
           <input
             type="text"
             id="name"
@@ -359,11 +363,11 @@ export function EditTournament() {
             required
             // Find current tournament again for disabling logic, handle potential undefined
             disabled={tournaments.find(t => t.id === tournamentId)?.status === 'in_progress'}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm disabled:bg-gray-100"
+            className="glass-input mt-1 block w-full sm:text-sm"
           />
         </div>
         <div>
-          <label htmlFor="date" className="block text-sm font-medium text-gray-700">Date et Heure</label>
+          <label htmlFor="date" className="block text-sm font-medium text-gray-200">Date et Heure</label>
           <input
             type="datetime-local"
             id="date"
@@ -373,11 +377,11 @@ export function EditTournament() {
             required
             // Find current tournament again for disabling logic, handle potential undefined
             disabled={tournaments.find(t => t.id === tournamentId)?.status === 'in_progress'}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm disabled:bg-gray-100"
+            className="glass-input mt-1 block w-full sm:text-sm"
           />
         </div>
         <div>
-          <label htmlFor="buyin" className="block text-sm font-medium text-gray-700">Buy-in (€)</label>
+          <label htmlFor="buyin" className="block text-sm font-medium text-gray-200">Buy-in (€)</label>
           <input
             type="number"
             id="buyin"
@@ -388,11 +392,11 @@ export function EditTournament() {
             min="0"
             // Find current tournament again for disabling logic, handle potential undefined
             disabled={tournaments.find(t => t.id === tournamentId)?.status === 'in_progress'}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm disabled:bg-gray-100"
+            className="glass-input mt-1 block w-full sm:text-sm"
           />
         </div>
         <div>
-          <label htmlFor="maxPlayers" className="block text-sm font-medium text-gray-700">Joueurs Max</label>
+          <label htmlFor="maxPlayers" className="block text-sm font-medium text-gray-200">Joueurs Max</label>
           <input
             type="number"
             id="maxPlayers"
@@ -403,11 +407,11 @@ export function EditTournament() {
             min="2"
             // Find current tournament again for disabling logic, handle potential undefined
             disabled={tournaments.find(t => t.id === tournamentId)?.status === 'in_progress'}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm disabled:bg-gray-100"
+            className="glass-input mt-1 block w-full sm:text-sm"
           />
         </div>
         <div>
-          <label htmlFor="location" className="block text-sm font-medium text-gray-700">Lieu</label>
+          <label htmlFor="location" className="block text-sm font-medium text-gray-200">Lieu</label>
           <input
             type="text"
             id="location"
@@ -417,48 +421,59 @@ export function EditTournament() {
             required
             // Find current tournament again for disabling logic, handle potential undefined
             disabled={tournaments.find(t => t.id === tournamentId)?.status === 'in_progress'}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-poker-gold focus:border-poker-gold sm:text-sm disabled:bg-gray-100"
+            className="glass-input mt-1 block w-full sm:text-sm"
           />
         </div>
 
         {/* Guest Management Section - Conditionally Rendered based on status */}
         {(tournaments.find(t => t.id === tournamentId)?.status === 'scheduled' || tournaments.find(t => t.id === tournamentId)?.status === 'in_progress') && (
             <div className="border-t pt-6 mt-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">Membres du groupe</h3>
+                <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">Membres du groupe</h3>
 
-                {/* ── Single unified list: verified + pending ── */}
-                {(teamMembersDetails.length > 0 || pendingMembers.length > 0) && (() => {
+                {/* ── Single unified list: verified + pending + extra guests ── */}
+                {(() => {
                     const currentTournament = tournaments.find(t => t.id === tournamentId);
-                    const currentGuests = currentTournament?.guests || guests;
+                    const currentGuests = Array.from(new Set([...(currentTournament?.guests || []), ...guests]));
+                    const pendingNameSet = new Set(pendingMembers.map(pm => pm.name));
+                    const teamMemberNames = new Set(teamMembersDetails.map(member => member.name));
+                    const extraGuests = Array.from(new Set([
+                        ...currentGuests.filter(name => !pendingNameSet.has(name) && !teamMemberNames.has(name)),
+                        ...(currentTournament?.registrations || [])
+                            .filter(player => player.id.startsWith('guest_') && !pendingNameSet.has(player.name) && !teamMemberNames.has(player.name))
+                            .map(player => player.name),
+                    ]));
+                    if (teamMembersDetails.length === 0 && pendingMembers.length === 0 && extraGuests.length === 0) {
+                        return null;
+                    }
                     return (
                         <div className="mb-6">
-                            <ul className="list-none p-0 m-0 space-y-2 border border-gray-200 rounded-xl p-2 bg-gray-50 max-h-72 overflow-y-auto">
+                            <ul className="list-none p-0 m-0 space-y-2 border border-white/10 rounded-xl p-2 bg-black/20 max-h-72 overflow-y-auto">
 
                                 {/* Verified members */}
                                 {teamMembersDetails.map((member) => {
                                     const reg = currentTournament?.registrations.find(r => r.id === member.id);
                                     const isPendingRemove = pendingRemovalMembers.find(p => p.id === member.id);
                                     const isPendingInvite = pendingInvitedMembers.find(p => p.id === member.id);
-                                    const shouldRenderAsRegistered = !!reg || !!isPendingRemove;
-                                    const memberStatus = reg?.status || isPendingRemove?.status;
+                                    const shouldRenderAsRegistered = !!reg || !!isPendingRemove || !!isPendingInvite;
+                                    const memberStatus = reg?.status || isPendingRemove?.status || (isPendingInvite ? 'invited' : undefined);
                                     const isBeingInvited = !!isPendingInvite;
 
                                     return (
-                                        <li key={member.id} className={`flex justify-between items-center px-3 py-2 min-h-[44px] bg-white rounded-lg shadow-sm text-sm border border-gray-100 transition-all duration-300 ${isPendingRemove ? 'opacity-50' : 'opacity-100'}`}>
+                                        <li key={member.id} className={`flex justify-between items-center px-3 py-2 min-h-[44px] glass-inset text-sm transition-all duration-300 ${isPendingRemove ? 'opacity-50' : 'opacity-100'}`}>
                                             {shouldRenderAsRegistered ? (
                                                 <>
                                                     <span className="flex items-center gap-2">
                                                         <ShieldCheck className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                                                        <span className="font-medium text-gray-900">{member.name}</span>
-                                                        {memberStatus === 'invited' && <span className="text-xs text-orange-500 italic font-medium px-2 py-0.5 bg-orange-50 rounded-full border border-orange-100">En attente</span>}
-                                                        {memberStatus === 'confirmed' && <span className="text-xs text-green-700 font-semibold px-2 py-0.5 bg-green-50 rounded-full border border-green-200">Inscrit</span>}
+                                                        <span className="font-medium text-white">{member.name}</span>
+                                                        {memberStatus === 'invited' && <span className="text-xs text-orange-300 italic font-medium px-2 py-0.5 bg-orange-500/15 rounded-full border border-orange-400/30">En attente</span>}
+                                                        {memberStatus === 'confirmed' && <span className="text-xs text-green-300 font-semibold px-2 py-0.5 bg-green-500/15 rounded-full border border-green-400/30">Inscrit</span>}
                                                     </span>
                                                     <button
                                                         type="button"
-                                                        onClick={() => handleRemoveMember(reg || isPendingRemove)}
+                                                        onClick={() => handleRemoveMember(reg || isPendingRemove || isPendingInvite)}
                                                         className="text-gray-400 hover:text-red-500 disabled:opacity-50 relative w-6 h-6 flex items-center justify-center transition-colors"
                                                         aria-label={`Retirer ${member.name}`}
-                                                        disabled={targetActionStatus !== 'idle' || !!isPendingRemove}
+                                                        disabled={targetActionStatus !== 'idle' || !!isPendingRemove || !!isPendingInvite}
                                                     >
                                                         {targetActionId === member.id ? (
                                                             targetActionStatus === 'loading' ? (
@@ -473,7 +488,7 @@ export function EditTournament() {
                                                 <label className="flex items-center justify-between cursor-pointer w-full group">
                                                     <span className="flex items-center gap-2">
                                                         <ShieldCheck className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                                                        <span className={`text-sm font-medium transition-colors ${isBeingInvited ? 'text-gray-400' : 'text-gray-700 group-hover:text-poker-black'}`}>{member.name}</span>
+                                                        <span className={`text-sm font-medium transition-colors ${isBeingInvited ? 'text-gray-500' : 'text-gray-200 group-hover:text-white'}`}>{member.name}</span>
                                                     </span>
                                                     <input
                                                         type="checkbox"
@@ -499,14 +514,14 @@ export function EditTournament() {
                                     return (
                                         <li
                                             key={`pending-${pm.name}`}
-                                            className={`flex justify-between items-center px-3 py-2 min-h-[44px] bg-white rounded-lg shadow-sm text-sm border border-orange-100 transition-all duration-300 ${(isBeingAdded || isBeingRemoved) ? 'opacity-50' : 'opacity-100'}`}
+                                            className={`flex justify-between items-center px-3 py-2 min-h-[44px] glass-inset text-sm border-orange-400/30 transition-all duration-300 ${(isBeingAdded || isBeingRemoved) ? 'opacity-50' : 'opacity-100'}`}
                                         >
                                             {isAlreadyGuest ? (
                                                 <>
                                                     <span className="flex items-center gap-2">
                                                         <ShieldAlert className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
-                                                        <span className="font-medium text-gray-900">{pm.name}</span>
-                                                        <span className="text-xs text-green-700 font-semibold px-2 py-0.5 bg-green-50 rounded-full border border-green-200">Invité</span>
+                                                        <span className="font-medium text-white">{pm.name}</span>
+                                                        <span className="text-xs text-green-300 font-semibold px-2 py-0.5 bg-green-500/15 rounded-full border border-green-400/30">Invité</span>
                                                     </span>
                                                     <button
                                                         type="button"
@@ -528,8 +543,8 @@ export function EditTournament() {
                                                 <label className="flex items-center justify-between cursor-pointer w-full group">
                                                     <span className="flex items-center gap-2">
                                                         <ShieldAlert className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
-                                                        <span className="font-medium text-gray-700">{pm.name}</span>
-                                                        <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-medium">Non vérifié</span>
+                                                        <span className="font-medium text-gray-200">{pm.name}</span>
+                                                        <span className="text-xs bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded-full font-medium">Non vérifié</span>
                                                     </span>
                                                     <input
                                                         type="checkbox"
@@ -546,6 +561,38 @@ export function EditTournament() {
                                         </li>
                                     );
                                 })}
+
+                                {/* Extra guests (hors groupe) */}
+                                {extraGuests.map(guestName => {
+                                    const isBeingRemoved = pendingRemovalGuests.includes(guestName);
+                                    return (
+                                        <li
+                                            key={`guest-${guestName}`}
+                                            className={`flex justify-between items-center px-3 py-2 min-h-[44px] glass-inset text-sm transition-all duration-300 ${isBeingRemoved ? 'opacity-50' : 'opacity-100'}`}
+                                        >
+                                            <span className="flex items-center gap-2">
+                                                <User className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                                                <span className="font-medium text-white">{guestName}</span>
+                                                <span className="text-xs text-green-300 font-semibold px-2 py-0.5 bg-green-500/15 rounded-full border border-green-400/30">Invité</span>
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveGuest(guestName)}
+                                                className="text-gray-400 hover:text-red-500 disabled:opacity-50 relative w-6 h-6 flex items-center justify-center transition-colors"
+                                                aria-label={`Retirer ${guestName}`}
+                                                disabled={targetActionStatus !== 'idle' || isBeingRemoved}
+                                            >
+                                                {targetActionId === guestName ? (
+                                                    targetActionStatus === 'loading' ? (
+                                                        <div className="w-4 h-4 border-2 border-red-500 rounded-full border-t-transparent animate-spin"></div>
+                                                    ) : targetActionStatus === 'success' ? (
+                                                        <Check className="w-5 h-5 text-green-500" strokeWidth={3} />
+                                                    ) : <X className="w-4 h-4" />
+                                                ) : <X className="w-4 h-4" />}
+                                            </button>
+                                        </li>
+                                    );
+                                })}
                             </ul>
 
                             {/* ── Action buttons — only shown when at least one item is checked ── */}
@@ -556,7 +603,7 @@ export function EditTournament() {
                                             type="button"
                                             onClick={handleInviteMembers}
                                             disabled={inviteStatus !== 'idle'}
-                                            className={`relative overflow-hidden inline-flex items-center justify-center py-2 px-5 bg-poker-gold hover:bg-yellow-600 text-white font-bold rounded-lg transition-all duration-300 min-h-[40px] min-w-[180px] ${inviteStatus === 'success' ? '!bg-green-500' : ''} disabled:opacity-50 disabled:cursor-not-allowed shadow-sm`}
+                                            className={`btn btn-gold min-h-[40px] min-w-[180px] ${inviteStatus === 'success' ? 'btn-green' : ''}`}
                                         >
                                             <span className={`w-full text-center transition-opacity duration-300 ${inviteStatus !== 'idle' ? 'opacity-0' : 'opacity-100'}`}>
                                                 Inviter {invitedMembersIds.length} membre(s)
@@ -574,7 +621,7 @@ export function EditTournament() {
                                             type="button"
                                             onClick={handleAddPendingAsGuests}
                                             disabled={pendingGuestStatus !== 'idle'}
-                                            className={`relative overflow-hidden inline-flex items-center justify-center py-2 px-5 bg-orange-400 hover:bg-orange-500 text-white font-bold rounded-lg transition-all duration-300 min-h-[40px] min-w-[180px] ${pendingGuestStatus === 'success' ? '!bg-green-500' : ''} disabled:opacity-50 disabled:cursor-not-allowed shadow-sm`}
+                                            className={`btn btn-orange min-h-[40px] min-w-[180px] ${pendingGuestStatus === 'success' ? 'btn-green' : ''}`}
                                         >
                                             <span className={`w-full text-center transition-opacity duration-300 ${pendingGuestStatus !== 'idle' ? 'opacity-0' : 'opacity-100'}`}>
                                                 Ajouter {invitedPendingNames.length} non vérifié(s)
@@ -593,7 +640,7 @@ export function EditTournament() {
                     );
                 })()}
 
-                <label htmlFor="guestName" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="guestName" className="block text-sm font-medium text-gray-200 mb-1">
                     Ajouter un invité (hors groupe)
                 </label>
                 {/* Responsive guest input/button */}
@@ -603,7 +650,13 @@ export function EditTournament() {
                         id="guestName"
                         value={currentGuest}
                         onChange={(e) => setCurrentGuest(e.target.value)}
-                        className="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-poker-blue focus:border-transparent sm:text-sm"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                void handleAddGuest();
+                            }
+                        }}
+                        className="glass-input flex-grow sm:text-sm"
                         placeholder="Nom de l'invité"
                     />
                     {/* Button container */}
@@ -611,7 +664,7 @@ export function EditTournament() {
                         <button
                             type="button"
                             onClick={handleAddGuest}
-                            className={`w-full sm:w-auto relative inline-flex items-center justify-center py-2 px-6 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded transition-all duration-300 min-h-[40px] disabled:opacity-80 ${guestStatus === 'success' ? '!bg-green-500' : ''}`}
+                            className={`btn btn-blue w-full sm:w-auto px-6 min-h-[40px] ${guestStatus === 'success' ? 'btn-green' : ''}`}
                             aria-label="Ajouter l'invité"
                             disabled={!currentGuest.trim() || guestStatus !== 'idle'}
                         >
@@ -644,14 +697,14 @@ export function EditTournament() {
               <button
                 type="button"
                 onClick={() => navigate('/tournaments')}
-                className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-poker-gold"
+                className="btn btn-ghost w-full sm:w-auto"
               >
                 Annuler
               </button>
               <button
                 type="submit"
                 disabled={submitStatus !== 'idle'}
-                className={`w-full sm:w-auto relative overflow-hidden px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-poker-gold hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-poker-gold transition-all duration-300 min-w-[200px] disabled:opacity-90 ${submitStatus === 'success' ? '!bg-green-500' : ''}`}
+                className={`btn btn-gold w-full sm:w-auto min-w-[200px] ${submitStatus === 'success' ? 'btn-green' : ''}`}
               >
                   <span className={`transition-opacity duration-300 ${submitStatus !== 'idle' ? 'opacity-0' : 'opacity-100'}`}>
                       Enregistrer les modifications
@@ -672,7 +725,7 @@ export function EditTournament() {
             <button
               type="button"
               onClick={() => navigate('/tournaments')}
-              className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-poker-gold hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-poker-gold"
+              className="btn btn-gold w-full sm:w-auto"
             >
               Terminer
             </button>

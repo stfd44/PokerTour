@@ -12,13 +12,13 @@ import { CreateTournament } from './CreateTournament';
 const getStatusInfo = (status: Tournament['status']) => {
   switch (status) {
     case 'scheduled':
-      return { text: 'Prévu', color: 'bg-blue-500', icon: <Calendar className="w-4 h-4 mr-1" /> };
+      return { text: 'Prévu', color: 'badge-blue', icon: <Calendar className="w-4 h-4 mr-1" /> };
     case 'in_progress':
-      return { text: 'En cours', color: 'bg-green-500', icon: <PlayCircle className="w-4 h-4 mr-1" /> };
+      return { text: 'En cours', color: 'badge-green', icon: <PlayCircle className="w-4 h-4 mr-1" /> };
     case 'ended':
-      return { text: 'Terminé', color: 'bg-gray-500', icon: <Check className="w-4 h-4 mr-1" /> };
+      return { text: 'Terminé', color: 'badge-gray', icon: <Check className="w-4 h-4 mr-1" /> };
     default:
-      return { text: 'Inconnu', color: 'bg-gray-400', icon: <Info className="w-4 h-4 mr-1" /> };
+      return { text: 'Inconnu', color: 'badge-gray', icon: <Info className="w-4 h-4 mr-1" /> };
   }
 };
 
@@ -127,7 +127,7 @@ export function TournamentList() {
   if (tournaments.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">Aucun tournoi n'est programmé pour le moment.</p>
+        <p className="text-gray-300">Aucun tournoi n'est programmé pour le moment.</p>
       </div>
     );
   }
@@ -161,7 +161,7 @@ export function TournamentList() {
             <h2 className="text-2xl font-bold text-white drop-shadow-sm">Tournois</h2>
             <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center"
+                className="btn btn-gold"
             >
                 <PlusCircle className="w-5 h-5 mr-2" />
                 Créer un tournoi
@@ -182,17 +182,17 @@ export function TournamentList() {
         const statusInfo = getStatusInfo(tournament.status);
 
         return (
-          <div key={tournament.id} className="bg-white rounded-lg shadow-md p-6">
+          <div key={tournament.id} className="glass-card p-6">
             {/* Top Header Section */}
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-xl font-bold text-poker-black mb-1">{tournament.name}</h3>
-                <span className={`inline-flex items-center text-white px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                <h3 className="text-xl font-bold text-white mb-1">{tournament.name}</h3>
+                <span className={`badge ${statusInfo.color}`}>
                   {statusInfo.icon}
                   {statusInfo.text}
                 </span>
               </div>
-              <span className="bg-poker-red text-white px-3 py-1 rounded-full text-sm shrink-0">
+              <span className="badge badge-red text-sm px-3 py-1 shrink-0">
                 {tournament.buyin}€
               </span>
             </div>
@@ -201,7 +201,7 @@ export function TournamentList() {
             <div className="flex flex-col sm:flex-row gap-4 mt-4">
 
               {/* Details Section */}
-              <div className="space-y-2 text-gray-600 flex-grow min-w-0">
+              <div className="space-y-2 text-gray-300 flex-grow min-w-0">
                 <div className="flex items-center">
                   <Calendar className="w-5 h-5 mr-2 text-poker-gold shrink-0" />
                   <span>
@@ -223,19 +223,19 @@ export function TournamentList() {
                   <div className="pl-9 pt-2 space-y-1">
                     {tournament.registrations.length > 0 ? (
                       tournament.registrations.map((player, index) => (
-                        <div key={player.id} className={`flex items-center text-sm py-1 ${player.status === 'invited' ? 'text-orange-500' : 'text-gray-700'}`}>
+                        <div key={player.id} className={`flex items-center text-sm py-1 ${player.status === 'invited' ? 'text-orange-400' : 'text-gray-200'}`}>
                           <span className="w-6 text-poker-gold shrink-0">{index + 1}.</span>
                           <span className="truncate">{player.nickname || player.name}</span>
                           {player.status === 'invited' && (
                             <span className="ml-2 text-xs italic opacity-80">(En attente)</span>
                           )}
                           {user && player.id === user.uid && (
-                            <span className="ml-2 text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full shrink-0">Vous</span>
+                            <span className="badge badge-green ml-2 shrink-0">Vous</span>
                           )}
                         </div>
                       ))
                     ) : (
-                      <p className="text-sm text-gray-500 italic">Aucun joueur inscrit</p>
+                      <p className="text-sm text-gray-400 italic">Aucun joueur inscrit</p>
                     )}
                   </div>
                 </div>
@@ -248,7 +248,7 @@ export function TournamentList() {
                   <span>Prize min: {tournament.buyin * tournament.registrations.length}€</span>
                 </div>
                 {tournament.creatorNickname && (
-                  <div className="flex items-center text-sm text-gray-500 mt-1">
+                  <div className="flex items-center text-sm text-gray-400 mt-1">
                     <User className="w-4 h-4 mr-2 text-poker-gold shrink-0" />
                     <span>Organisé par : {tournament.creatorNickname}</span>
                   </div>
@@ -263,7 +263,7 @@ export function TournamentList() {
                   {(isStarted || isEnded) && (
                     <button
                       onClick={() => navigate(`/tournament/${tournament.id}`)}
-                      className="w-full sm:w-auto bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center justify-center" // Added w-full sm:w-auto justify-center
+                      className="btn btn-gold w-full sm:w-auto"
                     >
                       <PlayCircle className="w-5 h-5 mr-2" />
                       {isEnded ? 'Voir le résumé' : 'Accéder au tournoi'}
@@ -272,7 +272,7 @@ export function TournamentList() {
                   {!isStarted && !isEnded && isCreator && canStart && (
                     <button
                       onClick={() => handleStartTournament(tournament.id)}
-                      className="w-full sm:w-auto bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center justify-center" // Added w-full sm:w-auto justify-center
+                      className="btn btn-gold w-full sm:w-auto"
                     >
                       <PlayCircle className="w-5 h-5 mr-2" />
                       Débuter le tournoi
@@ -289,13 +289,13 @@ export function TournamentList() {
                           {isInvited ? (
                             <button
                               onClick={() => handleValidateInvitation(tournament.id)}
-                              className="w-full sm:w-auto bg-orange-500 text-white px-4 py-2 rounded transition-colors flex items-center justify-center hover:bg-orange-600"
+                              className="btn btn-orange w-full sm:w-auto"
                             >
                               <Check className="w-5 h-5 mr-1" />
                               Valider l'invitation
                             </button>
                           ) : (
-                            <span className="flex items-center text-green-600">
+                            <span className="flex items-center text-green-400">
                               <Check className="w-5 h-5 mr-1" />
                               Inscrit
                             </span>
@@ -303,7 +303,7 @@ export function TournamentList() {
                           {!isCreator && (
                             <button
                               onClick={() => handleUnregistration(tournament.id)}
-                              className="flex items-center text-red-600 hover:text-red-700"
+                              className="btn btn-red w-full sm:w-auto"
                             >
                               <X className="w-5 h-5 mr-1" />
                               Se désinscrire
@@ -319,7 +319,7 @@ export function TournamentList() {
                         <button
                           onClick={() => handleRegistration(tournament.id)}
                           disabled={isFull}
-                          className={`w-full sm:w-auto bg-poker-gold text-white px-4 py-2 rounded transition-colors flex items-center justify-center ${isFull ? 'opacity-50 cursor-not-allowed' : 'hover:bg-yellow-600'}`} // Added w-full sm:w-auto justify-center
+                          className="btn btn-gold w-full sm:w-auto"
                         >
                           {isFull ? 'Complet' : 'Rejoindre'}
                         </button>
@@ -331,7 +331,7 @@ export function TournamentList() {
                   {isCreator && (
                     <button
                       onClick={() => handleDeleteTournament(tournament.id)}
-                      className="w-full sm:w-auto bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-2 rounded flex items-center justify-center" // Added w-full sm:w-auto justify-center
+                      className="btn btn-red w-full sm:w-auto px-3"
                       title="Supprimer le tournoi"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -340,7 +340,7 @@ export function TournamentList() {
                   {isCreator && (tournament.status === 'scheduled' || tournament.status === 'in_progress') && (
                     <button
                       onClick={() => navigate(`/tournament/${tournament.id}/edit`)}
-                      className="w-full sm:w-auto bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-2 rounded flex items-center justify-center" // Added w-full sm:w-auto justify-center
+                      className="btn btn-blue w-full sm:w-auto px-3"
                       title="Modifier le tournoi / Gérer les invités"
                     >
                       <Edit className="h-4 w-4" />
@@ -357,21 +357,21 @@ export function TournamentList() {
 
         {confirmDeleteTournamentId && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-auto shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Supprimer le tournoi ?</h3>
-            <p className="text-gray-600 mb-6">
+          <div className="glass-card p-6 max-w-sm w-full mx-auto">
+            <h3 className="text-lg font-bold text-white mb-2">Supprimer le tournoi ?</h3>
+            <p className="text-gray-300 mb-6">
               Êtes-vous sûr de vouloir supprimer ce tournoi ? Cette action est irréversible.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setConfirmDeleteTournamentId(null)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                className="btn btn-ghost"
               >
                 Annuler
               </button>
               <button
                 onClick={confirmDeleteTournament}
-                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium"
+                className="btn btn-red"
               >
                 Oui, supprimer
               </button>

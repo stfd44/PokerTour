@@ -243,18 +243,18 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
 
   // Use selected status for conditional rendering
   if (status !== 'in_progress') {
-    return <div className="text-center text-gray-500">La partie n'est pas en cours.</div>;
+    return <div className="text-center text-gray-400">La partie n'est pas en cours.</div>;
   }
 
   return (
-    <div className="mb-6 p-4 bg-gray-50 rounded-lg space-y-4 shadow">
+    <div className="mb-6 p-4 glass-inset space-y-4">
       {/* Timer Display and Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center">
           <Clock className="w-8 h-8 text-poker-gold mr-3" />
           <div>
-            <div className="text-sm text-gray-600">Temps restant niveau</div>
-            <div className={`text-3xl font-bold ${isLevelComplete ? 'text-red-600' : ''}`}>
+            <div className="text-sm text-gray-300">Temps restant niveau</div>
+            <div className={`text-3xl font-bold ${isLevelComplete ? 'text-red-400' : 'text-white'}`}>
               {displayTime}
             </div>
           </div>
@@ -264,20 +264,20 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
           {isCurrentUserParticipant && (
             <>
               {isPaused ? (
-                <button onClick={handleResume} className="p-1 rounded hover:bg-gray-200" aria-label="Reprendre">
-                  <Play className="w-6 h-6 text-green-600" />
+                <button onClick={handleResume} className="p-1 rounded hover:bg-white/10" aria-label="Reprendre">
+                  <Play className="w-6 h-6 text-green-400" />
                 </button>
               ) : (
-                <button onClick={handlePause} className="p-1 rounded hover:bg-gray-200" aria-label="Pause">
-                  <Pause className="w-6 h-6 text-yellow-600" />
+                <button onClick={handlePause} className="p-1 rounded hover:bg-white/10" aria-label="Pause">
+                  <Pause className="w-6 h-6 text-yellow-400" />
                 </button>
               )}
               <button
                 onClick={handleAdvanceLevel}
-                className="p-1 rounded hover:bg-gray-200"
+                className="p-1 rounded hover:bg-white/10"
                 aria-label="Niveau suivant"
               >
-                <SkipForward className="w-6 h-6 text-gray-600" />
+                <SkipForward className="w-6 h-6 text-gray-300" />
               </button>
             </>
           )}
@@ -285,17 +285,17 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
       </div>
 
       {/* Blinds Information */}
-      <div className="border-t pt-4 flex justify-between items-start">
+      <div className="border-t border-white/10 pt-4 flex justify-between items-start">
         <div>
           {/* Use selected currentLevel state */}
-          <div className="text-sm text-gray-600">Niveau Actuel ({currentLevel + 1})</div>
-          <div className="text-xl font-semibold">
+          <div className="text-sm text-gray-300">Niveau Actuel ({currentLevel + 1})</div>
+          <div className="text-xl font-semibold text-white">
             {currentBlinds.small} / {currentBlinds.big}
           </div>
         </div>
         <div className="text-right">
            {/* Use selected currentLevel state */}
-          <div className="text-sm text-gray-600">Prochain Niveau ({currentLevel + 2})</div>
+          <div className="text-sm text-gray-300">Prochain Niveau ({currentLevel + 2})</div>
           <div className="text-lg text-poker-gold">
             {nextBlinds.small} / {nextBlinds.big}
           </div>
@@ -303,25 +303,25 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
       </div>
 
       {alarmSupported && !isAlarmReady && (
-        <div className="border-t pt-3 text-xs text-amber-700">
+        <div className="border-t border-white/10 pt-3 text-xs text-amber-300">
           Touchez l'ecran une fois pour activer l'alerte sonore sur mobile.
         </div>
       )}
 
       {notificationSupported && !pushConfigured && (
-        <div className="border-t pt-3 text-xs text-amber-700">
+        <div className="border-t border-white/10 pt-3 text-xs text-amber-300">
           Ajoutez `VITE_FIREBASE_VAPID_KEY` dans votre configuration Firebase pour activer le web push.
         </div>
       )}
 
       {notificationSupported && pushConfigured && notificationPermission === 'default' && (
-        <div className="border-t pt-3 flex items-center justify-between gap-3">
-          <div className="text-xs text-gray-600">
+        <div className="border-t border-white/10 pt-3 flex items-center justify-between gap-3">
+          <div className="text-xs text-gray-300">
             Activez les notifications pour recevoir une alerte push si l'app passe en arriere-plan.
           </div>
           <button
             onClick={handleEnableNotifications}
-            className="shrink-0 rounded bg-poker-gold px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+            className="btn btn-gold shrink-0 px-3 py-1.5 text-xs"
           >
             Activer
           </button>

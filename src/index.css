@@ -7,6 +7,7 @@ body,
 #root {
   min-height: 100%;
   background-color: #0c0d0f;
+  color-scheme: dark;
 }
 
 .app-atmosphere {
@@ -34,12 +35,246 @@ body,
     linear-gradient(180deg, rgba(8, 8, 10, 0.28) 0%, rgba(8, 8, 10, 0.5) 100%);
 }
 
+@keyframes page-crossfade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes gold-wash {
+  0% { opacity: 0.55; }
+  45% { opacity: 0.18; }
+  100% { opacity: 0; }
+}
+
+.page-enter {
+  animation: page-crossfade 340ms ease-out;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 12, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: page-crossfade 320ms ease-out;
+}
+
+.modal-gold-wash {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(212, 175, 55, 0.42) 0%, rgba(212, 175, 55, 0.12) 40%, transparent 70%);
+  animation: gold-wash 620ms ease-out forwards;
+}
+
+.modal-sheet {
+  position: relative;
+  z-index: 2;
+  animation: modal-sheet-in 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.page-gold-wash {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(212, 175, 55, 0.38) 0%, rgba(212, 175, 55, 0.1) 40%, transparent 70%);
+  animation: gold-wash 620ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .page-gold-wash,
+  .modal-backdrop,
+  .modal-gold-wash,
+  .modal-sheet {
+    animation: none;
+  }
+}
+
 .app-atmosphere__grain {
   position: absolute;
   inset: 0;
   opacity: 0.07;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 180px 180px;
+}
+
+@layer components {
+  .glass-card {
+    @apply rounded-2xl shadow-xl;
+    background: rgba(16, 16, 20, 0.58);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+    color: #e5e7eb;
+  }
+
+  .glass-inset {
+    @apply rounded-xl;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-input {
+    @apply rounded-lg px-3 py-2 outline-none transition-colors;
+    background: rgba(0, 0, 0, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #f3f4f6;
+  }
+
+  .glass-input::placeholder {
+    color: rgba(243, 244, 246, 0.42);
+  }
+
+  .glass-input:focus {
+    border-color: rgba(212, 175, 55, 0.55);
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.18);
+  }
+
+  .glass-input:disabled {
+    opacity: 0.62;
+    background: rgba(0, 0, 0, 0.22);
+  }
+
+  .btn {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-gold {
+    background: rgba(212, 175, 55, 0.16);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    color: #f3e4a4;
+  }
+  .btn-gold:hover {
+    background: rgba(212, 175, 55, 0.28);
+  }
+
+  .btn-red {
+    background: rgba(227, 27, 35, 0.16);
+    border: 1px solid rgba(227, 27, 35, 0.42);
+    color: #fca5a5;
+  }
+  .btn-red:hover {
+    background: rgba(227, 27, 35, 0.28);
+  }
+
+  .btn-green {
+    background: rgba(34, 197, 94, 0.14);
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    color: #86efac;
+  }
+  .btn-green:hover {
+    background: rgba(34, 197, 94, 0.26);
+  }
+
+  .btn-blue {
+    background: rgba(59, 130, 246, 0.14);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    color: #93c5fd;
+  }
+  .btn-blue:hover {
+    background: rgba(59, 130, 246, 0.26);
+  }
+
+  .btn-orange {
+    background: rgba(249, 115, 22, 0.16);
+    border: 1px solid rgba(249, 115, 22, 0.42);
+    color: #fdba74;
+  }
+  .btn-orange:hover {
+    background: rgba(249, 115, 22, 0.28);
+  }
+
+  .btn-ghost {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #e5e7eb;
+  }
+  .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .badge-green {
+    background: rgba(34, 197, 94, 0.14);
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    color: #86efac;
+  }
+
+  .badge-blue {
+    background: rgba(59, 130, 246, 0.14);
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    color: #93c5fd;
+  }
+
+  .badge-gray {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: #d1d5db;
+  }
+
+  .badge-red {
+    background: rgba(227, 27, 35, 0.16);
+    border: 1px solid rgba(227, 27, 35, 0.42);
+    color: #fca5a5;
+  }
+
+  .badge-gold {
+    background: rgba(212, 175, 55, 0.16);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    color: #f3e4a4;
+  }
+
+  .badge-orange {
+    background: rgba(249, 115, 22, 0.16);
+    border: 1px solid rgba(249, 115, 22, 0.42);
+    color: #fdba74;
+  }
+}
+
+/* Form fields inside glass surfaces: keep contrast even when Tailwind utilities remain light. */
+.glass-card input:not([type='checkbox']):not([type='radio']):not([type='range']):not(.sr-only),
+.glass-card select,
+.glass-card textarea {
+  background-color: rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f3f4f6;
+}
+
+.glass-card input:not([type='checkbox']):not([type='radio']):not([type='range']):not(.sr-only)::placeholder,
+.glass-card textarea::placeholder {
+  color: rgba(243, 244, 246, 0.42);
+}
+
+.glass-card option {
+  background-color: #1a1a1a;
+  color: #f3f4f6;
+}
+
+.glass-card input:disabled,
+.glass-input:disabled {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #9ca3af;
+  opacity: 1;
 }
 
 /* Fix native datetime-local input width on iOS Safari */

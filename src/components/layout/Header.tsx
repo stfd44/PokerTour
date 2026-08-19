@@ -1,6 +1,6 @@
 // src/components/layout/Header.tsx
 import { useState } from 'react';
-import { Menu, X, UserCheck as PokerChip } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -33,7 +33,11 @@ export const Header = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <PokerChip className="w-8 h-8 text-poker-gold" />
+            <img
+              src="/poker-tour-logo.png"
+              alt="PokerTour"
+              className="h-8 w-8 rounded-md object-contain"
+            />
             <div className="flex items-baseline">
               <span className="text-xl font-bold">PokerTour</span>
               <span className="ml-2 text-xs text-poker-gold">{VERSION}</span>
@@ -62,7 +66,7 @@ export const Header = () => {
                 <span className="font-medium truncate max-w-[150px] whitespace-nowrap">
                   {user.nickname || user.displayName || 'Utilisateur'}
                 </span>
-                <button className='bg-red-500 p-2 rounded-md' onClick={handleSignOut}>
+                <button className='btn btn-red py-1.5 px-3 text-xs' onClick={handleSignOut}>
                   Déconnexion
                 </button>
               </div>
@@ -104,7 +108,7 @@ export const Header = () => {
           ))}
           {user && (
             <div className='mt-20'>
-              <button className='w-full bg-red-500 p-2 rounded-md' onClick={handleSignOut}>
+              <button className='btn btn-red w-full' onClick={handleSignOut}>
                 Déconnexion
               </button>
             </div>

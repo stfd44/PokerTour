@@ -35,29 +35,29 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
     <>
       <div className="grid gap-6">
         {[...tournament.games].reverse().map((game: Game) => ( // Added Game type and reversed array
-          <div key={game.id} className="bg-white rounded-lg shadow-md p-6">
+          <div key={game.id} className="glass-card p-6">
             {/* Use flex-col on small screens, flex-row on larger screens */}
           <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-4 sm:gap-0">
             {/* Info Section */}
             <div className="space-y-2 w-full sm:w-auto"> {/* Take full width on small screens */}
               <div className="flex items-center space-x-4">
-                <span className={`px-3 py-1 rounded-full text-sm ${
-                  game.status === 'pending' ? 'bg-gray-100 text-gray-600' :
-                  game.status === 'in_progress' ? 'bg-green-100 text-green-600' :
-                  'bg-blue-100 text-blue-600'
+                <span className={`badge text-sm px-3 py-1 ${
+                  game.status === 'pending' ? 'badge-gray' :
+                  game.status === 'in_progress' ? 'badge-green' :
+                  'badge-blue'
                 }`}>
                   {game.status === 'pending' ? 'En attente' :
                    game.status === 'in_progress' ? 'En cours' :
                    'Terminée'}
                 </span>
-                <div className="flex items-center text-gray-600">
+                <div className="flex items-center text-gray-300">
                   <Users className="w-5 h-5 mr-1" />
                   {/* Added Player type */}
                   <span>{game.players.filter((p: Player) => !p.eliminated).length} en jeu / {game.players.length} total</span>
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-6 text-gray-600"> {/* Stack info vertically on small screens */}
+              <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-6 text-gray-300"> {/* Stack info vertically on small screens */}
                 <div className="flex items-center">
                   <Coins className="w-5 h-5 mr-2 text-poker-gold" />
                   <span>Stack: {game.startingStack.toLocaleString()}</span>
@@ -70,7 +70,7 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
                 </div>
               </div>
 
-              <div className="text-gray-600">
+              <div className="text-gray-300">
                 {/* Support for both new and old data structures */}
                 Blinds de départ:
                 {game.blindStructure && game.blindStructure[0]
@@ -90,7 +90,7 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
                     <>
                       <button
                         onClick={() => handleEditGame(game)}
-                        className="w-full sm:w-auto bg-gray-100 text-gray-600 px-4 py-2 rounded hover:bg-gray-200 transition-colors flex items-center justify-center sm:justify-start"
+                        className="btn btn-ghost w-full sm:w-auto"
                       >
                         <Edit2 className="w-5 h-5 mr-2" />
                         Modifier
@@ -102,7 +102,7 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
                           }
                           onViewGame(game.id);
                         }}
-                        className="w-full sm:w-auto bg-poker-gold text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors flex items-center justify-center sm:justify-start"
+                        className="btn btn-gold w-full sm:w-auto"
                         disabled={tournament.registrations.length < 2}
                       >
                         <PlayCircle className="w-5 h-5 mr-2" />
@@ -117,14 +117,14 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
                 <>
                   <button
                     onClick={() => onViewGame(game.id)}
-                    className="w-full sm:w-auto bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors flex items-center justify-center sm:justify-start"
+                    className="btn btn-green w-full sm:w-auto"
                   >
                     <Eye className="w-5 h-5 mr-2" />
                     Voir la table
                   </button>
                   <button
                     onClick={() => handleEndGame(game.id)}
-                    className="w-full sm:w-auto bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors flex items-center justify-center sm:justify-start"
+                    className="btn btn-red w-full sm:w-auto"
                   >
                     <StopCircle className="w-5 h-5 mr-2" />
                     Arrêter
@@ -135,7 +135,7 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
               {game.status === 'ended' && (
                 <button
                   onClick={() => onViewGame(game.id)}
-                  className="w-full sm:w-auto bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors flex items-center justify-center sm:justify-start"
+                  className="btn btn-blue w-full sm:w-auto"
                 >
                   <CheckCircle className="w-5 h-5 mr-2" />
                   Voir Résumé
@@ -145,7 +145,7 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
               {userId === tournament.creatorId && (
                  <button
                    onClick={() => handleDeleteGame(game.id)}
-                   className="w-full sm:w-auto bg-red-500 text-white px-3 py-2 rounded hover:bg-red-600 transition-colors flex items-center text-sm justify-center sm:justify-start" // Adjusted padding/alignment
+                   className="btn btn-red w-full sm:w-auto"
                  >
                    <Trash2 className="w-4 h-4 mr-1" />
                    Supprimer
@@ -157,7 +157,7 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
       ))}
 
       {tournament.games.length === 0 && (
-        <div className="text-center py-8 text-gray-600">
+        <div className="text-center py-8 text-gray-300">
           Aucune partie n'a encore été créée pour ce tournoi.
         </div>
       )}
@@ -165,16 +165,16 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
 
     {confirmEndGameId && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-        <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-auto shadow-xl">
-          <h3 className="text-lg font-bold text-gray-900 mb-2">Arrêter la partie ?</h3>
-          <p className="text-gray-600 mb-6 flex flex-col gap-2">
+        <div className="glass-card p-6 max-w-sm w-full mx-auto">
+          <h3 className="text-lg font-bold text-white mb-2">Arrêter la partie ?</h3>
+          <p className="text-gray-300 mb-6 flex flex-col gap-2">
             <span>Voulez-vous vraiment arrêter cette partie en cours ?</span>
-            <span className="bg-orange-50 text-orange-800 p-2 rounded text-sm">⚠️ Les joueurs restants seront classés à égalité et se partageront les gains restants.</span>
+            <span className="bg-orange-500/15 text-orange-300 p-2 rounded text-sm">⚠️ Les joueurs restants seront classés à égalité et se partageront les gains restants.</span>
           </p>
           <div className="flex justify-end gap-3">
             <button
               onClick={() => setConfirmEndGameId(null)}
-              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              className="btn btn-ghost"
             >
               Annuler
             </button>
@@ -183,7 +183,7 @@ export function GameList({ tournament, onViewGame, onEditGame, userId }: GameLis
                 endGame(tournament.id, confirmEndGameId);
                 setConfirmEndGameId(null);
               }}
-              className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium"
+              className="btn btn-red"
             >
               Oui, l'arrêter
             </button>

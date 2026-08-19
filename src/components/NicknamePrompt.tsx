@@ -25,30 +25,30 @@ export const NicknamePrompt = () => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg max-w-md w-full">
-        <h2 className="text-xl font-bold mb-4">Choose Your Nickname</h2>
-        <p className="mb-4">Please choose a nickname to display in the app</p>
+      <div className="glass-card p-6 max-w-md w-full">
+        <h2 className="text-xl font-bold mb-4 text-white">Choose Your Nickname</h2>
+        <p className="mb-4 text-gray-300">Please choose a nickname to display in the app</p>
         <form onSubmit={handleSubmit}>
           <input
             type="text"
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            className="w-full p-2 border rounded mb-2"
+            className="glass-input w-full mb-2"
             placeholder="Enter your nickname"
             maxLength={20}
           />
-          {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+          {error && <p className="text-red-400 text-sm mb-2">{error}</p>}
           <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={clearRequiresNickname}
-              className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              className="btn btn-ghost"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              className="btn btn-blue"
             >
               Save
             </button>

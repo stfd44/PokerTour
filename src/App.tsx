@@ -6,6 +6,7 @@ import { auth } from './lib/firebase';
 import { MainLayout } from './pages/MainLayout';
 import { Header } from './components/layout/Header';
 import { AppAtmosphere } from './components/layout/AppAtmosphere';
+import { PageTransition } from './components/layout/PageTransition';
 // Teams is now routed within MainLayout
 import { useAuthStore } from './store/useAuthStore';
 // Stats is now routed within MainLayout
@@ -99,6 +100,7 @@ function App() {
   return (
     <>
       <AppAtmosphere />
+      <PageTransition />
       <div className="relative z-10 min-h-screen">{appContent}</div>
     </>
   );

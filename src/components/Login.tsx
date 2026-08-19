@@ -22,13 +22,13 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-4">
-      <div className="w-full max-w-md rounded-2xl border border-poker-gold/30 bg-white/95 px-8 py-12 text-center shadow-2xl backdrop-blur-sm">
-        <h1 className="mb-2 text-4xl font-bold text-poker-black">PokerTour</h1>
-        <p className="mb-8 text-gray-600">La table est prête. Rejoignez votre tournoi.</p>
+    <div className="page-enter flex flex-col items-center justify-center min-h-screen px-4">
+      <div className="glass-card w-full max-w-md px-8 py-12 text-center">
+        <h1 className="mb-2 text-4xl font-bold text-white">PokerTour</h1>
+        <p className="mb-8 text-gray-300">La table est prête. Rejoignez votre tournoi.</p>
         <button
           onClick={handleGoogleSignIn}
-          className="rounded-full bg-poker-gold px-6 py-3 font-bold text-white shadow-lg transition duration-300 ease-in-out hover:bg-poker-dark"
+          className="btn btn-gold rounded-full px-6 py-3"
         >
           Se connecter avec Google
         </button>

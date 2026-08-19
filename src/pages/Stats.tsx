@@ -236,7 +236,7 @@ const Stats: React.FC = () => {
   }
 
   if (tournaments.length === 0) {
-      return <div className="text-center py-12 text-gray-600">Aucun tournoi trouvé pour vos équipes.</div>;
+      return <div className="text-center py-12 text-gray-300">Aucun tournoi trouvé pour vos équipes.</div>;
   }
 
   // Sort players for display
@@ -248,15 +248,15 @@ const Stats: React.FC = () => {
     <div className="space-y-8">
       {/* Personal Balance Summary */}
       {currentUserStats && (
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200 text-center">
-          <h2 className="text-xl font-semibold text-poker-black mb-2">Votre Bilan Personnel ({selectedYear})</h2>
-          <p className="text-4xl font-bold text-green-600">
+        <div className="glass-card p-6 text-center">
+          <h2 className="text-xl font-semibold text-white mb-2">Votre Bilan Personnel ({selectedYear})</h2>
+          <p className="text-4xl font-bold text-green-400">
             {(currentUserStats.totalWinnings - currentUserStats.totalWagers).toFixed(2)} €
           </p>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-400 mt-1">
             (Total Gains: {currentUserStats.totalWinnings.toFixed(2)} € - Total Mises: {currentUserStats.totalWagers.toFixed(2)} €)
           </p>
-           <div className="mt-3 text-sm text-gray-600">
+           <div className="mt-3 text-sm text-gray-300">
              Tournois Joués: {statistics.userTournamentsParticipated} | Parties Jouées: {statistics.userGamesParticipated}
            </div>
         </div>
@@ -276,7 +276,7 @@ const Stats: React.FC = () => {
                 id="year-select"
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-poker-blue focus:border-poker-blue sm:text-sm rounded-md shadow-sm"
+                className="glass-input mt-1 block w-full pl-3 pr-10 py-2 text-base sm:text-sm"
               >
                 {availableYears.map(year => (
                   <option key={year} value={year}>
@@ -296,7 +296,7 @@ const Stats: React.FC = () => {
               id="team-select"
               value={selectedTeamId ?? 'all'}
               onChange={(e) => setSelectedTeamId(e.target.value)}
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-poker-blue focus:border-poker-blue sm:text-sm rounded-md shadow-sm"
+              className="glass-input mt-1 block w-full pl-3 pr-10 py-2 text-base sm:text-sm"
             >
               <option value="all">Toutes les équipes</option>
               {teams.map(team => (
@@ -316,20 +316,20 @@ const Stats: React.FC = () => {
       {/* Player Rankings */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Ranking by Points */}
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <h2 className="text-xl font-semibold text-poker-black mb-4">Classement par Points</h2>
+        <div className="glass-card p-6">
+          <h2 className="text-xl font-semibold text-white mb-4">Classement par Points</h2>
           {sortedByPoints.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-white/10">
+                <thead className="bg-white/5">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rang</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joueur</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Points</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Parties</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Rang</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Joueur</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Points</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Parties</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-white/10">
                   {sortedByPoints.map((player, index) => {
                     const rank = index + 1;
                     const isCurrentUser = player.id === user?.uid;
@@ -338,27 +338,27 @@ const Stats: React.FC = () => {
                         key={player.id}
                         className={clsx(
                           // Apply user highlight first (blue), then rank highlights, then alternating row colors
-                          isCurrentUser ? 'bg-blue-100 font-semibold' :
-                          rank === 1 ? 'bg-yellow-100' : // Gold-ish
-                          rank === 2 ? 'bg-gray-200' :   // Silver-ish
-                          rank === 3 ? 'bg-orange-100' : // Bronze-ish
-                          (index % 2 === 0 ? 'bg-white' : 'bg-gray-50') // Alternating rows
+                          isCurrentUser ? 'bg-blue-500/20 font-semibold' :
+                          rank === 1 ? 'bg-yellow-500/15' :
+                          rank === 2 ? 'bg-white/10' :
+                          rank === 3 ? 'bg-orange-500/15' :
+                          (index % 2 === 0 ? 'bg-transparent' : 'bg-white/5')
                         )}
                       >
                         <td className={clsx(
                           "px-4 py-2 whitespace-nowrap text-sm font-medium text-center", // Centered rank
                            // Keep text color consistent unless highlighted
-                          isCurrentUser ? 'text-blue-800' : 'text-gray-900'
+                          isCurrentUser ? 'text-blue-200' : 'text-white'
                         )}>
                           {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank}
                         </td>
-                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm", isCurrentUser ? 'text-blue-800' : 'text-gray-700')}>
+                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm", isCurrentUser ? 'text-blue-200' : 'text-gray-200')}>
                           {player.name}{isCurrentUser && ' (Vous)'}
                         </td>
-                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm text-right", isCurrentUser ? 'text-blue-800' : 'text-gray-700')}>
+                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm text-right", isCurrentUser ? 'text-blue-200' : 'text-gray-200')}>
                           {player.totalPoints}
                         </td>
-                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm text-right", isCurrentUser ? 'text-blue-800' : 'text-gray-700')}>
+                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm text-right", isCurrentUser ? 'text-blue-200' : 'text-gray-200')}>
                           {player.gamesPlayed}
                         </td>
                     </tr>
@@ -368,25 +368,25 @@ const Stats: React.FC = () => {
               </table>
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-4">Aucune donnée de classement par points disponible pour la sélection.</p>
+            <p className="text-gray-400 text-center py-4">Aucune donnée de classement par points disponible pour la sélection.</p>
           )}
         </div>
 
         {/* Ranking by Winnings */}
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <h2 className="text-xl font-semibold text-poker-black mb-4">Classement par Gains</h2>
+        <div className="glass-card p-6">
+          <h2 className="text-xl font-semibold text-white mb-4">Classement par Gains</h2>
            {sortedByWinnings.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-white/10">
+                <thead className="bg-white/5">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rang</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joueur</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Gains (€)</th>
-                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Parties</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Rang</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Joueur</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Gains (€)</th>
+                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Parties</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-white/10">
                   {sortedByWinnings.map((player, index) => {
                      const rank = index + 1;
                      const isCurrentUser = player.id === user?.uid;
@@ -395,27 +395,27 @@ const Stats: React.FC = () => {
                         key={player.id}
                         className={clsx(
                           // Apply user highlight first (blue), then rank highlights, then alternating row colors
-                          isCurrentUser ? 'bg-blue-100 font-semibold' :
-                          rank === 1 ? 'bg-yellow-100' : // Gold-ish
-                          rank === 2 ? 'bg-gray-200' :   // Silver-ish
-                          rank === 3 ? 'bg-orange-100' : // Bronze-ish
-                          (index % 2 === 0 ? 'bg-white' : 'bg-gray-50') // Alternating rows
+                          isCurrentUser ? 'bg-blue-500/20 font-semibold' :
+                          rank === 1 ? 'bg-yellow-500/15' :
+                          rank === 2 ? 'bg-white/10' :
+                          rank === 3 ? 'bg-orange-500/15' :
+                          (index % 2 === 0 ? 'bg-transparent' : 'bg-white/5')
                         )}
                       >
                          <td className={clsx(
                           "px-4 py-2 whitespace-nowrap text-sm font-medium text-center", // Centered rank
                            // Keep text color consistent unless highlighted
-                          isCurrentUser ? 'text-blue-800' : 'text-gray-900'
+                          isCurrentUser ? 'text-blue-200' : 'text-white'
                         )}>
                           {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank}
                         </td>
-                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm", isCurrentUser ? 'text-blue-800' : 'text-gray-700')}>
+                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm", isCurrentUser ? 'text-blue-200' : 'text-gray-200')}>
                           {player.name}{isCurrentUser && ' (Vous)'}
                         </td>
-                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm text-right", isCurrentUser ? 'text-blue-800' : 'text-gray-700')}>
+                        <td className={clsx("px-4 py-2 whitespace-nowrap text-sm text-right", isCurrentUser ? 'text-blue-200' : 'text-gray-200')}>
                           {player.totalWinnings.toFixed(2)}
                         </td>
-                       <td className={clsx("px-4 py-2 whitespace-nowrap text-sm text-right", isCurrentUser ? 'text-blue-800' : 'text-gray-700')}>
+                       <td className={clsx("px-4 py-2 whitespace-nowrap text-sm text-right", isCurrentUser ? 'text-blue-200' : 'text-gray-200')}>
                           {player.gamesPlayed}
                         </td>
                     </tr>
@@ -425,24 +425,24 @@ const Stats: React.FC = () => {
               </table>
             </div>
           ) : (
-             <p className="text-gray-500 text-center py-4">Aucune donnée de classement par gains disponible pour la sélection.</p>
+             <p className="text-gray-400 text-center py-4">Aucune donnée de classement par gains disponible pour la sélection.</p>
           )}
         </div>
       </div>
 
       {/* Most Profitable Tournament */}
       {statistics.mostProfitableTournament ? (
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200 mt-8">
-          <h2 className="text-xl font-semibold text-poker-black mb-3">Tournoi le Plus Rémunérateur ({selectedYear})</h2>
-          <p><span className="font-medium">Nom:</span> {statistics.mostProfitableTournament.name}</p>
-          <p><span className="font-medium">Organisateur:</span> {statistics.mostProfitableTournament.organizer}</p>
-          <p><span className="font-medium">Prize Pool Total:</span> {statistics.mostProfitableTournament.totalPrize.toFixed(2)} €</p>
+        <div className="glass-card p-6 mt-8">
+          <h2 className="text-xl font-semibold text-white mb-3">Tournoi le Plus Rémunérateur ({selectedYear})</h2>
+          <p className="text-gray-200"><span className="font-medium text-white">Nom:</span> {statistics.mostProfitableTournament.name}</p>
+          <p className="text-gray-200"><span className="font-medium text-white">Organisateur:</span> {statistics.mostProfitableTournament.organizer}</p>
+          <p className="text-gray-200"><span className="font-medium text-white">Prize Pool Total:</span> {statistics.mostProfitableTournament.totalPrize.toFixed(2)} €</p>
         </div>
       ) : (
          statistics.endedTournamentsCount > 0 && (
-           <div className="bg-white p-6 rounded-lg shadow border border-gray-200 mt-8">
-             <h2 className="text-xl font-semibold text-poker-black mb-3">Tournoi le Plus Rémunérateur ({selectedYear})</h2>
-             <p className="text-gray-500">Aucun tournoi terminé avec un prize pool défini trouvé pour cette sélection et cette année.</p>
+           <div className="glass-card p-6 mt-8">
+             <h2 className="text-xl font-semibold text-white mb-3">Tournoi le Plus Rémunérateur ({selectedYear})</h2>
+             <p className="text-gray-400">Aucun tournoi terminé avec un prize pool défini trouvé pour cette sélection et cette année.</p>
            </div>
          )
       )}

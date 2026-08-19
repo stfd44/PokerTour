@@ -12,21 +12,21 @@ const PlayerSettlementDetails: React.FC<{ summary: PlayerSettlementSummary }> = 
   const isNetPositive = netResult >= 0;
 
   return (
-    <div className={`border rounded-lg overflow-hidden ${isNetPositive ? 'border-green-200' : 'border-red-200'}`}>
+    <div className={`border rounded-xl overflow-hidden ${isNetPositive ? 'border-green-400/30' : 'border-red-400/30'}`}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex justify-between items-center p-3 text-left focus:outline-none"
       >
         <span className="font-medium">{playerName}</span>
         <div className="flex items-center">
-          <span className={`font-bold ${isNetPositive ? 'text-green-600' : 'text-red-600'}`}>
+          <span className={`font-bold ${isNetPositive ? 'text-green-400' : 'text-red-400'}`}>
             {isNetPositive ? '+' : ''}{netResult.toFixed(2)} €
           </span>
           <ChevronDown className={`w-5 h-5 ml-2 transform transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </div>
       </button>
       {isOpen && (
-        <div className="p-3 border-t bg-gray-50">
+        <div className="p-3 border-t border-white/10 bg-black/20">
           <div className="grid grid-cols-2 gap-2 text-sm mb-3">
             <div>
               <p className="font-semibold">Total Buy-ins:</p>
@@ -34,7 +34,7 @@ const PlayerSettlementDetails: React.FC<{ summary: PlayerSettlementSummary }> = 
             </div>
             <div>
               <p className="font-semibold">Total Gains:</p>
-              <p className="text-green-600">{totalWinnings.toFixed(2)} €</p>
+              <p className="text-green-400">{totalWinnings.toFixed(2)} €</p>
             </div>
           </div>
           <h4 className="font-semibold text-sm mb-2">Grand livre des transactions :</h4>
@@ -42,7 +42,7 @@ const PlayerSettlementDetails: React.FC<{ summary: PlayerSettlementSummary }> = 
             {summary.ledger.map((entry, index) => (
               <li key={index} className="flex justify-between items-center">
                 <span>{entry.description}</span>
-                <span className={entry.amount >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                <span className={entry.amount >= 0 ? 'text-green-400 font-medium' : 'text-red-400 font-medium'}>
                   {entry.amount >= 0 ? '+' : ''}{entry.amount.toFixed(2)} €
                 </span>
               </li>
@@ -154,19 +154,19 @@ function SettleAccounts() {
 
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <Link to="/tournaments" className="inline-flex items-center text-poker-blue hover:underline mb-4">
+    <div className="glass-card p-6">
+      <Link to="/tournaments" className="inline-flex items-center text-poker-gold hover:underline mb-4">
         <ArrowLeft className="w-4 h-4 mr-1" />
         Retour à la liste des tournois
       </Link>
 
-      <h2 className="text-2xl font-bold text-poker-black mb-4">Bilan du tournoi : {tournament?.name}</h2>
+      <h2 className="text-2xl font-bold text-white mb-4">Bilan du tournoi : {tournament?.name}</h2>
 
-      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
+      {error && <div className="bg-red-500/15 border border-red-400/40 text-red-300 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
 
       {/* Section Bilans Joueurs */}
       <div className="mb-6">
-        <h3 className="text-xl font-semibold text-poker-dark-gray mb-3">Bilans des Joueurs</h3>
+        <h3 className="text-xl font-semibold text-white mb-3">Bilans des Joueurs</h3>
         <div className="space-y-2">
           {tournament?.detailedSettlement?.playerSummaries ? (
             [...tournament.detailedSettlement.playerSummaries]
@@ -175,7 +175,7 @@ function SettleAccounts() {
                 <PlayerSettlementDetails key={summary.playerId} summary={summary} />
               ))
           ) : (
-            <div className="flex items-center text-gray-500">
+            <div className="flex items-center text-gray-400">
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
               <span>Chargement du règlement détaillé...</span>
             </div>
@@ -186,12 +186,12 @@ function SettleAccounts() {
       {/* Section Transactions */}
       <div>
         <div className="flex justify-between items-center mb-3">
-          <h3 className="text-xl font-semibold text-poker-dark-gray">Transactions à effectuer</h3>
+          <h3 className="text-xl font-semibold text-white">Transactions à effectuer</h3>
           {tournament?.status === 'ended' && (
             <button
               onClick={handleRecalculateSettlement}
               disabled={isLoading}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              className="btn btn-blue"
             >
               {isLoading ? (
                 <>
@@ -213,7 +213,7 @@ function SettleAccounts() {
         {!isLoading && tournament?.settlementTransactions && tournament.settlementTransactions.length > 0 && (
           <ul className="space-y-3">
             {tournament.settlementTransactions.map((tx, index) => (
-              <li key={index} className={`flex items-center justify-between p-3 rounded border ${tx.completed ? 'border-green-300 bg-green-50' : 'border-gray-300'}`}>
+              <li key={index} className={`flex items-center justify-between p-3 rounded-xl border ${tx.completed ? 'border-green-400/30 bg-green-500/10' : 'border-white/10 bg-white/5'}`}>
                 <div className="flex items-center">
                    <input
                     type="checkbox"
@@ -226,30 +226,30 @@ function SettleAccounts() {
                     {tx.type === 'pot_withdrawal' ? (
                       // Pot withdrawal transaction
                       <>
-                        <span className="font-semibold text-green-600">{tx.toPlayerName}</span> reçoit
+                        <span className="font-semibold text-green-400">{tx.toPlayerName}</span> reçoit
                         <span className="font-bold mx-1">{tx.amount.toFixed(2)} €</span>
-                        <span className="font-semibold text-blue-600">du pot</span>
+                        <span className="font-semibold text-blue-300">du pot</span>
                       </>
                     ) : (
                       // Traditional player debt transaction
                       <>
-                        <span className="font-semibold text-red-600">{tx.fromPlayerName}</span> doit
+                        <span className="font-semibold text-red-400">{tx.fromPlayerName}</span> doit
                         <span className="font-bold mx-1">{tx.amount.toFixed(2)} €</span> à
-                        <span className="font-semibold text-green-600"> {tx.toPlayerName}</span>
+                        <span className="font-semibold text-green-400"> {tx.toPlayerName}</span>
                       </>
                     )}
                   </span>
                 </div>
-                 {tx.completed && <Check className="w-5 h-5 text-green-600" />}
+                 {tx.completed && <Check className="w-5 h-5 text-green-400" />}
               </li>
             ))}
           </ul>
         )}
          {!isLoading && tournament?.settlementTransactions?.length === 0 && (
-             <p className="text-gray-500 italic">Aucune transaction nécessaire, les comptes sont équilibrés.</p>
+             <p className="text-gray-400 italic">Aucune transaction nécessaire, les comptes sont équilibrés.</p>
          )}
          {!isLoading && !tournament?.settlementTransactions && !error && tournament?.status === 'ended' && (
-             <p className="text-gray-500">En attente du calcul des transactions...</p>
+             <p className="text-gray-400">En attente du calcul des transactions...</p>
          )}
       </div>
     </div>

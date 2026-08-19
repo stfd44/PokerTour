@@ -163,7 +163,7 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
     return (
         <div className="w-full">
             {error && (
-                <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 flex items-center">
+                <div className="mb-6 p-4 bg-red-500/15 border-l-4 border-red-500 text-red-300 flex items-center">
                     <AlertCircle className="w-5 h-5 mr-2" />
                     {error}
                 </div>
@@ -172,7 +172,7 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
             <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-5">
                     <div className="col-span-1 md:col-span-2">
-                        <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        <label htmlFor="name" className="block text-sm font-semibold text-gray-200 mb-1.5">
                             Nom du tournoi
                         </label>
                         <input
@@ -181,13 +181,13 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                             value={formData.name}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none"
+                            className="glass-input w-full px-4 py-2.5 rounded-xl"
                             placeholder="Ex: Main Event Friday"
                         />
                     </div>
 
                     <div>
-                        <label htmlFor="date" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        <label htmlFor="date" className="block text-sm font-semibold text-gray-200 mb-1.5">
                             Date et Heure
                         </label>
                         <input
@@ -196,12 +196,12 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                             value={formData.date}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none"
+                            className="glass-input w-full px-4 py-2.5 rounded-xl"
                         />
                     </div>
 
                     <div>
-                        <label htmlFor="teamId" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        <label htmlFor="teamId" className="block text-sm font-semibold text-gray-200 mb-1.5">
                             Groupe
                         </label>
                         <select
@@ -209,7 +209,7 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                             value={formData.teamId}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none bg-white"
+                            className="glass-input w-full px-4 py-2.5 rounded-xl transition-all"
                         >
                             <option value="">Sélectionner un groupe</option>
                             {teams.map((team) => (
@@ -221,7 +221,7 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                     </div>
 
                     <div>
-                        <label htmlFor="buyin" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        <label htmlFor="buyin" className="block text-sm font-semibold text-gray-200 mb-1.5">
                             Buy-in (€)
                         </label>
                         <input
@@ -232,13 +232,13 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                             required
                             min="0"
                             step="5"
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none"
+                            className="glass-input w-full px-4 py-2.5 rounded-xl"
                             placeholder="20"
                         />
                     </div>
 
                     <div>
-                        <label htmlFor="maxPlayers" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        <label htmlFor="maxPlayers" className="block text-sm font-semibold text-gray-200 mb-1.5">
                             Joueurs Max
                         </label>
                         <input
@@ -249,13 +249,13 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                             required
                             min="2"
                             max="100"
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none"
+                            className="glass-input w-full px-4 py-2.5 rounded-xl"
                             placeholder="9"
                         />
                     </div>
 
                     <div className="col-span-1 md:col-span-2">
-                        <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        <label htmlFor="location" className="block text-sm font-semibold text-gray-200 mb-1.5">
                             Lieu
                         </label>
                         <input
@@ -264,7 +264,7 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                             value={formData.location}
                             onChange={handleChange}
                             required
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none"
+                            className="glass-input w-full px-4 py-2.5 rounded-xl"
                             placeholder="Ex: Chez Alex"
                         />
                     </div>
@@ -273,14 +273,14 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                 {/* ── Group Members (verified + pending) ── */}
                 {hasGroupMembers && (
                     <div className="pt-4 border-t border-gray-100">
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">
+                        <label className="block text-sm font-semibold text-gray-200 mb-3">
                             Inviter des membres du groupe
                         </label>
 
                         {/* Verified members */}
                         {teamMembersDetails.length > 0 && (
                             <>
-                                <p className="text-xs text-gray-500 flex items-center gap-1 mb-2">
+                                <p className="text-xs text-gray-400 flex items-center gap-1 mb-2">
                                     <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
                                     Membres vérifiés
                                 </p>
@@ -288,7 +288,7 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                                     {teamMembersDetails.map((member) => (
                                         <label
                                             key={member.id}
-                                            className="flex items-center space-x-3 p-2.5 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                                            className="flex items-center space-x-3 p-2.5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/5 transition-colors"
                                         >
                                             <input
                                                 type="checkbox"
@@ -303,7 +303,7 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                                                 className="w-4 h-4 text-poker-gold bg-white border-gray-300 rounded focus:ring-poker-gold focus:ring-2"
                                             />
                                             <ShieldCheck className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                                            <span className="text-sm text-gray-700 font-medium">{member.name}</span>
+                                            <span className="text-sm text-gray-200 font-medium">{member.name}</span>
                                         </label>
                                     ))}
                                 </div>
@@ -321,7 +321,7 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                                     {pendingMembers.map((pm) => (
                                         <label
                                             key={pm.name}
-                                            className="flex items-center space-x-3 p-2.5 border border-orange-200 bg-orange-50/40 rounded-lg cursor-pointer hover:bg-orange-50 transition-colors"
+                                            className="flex items-center space-x-3 p-2.5 border border-orange-400/30 bg-orange-500/10 rounded-lg cursor-pointer hover:bg-orange-500/15 transition-colors"
                                         >
                                             <input
                                                 type="checkbox"
@@ -330,8 +330,8 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                                                 className="w-4 h-4 text-orange-500 bg-white border-orange-300 rounded focus:ring-orange-400 focus:ring-2"
                                             />
                                             <ShieldAlert className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
-                                            <span className="text-sm text-gray-700 font-medium">{pm.name}</span>
-                                            <span className="ml-auto text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
+                                            <span className="text-sm text-gray-200 font-medium">{pm.name}</span>
+                                            <span className="ml-auto text-xs bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
                                                 Non vérifié
                                             </span>
                                         </label>
@@ -344,7 +344,7 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
 
                 {/* ── Manual guests ── */}
                 <div className="pt-4 border-t border-gray-100">
-                    <label htmlFor="guestName" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                    <label htmlFor="guestName" className="block text-sm font-semibold text-gray-200 mb-1.5">
                         Ajouter des invités supplémentaires (optionnel)
                     </label>
                     <div className="flex gap-2">
@@ -354,13 +354,13 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                             value={currentGuest}
                             onChange={(e) => setCurrentGuest(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddGuest())}
-                            className="flex-grow px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-poker-gold focus:border-transparent transition-all outline-none"
+                            className="glass-input flex-grow px-4 py-2.5 rounded-xl"
                             placeholder="Nom de l'invité"
                         />
                         <button
                             type="button"
                             onClick={handleAddGuest}
-                            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl transition-colors flex items-center shrink-0"
+                            className="btn btn-blue px-4 py-2.5 shrink-0"
                         >
                             <UserPlus className="h-5 w-5" />
                         </button>
@@ -392,7 +392,7 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-semibold"
+                            className="btn btn-ghost flex-1 py-3"
                         >
                             Annuler
                         </button>
@@ -401,7 +401,7 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                         type="submit"
                         disabled={isSubmitting}
                         className={cn(
-                            "flex-[2] bg-poker-red text-white py-3 rounded-xl hover:bg-red-700 transition-all font-bold shadow-lg shadow-poker-red/20",
+                            "btn btn-red flex-[2] py-3",
                             isSubmitting && "opacity-70 cursor-not-allowed"
                         )}
                     >
