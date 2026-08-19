@@ -1,15 +1,17 @@
 // src/components/layout/Header.tsx
-import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { cn } from '../../lib/utils';
+import type { MouseEvent } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { VERSION } from '../../version';
 
-export const Header = () => {
-  const { user } = useAuthStore();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { logout } = useAuthStore();
+interface HeaderProps {
+  isMenuOpen?: boolean;
+  onToggleMenu?: (event: MouseEvent<HTMLButtonElement>) => void;
+}
+
+export const Header = ({ isMenuOpen = false, onToggleMenu }: HeaderProps) => {
+  const { user, logout } = useAuthStore();
 
   const menuItems = [
     { label: 'Accueil', path: '/' },
@@ -28,7 +30,7 @@ export const Header = () => {
   };
 
   return (
-    <header className="bg-poker-black text-white shadow-lg sticky top-0 z-50">
+    <header className="bg-poker-black/90 text-white shadow-lg sticky top-0 z-50 backdrop-blur-md">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -76,8 +78,10 @@ export const Header = () => {
           {/* Mobile Menu Button */}
           <button
             className="lg:hidden p-2"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label="Menu"
+            onClick={onToggleMenu}
+            aria-label={isMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={isMenuOpen}
+            aria-controls="mobile-nav"
           >
             {isMenuOpen ? (
               <X className="w-6 h-6" />
@@ -85,34 +89,6 @@ export const Header = () => {
               <Menu className="w-6 h-6" />
             )}
           </button>
-        </div>
-      </div>
-
-      {/* Mobile Navigation */}
-      <div
-        className={cn(
-          'lg:hidden fixed inset-y-0 right-0 transform w-64 bg-poker-dark shadow-lg transition-transform duration-300 ease-in-out z-50',
-          isMenuOpen ? 'translate-x-0' : 'translate-x-full'
-        )}
-      >
-        <div className="flex flex-col pt-20 p-4">
-          {menuItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className="py-2 text-gray-300 hover:text-poker-gold transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              {item.label}
-            </Link>
-          ))}
-          {user && (
-            <div className='mt-20'>
-              <button className='btn btn-red w-full' onClick={handleSignOut}>
-                Déconnexion
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </header>

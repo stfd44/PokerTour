@@ -3,9 +3,8 @@ import Login from './components/Login';
 import React, { useEffect } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
-import { MainLayout } from './pages/MainLayout';
-import { Header } from './components/layout/Header';
 import { AppAtmosphere } from './components/layout/AppAtmosphere';
+import { AppShell } from './components/layout/AppShell';
 import { PageTransition } from './components/layout/PageTransition';
 // Teams is now routed within MainLayout
 import { useAuthStore } from './store/useAuthStore';
@@ -84,10 +83,7 @@ function App() {
           path="/*"
           element={
             user ? (
-              <div className="min-h-screen">
-                <Header />
-                <MainLayout />
-              </div>
+              <AppShell />
             ) : (
               <Navigate to="/login" />
             )

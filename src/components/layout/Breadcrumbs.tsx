@@ -32,44 +32,44 @@ const generateBreadcrumbs = (pathname: string, tournaments: Tournament[]): Bread
 
     // --- Specific Naming and Path Logic ---
     if (segment === 'tournaments') {
-      name = 'Tournaments';
+      name = 'Tournois';
       path = '/tournaments';
     } else if (segment === 'tournament') {
       // This is the segment BEFORE the ID
       const tournamentId = pathSegments[index + 1];
       if (tournamentId) {
-        // Add "Tournaments" link first if not already present
+        // Add "Tournois" link first if not already present
         if (!breadcrumbs.some(b => b.path === '/tournaments')) {
-            breadcrumbs.push({ name: 'Tournaments', path: '/tournaments' });
+            breadcrumbs.push({ name: 'Tournois', path: '/tournaments' });
         }
         // Re-apply explicit type 't' in find
         const tournament = tournaments.find((t: Tournament) => t.id === tournamentId);
-        name = tournament?.name || `Tournament ${tournamentId.substring(0, 6)}...`; // Use name or fallback
+        name = tournament?.name || `Tournoi ${tournamentId.substring(0, 6)}...`; // Use name or fallback
         path = `/tournament/${tournamentId}`;
         currentPath += `/${tournamentId}`; // Manually advance currentPath
         skipNextSegment = true; // Skip the ID segment in the next iteration
       } else {
         // Should not happen with valid routes, but handle gracefully
-        name = 'Tournament';
+        name = 'Tournoi';
         path = '/tournaments'; // Link back to list
       }
     } else if (segment === 'create' && pathSegments[index - 1] === 'tournaments') {
-      name = 'Create Tournament';
+      name = 'Créer un tournoi';
       path = '/tournaments/create';
     } else if (segment === 'edit') {
-      name = 'Edit';
+      name = 'Modifier';
       // Path is already correct as it builds upon the tournament path
     } else if (segment === 'settle') {
-      name = 'Settle Accounts';
+      name = 'Bilan';
       // Path is already correct
     } else if (segment === 'teams') {
-      name = 'Teams';
+      name = 'Communauté';
       path = '/teams';
     } else if (segment === 'stats') {
-      name = 'Stats';
+      name = 'Statistiques';
       path = '/stats';
     } else if (segment === 'profile') {
-      name = 'Profile';
+      name = 'Profil';
       path = '/profile';
     } else {
       // Default case: Use capitalized segment name
@@ -108,57 +108,54 @@ export const Breadcrumbs: React.FC = () => {
   }
 
   return (
-    <nav aria-label="Breadcrumb" className="mb-6 text-sm text-gray-300">
-      <ol className="list-none p-0 inline-flex items-center space-x-2">
-        {breadcrumbs.map((crumb, index) => (
-          <li key={crumb.path} className="flex items-center">
-            {index > 0 && <span className="mx-2">/</span>}
-            {/* Render as text only if it's the last crumb, path matches, AND it's a specific endpoint URL */}
-            {(() => {
-              const isLastCrumb = index === breadcrumbs.length - 1;
-              const pathMatches = crumb.path === location.pathname;
-              // Determine if the current URL represents a specific final view/endpoint
-              const isSpecificEndpoint = location.pathname.endsWith('/edit') ||
-                                         location.pathname.endsWith('/settle') ||
-                                         location.pathname === '/tournaments' ||
-                                         location.pathname === '/teams' ||
-                                         location.pathname === '/stats' ||
-                                         location.pathname === '/profile' ||
-                                         location.pathname === '/tournaments/create';
-              const renderAsText = isLastCrumb && pathMatches && isSpecificEndpoint;
+    <nav aria-label="Breadcrumb" className="mb-6">
+      <ol className="flex flex-wrap items-center gap-2">
+        {breadcrumbs.map((crumb, index) => {
+          const isLastCrumb = index === breadcrumbs.length - 1;
+          const pathMatches = crumb.path === location.pathname;
+          const isSpecificEndpoint = location.pathname.endsWith('/edit') ||
+                                     location.pathname.endsWith('/settle') ||
+                                     location.pathname === '/tournaments' ||
+                                     location.pathname === '/teams' ||
+                                     location.pathname === '/stats' ||
+                                     location.pathname === '/profile' ||
+                                     location.pathname === '/tournaments/create';
+          const renderAsText = isLastCrumb && pathMatches && isSpecificEndpoint;
+          const isTournamentLink = crumb.path.startsWith('/tournament/') && crumb.path.split('/').length === 3;
+          const label = crumb.isIcon ? <HomeIcon className="h-4 w-4" /> : crumb.name;
+          const buttonClass = [
+            'btn rounded-full text-sm font-medium',
+            crumb.isIcon ? 'h-9 w-9 px-0' : 'px-3.5 py-1.5',
+            renderAsText ? 'btn-gold pointer-events-none' : 'btn-ghost hover:text-poker-gold',
+          ].join(' ');
+          const ariaLabel = crumb.isIcon ? 'Accueil' : undefined;
 
-              return renderAsText ? (
-                <span className="font-semibold text-white" aria-current="page">
-                  {crumb.isIcon ? <HomeIcon className="h-4 w-4" /> : crumb.name}
+          return (
+            <li key={crumb.path}>
+              {renderAsText ? (
+                <span className={buttonClass} aria-current="page" aria-label={ariaLabel}>
+                  {label}
                 </span>
+              ) : isTournamentLink ? (
+                <a
+                  href={crumb.path}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate(crumb.path, { state: { resetView: true } });
+                  }}
+                  className={buttonClass}
+                  aria-label={ariaLabel}
+                >
+                  {label}
+                </a>
               ) : (
-                // Check if it's a tournament path link
-                crumb.path.startsWith('/tournament/') && crumb.path.split('/').length === 3 ? (
-                  // Use navigate for tournament links to force state reset if needed
-                  <a
-                    href={crumb.path} // Provide href for semantics and right-click behavior
-                    onClick={(e) => {
-                      e.preventDefault(); // Prevent default anchor navigation
-                      // Navigate with state to signal a view reset
-                      navigate(crumb.path, { state: { resetView: true } });
-                    }}
-                    className="hover:text-poker-gold hover:underline flex items-center cursor-pointer"
-                  >
-                    {crumb.isIcon ? <HomeIcon className="h-4 w-4" /> : crumb.name}
-                  </a>
-                ) : (
-                  // Use standard Link for other links
-                  <Link
-                    to={crumb.path}
-                    className="hover:text-poker-gold hover:underline flex items-center"
-                  >
-                    {crumb.isIcon ? <HomeIcon className="h-4 w-4" /> : crumb.name}
-                  </Link>
-                )
-              );
-            })()}
-          </li>
-        ))}
+                <Link to={crumb.path} className={buttonClass} aria-label={ariaLabel}>
+                  {label}
+                </Link>
+              )}
+            </li>
+          );
+        })}
       </ol>
     </nav>
   );
