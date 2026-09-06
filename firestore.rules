@@ -27,7 +27,12 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow create: if isAuth();
       allow read: if isAuth();
-      allow update: if isAuth(); // Any authenticated user can update (e.g., join/leave)
+      // Structures can be managed by group members; preserve other team actions.
+      allow update: if request.auth != null && (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['blindPresets']) ||
+        request.auth.uid in resource.data.members ||
+        request.auth.uid == resource.data.creatorId
+      );
       allow delete: if isUser(resource.data.creatorId);
     }
 

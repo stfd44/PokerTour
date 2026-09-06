@@ -3,6 +3,7 @@ import { useTournamentStore } from '../../store/tournamentStore';
 import { useTeamStore } from '../../store/useTeamStore';
 import { UserCheck, Minus, Plus } from 'lucide-react';
 import type { Game, Player, Tournament, PotContribution, BlindLevel, RebuyLimitMode } from '../../store/types/tournamentTypes';
+import { DEFAULT_LEVEL_COUNT, createDefaultLevels } from '../../lib/blindPresets';
 import { calculatePrizePool, calculateWinnings } from '../../lib/utils';
 
 interface GameFormProps {
@@ -23,21 +24,6 @@ interface GameFormType {
   levels: BlindLevel[];
   players: Player[]; // Use Player type
 }
-
-const DEFAULT_LEVEL_COUNT = 10;
-
-const createDefaultLevels = (): BlindLevel[] => ([
-  { blinds: { small: 25, big: 50 }, duration: 20 },
-  { blinds: { small: 50, big: 100 }, duration: 20 },
-  { blinds: { small: 75, big: 150 }, duration: 20 },
-  { blinds: { small: 100, big: 200 }, duration: 20 },
-  { blinds: { small: 150, big: 300 }, duration: 20 },
-  { blinds: { small: 200, big: 400 }, duration: 20 },
-  { blinds: { small: 300, big: 600 }, duration: 20 },
-  { blinds: { small: 400, big: 800 }, duration: 20 },
-  { blinds: { small: 600, big: 1200 }, duration: 20 },
-  { blinds: { small: 800, big: 1600 }, duration: 20 },
-]);
 
 const initialGameForm: GameFormType = {
   startingStack: 10000,

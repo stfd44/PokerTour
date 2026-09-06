@@ -1,8 +1,10 @@
 import { create } from 'zustand';
-import { collection, addDoc, getDocs, query, where, doc, updateDoc, arrayUnion, arrayRemove, serverTimestamp, deleteDoc, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, updateDoc, arrayUnion, arrayRemove, serverTimestamp, deleteDoc, getDoc, Timestamp, runTransaction } from 'firebase/firestore';
 import { db, handleDatabaseError, isCreator } from '../lib/firebase';
 import { useAuthStore } from './useAuthStore';
 import type { BlindLevel, RebuyLimitMode } from './types/tournamentTypes';
+
+import { validateBlindPreset, type BlindPresetInput } from '../lib/blindPresets';
 
 // Fonction pour générer un ID unique à 4 chiffres
 const generateUniqueId = async (): Promise<string> => {
@@ -60,6 +62,7 @@ interface TeamStore {
   addMemberByName: (teamId: string, nickname: string) => Promise<{ name: string; verified: boolean }>;
   removePendingMember: (teamId: string, memberName: string) => Promise<void>;
   addBlindPreset: (teamId: string, preset: Omit<BlindPreset, 'id' | 'createdAt'>) => Promise<void>;
+  updateBlindPreset: (teamId: string, presetId: string, preset: BlindPresetInput) => Promise<void>;
   deleteBlindPreset: (teamId: string, presetId: string) => Promise<void>;
 }
 
@@ -358,55 +361,77 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     }));
   },
   addBlindPreset: async (teamId, preset) => {
+    await get().updateBlindPreset(teamId, '', preset);
+  },
+  updateBlindPreset: async (teamId, presetId, preset) => {
+    validateBlindPreset(preset);
+    const user = useAuthStore.getState().user;
+    if (!user) throw new Error('Vous devez être connecté.');
     const teamRef = doc(db, 'teams', teamId);
-    const teamSnap = await getDoc(teamRef);
-    if (!teamSnap.exists()) throw new Error('Groupe introuvable.');
-    const teamData = teamSnap.data() as Omit<Team, 'id'>;
-
-    const trimmedName = preset.name.trim();
-    if (!trimmedName) {
-      throw new Error('Le nom de la structure est requis.');
-    }
-
-    const existingPresets = teamData.blindPresets || [];
-    const alreadyExists = existingPresets.some((entry) => entry.name.trim().toLowerCase() === trimmedName.toLowerCase());
-    if (alreadyExists) {
-      throw new Error('Une structure avec ce nom existe déjà dans ce groupe.');
-    }
-
-    const newPreset: BlindPreset = {
-      ...preset,
-      name: trimmedName,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-    };
-
-    const updatedBlindPresets = [...existingPresets, newPreset];
-    await updateDoc(teamRef, { blindPresets: updatedBlindPresets });
-
+    const newId = presetId || crypto.randomUUID();
+    const createdAt = new Date();
+    const blindPresets = await runTransaction(db, async (transaction) => {
+      const teamSnap = await transaction.get(teamRef);
+      if (!teamSnap.exists()) throw new Error('Groupe introuvable.');
+      const teamData = teamSnap.data() as Omit<Team, 'id'>;
+      if (!teamData.members.includes(user.uid)) {
+        throw new Error('Seuls les membres du groupe peuvent gérer ses structures.');
+      }
+      const existingPresets = teamData.blindPresets || [];
+      const existing = existingPresets.find((entry) => entry.id === presetId);
+      if (presetId && !existing) throw new Error('Cette structure a été supprimée.');
+      const name = preset.name.trim();
+      if (existingPresets.some((entry) => entry.id !== presetId && entry.name.trim().toLowerCase() === name.toLowerCase())) {
+        throw new Error('Une structure avec ce nom existe déjà dans ce groupe.');
+      }
+      const savedPreset = {
+        ...preset,
+        name,
+        id: newId,
+        createdAt: existing?.createdAt || createdAt,
+      };
+      const updated = existing
+        ? existingPresets.map((entry) => entry.id === presetId ? savedPreset : entry)
+        : [...existingPresets, savedPreset];
+      transaction.update(teamRef, { blindPresets: updated });
+      return updated.map((entry) => {
+        const legacy = entry as BlindPreset & { blinds?: BlindLevel['blinds']; levelDuration?: number };
+        return {
+          ...entry,
+          levels: entry.levels?.length ? entry.levels : [{
+            blinds: legacy.blinds || { small: 25, big: 50 },
+            duration: legacy.levelDuration || 20,
+          }],
+          rebuyLimitMode: entry.rebuyLimitMode || 'until_level',
+          createdAt: entry.createdAt instanceof Timestamp ? entry.createdAt.toDate() : (entry.createdAt || new Date()),
+        };
+      });
+    });
     set((state) => ({
-      teams: state.teams.map((team) =>
-        team.id === teamId
-          ? { ...team, blindPresets: [...(team.blindPresets || []), newPreset] }
-          : team
-      ),
+      teams: state.teams.map((team) => team.id === teamId ? { ...team, blindPresets } : team),
+      currentTeam: state.currentTeam?.id === teamId ? { ...state.currentTeam, blindPresets } : state.currentTeam,
     }));
   },
   deleteBlindPreset: async (teamId, presetId) => {
+    const user = useAuthStore.getState().user;
     const teamRef = doc(db, 'teams', teamId);
-    const teamSnap = await getDoc(teamRef);
-    if (!teamSnap.exists()) throw new Error('Groupe introuvable.');
-    const teamData = teamSnap.data() as Omit<Team, 'id'>;
-
-    const updatedBlindPresets = (teamData.blindPresets || []).filter((preset) => preset.id !== presetId);
-    await updateDoc(teamRef, { blindPresets: updatedBlindPresets });
-
+    await runTransaction(db, async (transaction) => {
+      const teamSnap = await transaction.get(teamRef);
+      if (!teamSnap.exists()) throw new Error('Groupe introuvable.');
+      const teamData = teamSnap.data() as Omit<Team, 'id'>;
+      if (!user || teamData.creatorId !== user.uid) {
+        throw new Error('Seul le créateur du groupe peut supprimer une structure.');
+      }
+      transaction.update(teamRef, {
+        blindPresets: (teamData.blindPresets || []).filter((preset) => preset.id !== presetId),
+      });
+    });
+    const removePreset = (team: Team) => team.id === teamId
+      ? { ...team, blindPresets: (team.blindPresets || []).filter((preset) => preset.id !== presetId) }
+      : team;
     set((state) => ({
-      teams: state.teams.map((team) =>
-        team.id === teamId
-          ? { ...team, blindPresets: (team.blindPresets || []).filter((preset) => preset.id !== presetId) }
-          : team
-      ),
+      teams: state.teams.map(removePreset),
+      currentTeam: state.currentTeam ? removePreset(state.currentTeam) : null,
     }));
   },
 }));

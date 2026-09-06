@@ -7,7 +7,12 @@ service cloud.firestore {
 
     match /teams/{teamId} {
       // Allow authenticated users to create, read, and update teams
-      allow create, read, update: if request.auth != null;
+      allow create, read: if request.auth != null;
+      allow update: if request.auth != null && (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['blindPresets']) ||
+        request.auth.uid in resource.data.members ||
+        request.auth.uid == resource.data.creatorId
+      );
       // Only allow the creator to delete (same as prod)
       allow delete: if request.auth != null && request.auth.uid == resource.data.creatorId;
     }
