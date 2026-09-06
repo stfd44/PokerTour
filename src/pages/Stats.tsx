@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useTeamStore } from '../store/useTeamStore'; // Import useTeamStore
-import { useTournamentStore, Game, PlayerResult } from '../store/tournamentStore'; // Import PlayerResult
+import { useTournamentStore } from '../store/tournamentStore';
+import type { Game, PlayerResult } from '../store/types/tournamentTypes';
 import clsx from 'clsx'; // Import clsx
+import { Modal } from '../components/common/Modal';
 
 interface PlayerStats {
   id: string;
@@ -11,11 +13,12 @@ interface PlayerStats {
   totalWinnings: number;
   totalWagers: number; // ADDED: Track total amount wagered (buyins + rebuys)
   gamesPlayed: number;
+  tournamentsPlayed: number;
 }
 
 // Define the structure for the memoized statistics object
 interface CalculatedStats {
-  // These represent totals for the selected scope (year/team), not user-specific yet
+  // These represent totals for the selected scope (period/team), not user-specific yet
   tournamentsInScope: number;
   gamesInScope: number;
   // User specific counts
@@ -32,7 +35,9 @@ const Stats: React.FC = () => {
   const { tournaments, fetchTournaments } = useTournamentStore();
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>('all'); // 'all' or team ID
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear()); // State for selected year
+  const [selectedPeriod, setSelectedPeriod] = useState<number | 'all'>(new Date().getFullYear());
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const periodLabel = selectedPeriod === 'all' ? 'Toutes périodes' : selectedPeriod;
 
   useEffect(() => {
     // Fetch teams first if not already loaded
@@ -76,12 +81,12 @@ const Stats: React.FC = () => {
     return Array.from(years).sort((a, b) => b - a); // Sort descending
   }, [tournaments]);
 
-  // Update selectedYear if it becomes invalid (e.g., data changes)
+  // Keep an available year selected, while preserving the all-time selection.
   useEffect(() => {
-    if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
-      setSelectedYear(availableYears[0]); // Default to the latest available year
+    if (selectedPeriod !== 'all' && availableYears.length > 0 && !availableYears.includes(selectedPeriod)) {
+      setSelectedPeriod(availableYears[0]); // Default to the latest available year
     }
-  }, [availableYears, selectedYear]);
+  }, [availableYears, selectedPeriod]);
 
 
   // Memoize calculations to avoid re-computing on every render
@@ -106,26 +111,28 @@ const Stats: React.FC = () => {
       };
     }
 
-    // Filter by selected year *first*
-    const tournamentsInYear = filteredTournaments.filter(t => {
+    // Include the full team history when all periods are selected.
+    const tournamentsInPeriod = filteredTournaments.filter(t => {
+      if (selectedPeriod === 'all') return true;
       try {
-        return new Date(t.date).getFullYear() === selectedYear;
+        return new Date(t.date).getFullYear() === selectedPeriod;
       } catch (e) {
         console.error("Error parsing tournament date:", t.date, e);
         return false;
       }
     });
 
-    const tournamentsInScope = tournamentsInYear.length;
-    const gamesInScope = tournamentsInYear.reduce((sum, t) => sum + (t.games?.length || 0), 0);
+    const tournamentsInScope = tournamentsInPeriod.length;
+    const gamesInScope = tournamentsInPeriod.reduce((sum, t) => sum + (t.games?.length || 0), 0);
 
     // --- Player Aggregates (Points, Winnings, Wagers, Games Played) ---
     const playerAggregates: Record<string, PlayerStats> = {};
     const userParticipatedTournamentIds = new Set<string>();
     let userGamesParticipatedCount = 0;
 
-    // Iterate through tournaments in the selected year and team scope
-    tournamentsInYear.forEach(tournament => {
+    // Iterate through tournaments in the selected period and team scope
+    tournamentsInPeriod.forEach(tournament => {
+      const tournamentPlayerIds = new Set<string>();
       console.log(`[Stats Calculation] Processing tournament: ${tournament.name} (${tournament.id})`);
       (tournament.games || []).forEach((game: Game) => {
         console.log(`[Stats Calculation]   Processing game: ${game.id}, Status: ${game.status}`);
@@ -143,7 +150,13 @@ const Stats: React.FC = () => {
               totalWinnings: 0,
               totalWagers: 0,
               gamesPlayed: 0,
+              tournamentsPlayed: 0,
             };
+          }
+
+          if (!tournamentPlayerIds.has(playerId)) {
+            tournamentPlayerIds.add(playerId);
+            playerAggregates[playerId].tournamentsPlayed += 1;
           }
 
           // Calculate wager for this game (buy-in + rebuys for this player)
@@ -192,12 +205,12 @@ const Stats: React.FC = () => {
     console.log("[Stats Calculation] User participation:", { userTournamentsParticipated, userGamesParticipated: userGamesParticipatedCount });
 
     // --- Most Profitable Tournament (Based on ended tournaments in scope) ---
-    const endedTournamentsInYear = tournamentsInYear.filter(t => t.status === 'ended');
-    const endedTournamentsCount = endedTournamentsInYear.length; // Count based on year/team filter
+    const endedTournamentsInPeriod = tournamentsInPeriod.filter(t => t.status === 'ended');
+    const endedTournamentsCount = endedTournamentsInPeriod.length; // Count based on period/team filter
     let mostProfitableTournament: { name: string; organizer: string; totalPrize: number } | null = null;
     let maxPrize = -1;
 
-    endedTournamentsInYear.forEach(tournament => {
+    endedTournamentsInPeriod.forEach(tournament => {
       // Calculate total prize pool based on game prize pools *or* sum of winnings if prize pool isn't stored reliably
       // Let's assume game.winnings accurately reflects distributed prizes for ended games
        const totalPrize = (tournament.games || []).reduce((sum, game) => {
@@ -229,7 +242,7 @@ const Stats: React.FC = () => {
     };
     console.log("[Stats Calculation] Final calculated statistics object:", finalStats);
     return finalStats;
-  }, [tournaments, selectedYear, selectedTeamId]); // Update dependency array
+  }, [tournaments, selectedPeriod, selectedTeamId, user]); // Update dependency array
 
   if (isLoading) {
     return <div className="text-center py-12">Chargement des statistiques...</div>;
@@ -244,12 +257,59 @@ const Stats: React.FC = () => {
   const sortedByWinnings = [...statistics.playerStats].sort((a, b) => b.totalWinnings - a.totalWinnings);
   const currentUserStats = statistics.playerStats.find(p => p.id === user?.uid);
 
+  const selectedPlayerStats = statistics.playerStats.find(p => p.id === selectedPlayerId);
+
   return (
     <div className="space-y-8">
+      {selectedPlayerStats && (
+        <Modal
+          isOpen
+          onClose={() => setSelectedPlayerId(null)}
+          title={`Bilan personnel de ${selectedPlayerStats.name}`}
+        >
+          <div className="space-y-5">
+            <p className="text-sm text-gray-300">
+              {periodLabel} · {teams.find(team => team.id === selectedTeamId)?.name || 'Toutes les équipes'}
+            </p>
+            <div className="text-center">
+              <p className="text-sm text-gray-300">Bilan net</p>
+              <p className={clsx('text-4xl font-bold mt-1',
+                selectedPlayerStats.totalWinnings - selectedPlayerStats.totalWagers < 0
+                  ? 'text-red-400' : 'text-green-400'
+              )}>
+                {(selectedPlayerStats.totalWinnings - selectedPlayerStats.totalWagers).toFixed(2)} €
+              </p>
+              <p className="text-sm text-gray-400 mt-1">Gains − mises (buy-ins et recaves)</p>
+            </div>
+            <dl className="space-y-3 text-gray-200">
+              <div className="flex justify-between gap-4">
+                <dt>Total des gains</dt>
+                <dd className="font-semibold">{selectedPlayerStats.totalWinnings.toFixed(2)} €</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt>Total des mises</dt>
+                <dd className="font-semibold">{selectedPlayerStats.totalWagers.toFixed(2)} €</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt>Tournois joués</dt>
+                <dd className="font-semibold">{selectedPlayerStats.tournamentsPlayed}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt>Parties jouées</dt>
+                <dd className="font-semibold">{selectedPlayerStats.gamesPlayed}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt>Total des points</dt>
+                <dd className="font-semibold">{selectedPlayerStats.totalPoints}</dd>
+              </div>
+            </dl>
+          </div>
+        </Modal>
+      )}
       {/* Personal Balance Summary */}
       {currentUserStats && (
         <div className="glass-card p-6 text-center">
-          <h2 className="text-xl font-semibold text-white mb-2">Votre Bilan Personnel ({selectedYear})</h2>
+          <h2 className="text-xl font-semibold text-white mb-2">Votre Bilan Personnel ({periodLabel})</h2>
           <p className="text-4xl font-bold text-green-400">
             {(currentUserStats.totalWinnings - currentUserStats.totalWagers).toFixed(2)} €
           </p>
@@ -264,20 +324,21 @@ const Stats: React.FC = () => {
 
       {/* Filters and Title */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h1 className="text-3xl font-bold text-white drop-shadow-sm">Statistiques Globales ({selectedYear})</h1>
+        <h1 className="text-3xl font-bold text-white drop-shadow-sm">Statistiques Globales ({periodLabel})</h1>
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          {/* Year Selector */}
+          {/* Period Selector */}
           {availableYears.length > 0 && (
             <div className="w-full sm:w-auto">
-              <label htmlFor="year-select" className="block text-sm font-medium text-gray-200">
-                Année :
+              <label htmlFor="period-select" className="block text-sm font-medium text-gray-200">
+                Période :
               </label>
               <select
-                id="year-select"
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+                id="period-select"
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value === 'all' ? 'all' : Number(e.target.value))}
                 className="glass-input mt-1 block w-full pl-3 pr-10 py-2 text-base sm:text-sm"
               >
+                <option value="all">Toutes périodes</option>
                 {availableYears.map(year => (
                   <option key={year} value={year}>
                     {year}
@@ -410,7 +471,15 @@ const Stats: React.FC = () => {
                           {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank}
                         </td>
                         <td className={clsx("px-4 py-2 whitespace-nowrap text-sm", isCurrentUser ? 'text-blue-200' : 'text-gray-200')}>
-                          {player.name}{isCurrentUser && ' (Vous)'}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPlayerId(player.id)}
+                            aria-label={`Afficher le bilan personnel de ${player.name}`}
+                            aria-haspopup="dialog"
+                            className="rounded text-left underline decoration-white/30 underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                          >
+                            {player.name}{isCurrentUser && ' (Vous)'}
+                          </button>
                         </td>
                         <td className={clsx("px-4 py-2 whitespace-nowrap text-sm text-right", isCurrentUser ? 'text-blue-200' : 'text-gray-200')}>
                           {player.totalWinnings.toFixed(2)}
@@ -433,7 +502,7 @@ const Stats: React.FC = () => {
       {/* Most Profitable Tournament */}
       {statistics.mostProfitableTournament ? (
         <div className="glass-card p-6 mt-8">
-          <h2 className="text-xl font-semibold text-white mb-3">Tournoi le Plus Rémunérateur ({selectedYear})</h2>
+          <h2 className="text-xl font-semibold text-white mb-3">Tournoi le Plus Rémunérateur ({periodLabel})</h2>
           <p className="text-gray-200"><span className="font-medium text-white">Nom:</span> {statistics.mostProfitableTournament.name}</p>
           <p className="text-gray-200"><span className="font-medium text-white">Organisateur:</span> {statistics.mostProfitableTournament.organizer}</p>
           <p className="text-gray-200"><span className="font-medium text-white">Prize Pool Total:</span> {statistics.mostProfitableTournament.totalPrize.toFixed(2)} €</p>
@@ -441,8 +510,8 @@ const Stats: React.FC = () => {
       ) : (
          statistics.endedTournamentsCount > 0 && (
            <div className="glass-card p-6 mt-8">
-             <h2 className="text-xl font-semibold text-white mb-3">Tournoi le Plus Rémunérateur ({selectedYear})</h2>
-             <p className="text-gray-400">Aucun tournoi terminé avec un prize pool défini trouvé pour cette sélection et cette année.</p>
+             <h2 className="text-xl font-semibold text-white mb-3">Tournoi le Plus Rémunérateur ({periodLabel})</h2>
+             <p className="text-gray-400">Aucun tournoi terminé avec un prize pool défini trouvé pour cette sélection et cette période.</p>
            </div>
          )
       )}
