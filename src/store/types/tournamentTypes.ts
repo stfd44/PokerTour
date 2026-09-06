@@ -6,6 +6,8 @@ export interface Player {
   nickname?: string | null;
   eliminated?: boolean;
   eliminationTime?: number | null; // Added for tracking elimination time
+  buyInPaid?: boolean;
+  rebuyPayments?: boolean[]; // One payment status per rebuy, in chronological order
   rebuysMade?: number; // ADDED: Track rebuys per player in a game
   status?: 'invited' | 'confirmed'; // Status for team member invites
 }
@@ -197,6 +199,7 @@ export interface TournamentStoreActions {
   eliminatePlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
   reinstatePlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
   rebuyPlayer: (tournamentId: string, gameId: string, playerId: string) => Promise<void>;
+  updatePlayerPayment: (tournamentId: string, gameId: string, playerId: string, rebuyIndex: number | null, paid: boolean) => Promise<void>;
   calculateAndStoreSettlement: (tournamentId: string) => Promise<void>;
   updateSettlementTransaction: (tournamentId: string, transactionIndex: number, completed: boolean) => Promise<void>;
   subscribeToTournament: (tournamentId: string) => () => void;

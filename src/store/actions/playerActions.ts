@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 import { db, handleDatabaseError } from '../../lib/firebase';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, runTransaction } from 'firebase/firestore';
 import { Game, Player, TournamentStore, TournamentStoreActions } from '../types/tournamentTypes';
 import { cleanGameForFirestore } from '../helpers/tournamentHelpers';
 import { sendGameEventPush, getOrCreatePushDeviceId } from '../../lib/pushNotifications';
@@ -9,7 +9,8 @@ import { sendGameEventPush, getOrCreatePushDeviceId } from '../../lib/pushNotifi
 export type PlayerActionSlice = Pick<TournamentStoreActions,
   'eliminatePlayer' |
   'reinstatePlayer' |
-  'rebuyPlayer'
+  'rebuyPlayer' |
+  'updatePlayerPayment'
 >;
 
 export const createPlayerActionSlice: StateCreator<
@@ -18,6 +19,35 @@ export const createPlayerActionSlice: StateCreator<
   [],
   PlayerActionSlice
 > = (set) => ({
+  updatePlayerPayment: async (tournamentId, gameId, playerId, rebuyIndex, paid) => {
+    const tournamentRef = doc(db, 'tournaments', tournamentId);
+    const updatedGames = await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(tournamentRef);
+      const data = snapshot.data();
+      if (!data) throw new Error('Tournoi introuvable.');
+      const games = data.games as Game[];
+      const game = games.find((item) => item.id === gameId);
+      const player = game?.players.find((item) => item.id === playerId);
+      if (!game || !player) throw new Error('Joueur introuvable dans cette partie.');
+      if (rebuyIndex !== null && (!Number.isInteger(rebuyIndex) || rebuyIndex < 0 || rebuyIndex >= (player.rebuysMade ?? 0))) {
+        throw new Error('Recave introuvable.');
+      }
+      const players = game.players.map((item) => {
+        if (item.id !== playerId) return item;
+        if (rebuyIndex === null) return { ...item, buyInPaid: paid };
+        const rebuyPayments = Array.from({ length: item.rebuysMade ?? 0 }, (_, index) =>
+          index === rebuyIndex ? paid : (item.rebuyPayments?.[index] ?? false));
+        return { ...item, rebuyPayments };
+      });
+      const gamesToSave = games.map((item) => cleanGameForFirestore(item.id === gameId ? { ...item, players } : item));
+      transaction.update(tournamentRef, { games: gamesToSave });
+      return gamesToSave;
+    });
+    set((state) => ({
+      tournaments: state.tournaments.map((item) => item.id === tournamentId ? { ...item, games: updatedGames } : item),
+    }));
+  },
+
   // --- Player Elimination/Reinstatement ---
 
   eliminatePlayer: async (tournamentId, gameId, playerId) => {
@@ -147,7 +177,11 @@ export const createPlayerActionSlice: StateCreator<
             ...player,
             eliminated: false,
             eliminationTime: null,
-            rebuysMade: (player.rebuysMade || 0) + 1 // Increment player's rebuy count
+            rebuysMade: (player.rebuysMade || 0) + 1,
+            rebuyPayments: [
+              ...Array.from({ length: player.rebuysMade ?? 0 }, (_, index) => player.rebuyPayments?.[index] ?? false),
+              false,
+            ]
           };
         }
         return player;

@@ -367,6 +367,9 @@ export function TournamentGames() {
             isOpen={isCreating}
             onClose={handleCloseFormOrView}
             title={editingGame ? 'Modifier la partie' : 'Nouvelle partie'}
+            showCloseButton={false}
+            className="sm:max-w-xl h-[min(720px,85dvh)]"
+            bodyClassName="overflow-hidden flex flex-col"
           >
             <GameForm
               tournament={tournament}

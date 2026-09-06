@@ -298,6 +298,7 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
             <div className="p-4 overflow-y-auto">
               {activePanel === 'players' && (
                 <GamePlayersPanel 
+                  buyIn={tournament.buyin}
                   game={game} 
                   tournamentId={tournamentId} 
                   gameId={gameId} 

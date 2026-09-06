@@ -359,3 +359,28 @@ input[type="time"] {
   max-width: 100%;
   box-sizing: border-box;
 }
+
+/* Guided game creation: the current question leaves before the next enters. */
+@keyframes game-wizard-out-left {
+  to { transform: translateX(-100%); opacity: 0; }
+}
+@keyframes game-wizard-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes game-wizard-out-right {
+  to { transform: translateX(100%); opacity: 0; }
+}
+@keyframes game-wizard-in-left {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.game-wizard-out-forward { animation: game-wizard-out-left 160ms ease-in both; }
+.game-wizard-in-forward { animation: game-wizard-in-right 220ms ease-out both; }
+.game-wizard-out-backward { animation: game-wizard-out-right 160ms ease-in both; }
+.game-wizard-in-backward { animation: game-wizard-in-left 220ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  [class*="game-wizard-out-"], [class*="game-wizard-in-"] {
+    animation-duration: 1ms;
+  }
+}

@@ -34,73 +34,69 @@ export const createGameActionSlice: StateCreator<
     levelDurations: number[],
     rebuyAllowedUntilLevel: number = 2
   ) => {
-    try {
-      const tournamentRef = doc(db, "tournaments", tournamentId);
-      const tournamentDoc = await getDoc(tournamentRef); // Fetch tournament to get buyin
-      if (!tournamentDoc.exists()) {
-        throw new Error("Tournament not found");
-      }
-      const tournamentData = tournamentDoc.data() as Tournament;
-      const gameId = Date.now().toString();
-
-      // Construct the full newGame object with all defaults
-      const newGame: Game = {
-        id: gameId,
-        // Fields from gameData
-        startingStack: gameData.startingStack,
-        levelDurations: levelDurations.length > 0 ? levelDurations : [20],
-        blindStructure: blindStructure.length > 0 ? blindStructure : [{ small: 25, big: 50 }],
-        players: (gameData.players || []).map(p => ({ // Sanitize players
-            id: p.id,
-            name: p.name,
-            nickname: p.nickname ?? null,
-            eliminated: p.eliminated ?? false,
-            eliminationTime: p.eliminationTime ?? null,
-            rebuysMade: p.rebuysMade ?? 0, // Ensure rebuysMade exists
-        })),
-        tournamentId: gameData.tournamentId,
-        prizePool: gameData.prizePool ?? 0, // Default prize/winnings if somehow missing
-        distributionPercentages: gameData.distributionPercentages ?? { first: 60, second: 25, third: 15 },
-        winnings: gameData.winnings ?? { first: 0, second: 0, third: 0 },
-        // Explicit defaults for fields NOT in gameData
-        status: 'pending',
-        currentLevel: 0,
-        levelStartTime: 0, // Or Date.now() if preferred, but 0 is safe
-        isPaused: false,
-        remainingTimeOnPause: null,
-        startedAt: null, // Not started yet
-        endedAt: null, // Not ended yet
-        results: [], // Initialize results as empty array
-        // Rebuy fields initialization
-        rebuyLimitMode: gameData.rebuyLimitMode || 'until_level',
-        rebuyAllowedUntilLevel: rebuyAllowedUntilLevel,
-        maxRebuysPerPlayer: gameData.maxRebuysPerPlayer,
-        totalRebuys: 0,
-        rebuyAmount: tournamentData.buyin, // Set rebuy amount from tournament buyin
-        rebuyDistributionRule: gameData.rebuyDistributionRule || 'cyclic_distribution', // Set rebuy distribution rule with default
-        // ADDED: Pot management fields (only if provided)
-        ...(gameData.potContributions && {
-          potContributions: gameData.potContributions,
-          totalPotAmount: gameData.totalPotAmount || 0
-        })
-      };
-
-      console.log(`[addGame] Creating ${gameData.potContributions ? 'pot-based' : 'traditional'} game ${gameId}`, {
-        usePot: !!gameData.potContributions,
-        potAmount: gameData.totalPotAmount || 0,
-        contributionsCount: gameData.potContributions?.length || 0,
-        rebuyDistributionRule: gameData.rebuyDistributionRule,
-        finalRebuyRule: newGame.rebuyDistributionRule
-      });
-      // Clean the object before saving
-      const cleanNewGame = cleanGameForFirestore(newGame);
-      await updateDoc(tournamentRef, {
-        games: arrayUnion(cleanNewGame), // Add the cleaned game object
-      });
-      // The local state update is now handled entirely by the onSnapshot listener in subscribeToTournament
-    } catch (error) {
-      handleDatabaseError(error);
+    const tournamentRef = doc(db, "tournaments", tournamentId);
+    const tournamentDoc = await getDoc(tournamentRef); // Fetch tournament to get buyin
+    if (!tournamentDoc.exists()) {
+      throw new Error("Tournament not found");
     }
+    const tournamentData = tournamentDoc.data() as Tournament;
+    const gameId = Date.now().toString();
+
+    // Construct the full newGame object with all defaults
+    const newGame: Game = {
+      id: gameId,
+      // Fields from gameData
+      startingStack: gameData.startingStack,
+      levelDurations: levelDurations.length > 0 ? levelDurations : [20],
+      blindStructure: blindStructure.length > 0 ? blindStructure : [{ small: 25, big: 50 }],
+      players: (gameData.players || []).map(p => ({ // Sanitize players
+          id: p.id,
+          name: p.name,
+          nickname: p.nickname ?? null,
+          eliminated: p.eliminated ?? false,
+          eliminationTime: p.eliminationTime ?? null,
+          rebuysMade: p.rebuysMade ?? 0, // Ensure rebuysMade exists
+      })),
+      tournamentId: gameData.tournamentId,
+      prizePool: gameData.prizePool ?? 0, // Default prize/winnings if somehow missing
+      distributionPercentages: gameData.distributionPercentages ?? { first: 60, second: 25, third: 15 },
+      winnings: gameData.winnings ?? { first: 0, second: 0, third: 0 },
+      // Explicit defaults for fields NOT in gameData
+      status: 'pending',
+      currentLevel: 0,
+      levelStartTime: 0, // Or Date.now() if preferred, but 0 is safe
+      isPaused: false,
+      remainingTimeOnPause: null,
+      startedAt: null, // Not started yet
+      endedAt: null, // Not ended yet
+      results: [], // Initialize results as empty array
+      // Rebuy fields initialization
+      rebuyLimitMode: gameData.rebuyLimitMode || 'until_level',
+      rebuyAllowedUntilLevel: rebuyAllowedUntilLevel,
+      maxRebuysPerPlayer: gameData.maxRebuysPerPlayer,
+      totalRebuys: 0,
+      rebuyAmount: tournamentData.buyin, // Set rebuy amount from tournament buyin
+      rebuyDistributionRule: gameData.rebuyDistributionRule || 'cyclic_distribution', // Set rebuy distribution rule with default
+      // ADDED: Pot management fields (only if provided)
+      ...(gameData.potContributions && {
+        potContributions: gameData.potContributions,
+        totalPotAmount: gameData.totalPotAmount || 0
+      })
+    };
+
+    console.log(`[addGame] Creating ${gameData.potContributions ? 'pot-based' : 'traditional'} game ${gameId}`, {
+      usePot: !!gameData.potContributions,
+      potAmount: gameData.totalPotAmount || 0,
+      contributionsCount: gameData.potContributions?.length || 0,
+      rebuyDistributionRule: gameData.rebuyDistributionRule,
+      finalRebuyRule: newGame.rebuyDistributionRule
+    });
+    // Clean the object before saving
+    const cleanNewGame = cleanGameForFirestore(newGame);
+    await updateDoc(tournamentRef, {
+      games: arrayUnion(cleanNewGame), // Add the cleaned game object
+    });
+    // The local state update is now handled entirely by the onSnapshot listener in subscribeToTournament
   },
 
   // Updating a Game

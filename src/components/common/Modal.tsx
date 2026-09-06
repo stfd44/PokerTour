@@ -16,6 +16,7 @@ interface ModalProps {
   title?: string;
   children: React.ReactNode;
   className?: string;
+  bodyClassName?: string;
   showCloseButton?: boolean;
 }
 
@@ -25,6 +26,7 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   children,
   className,
+  bodyClassName,
   showCloseButton = true,
 }) => {
   const scrollYRef = useRef(0);
@@ -74,6 +76,9 @@ export const Modal: React.FC<ModalProps> = ({
 
       {/* Modal Content - centered, max 85% of viewport */}
       <div 
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className={cn(
           "modal-sheet relative w-full sm:max-w-lg glass-card flex flex-col",
           className
@@ -97,7 +102,7 @@ export const Modal: React.FC<ModalProps> = ({
 
         {/* Body - independently scrollable */}
         <div 
-          className="px-5 py-4 sm:px-6 overflow-y-auto flex-1 min-h-0"
+          className={cn("px-5 py-4 sm:px-6 overflow-y-auto flex-1 min-h-0", bodyClassName)}
           style={{ overscrollBehavior: 'contain' }}
         >
           {children}
