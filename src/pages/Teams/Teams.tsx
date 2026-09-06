@@ -1,15 +1,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTeamStore, Team, type BlindPreset } from '../../store/useTeamStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Trash2, UserPlus, UserMinus, LogIn, Users, UserSearch, X, Hash, ShieldAlert, ShieldCheck, Layers, Plus, Pencil } from 'lucide-react';
+import { Trash2, UserPlus, UserMinus, LogIn, Users, UserSearch, Hash, ShieldAlert, ShieldCheck, Layers, Plus, Pencil } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
+import { MemberManager } from '../../components/teams/MemberManager';
 import { BlindPresetForm } from '../../components/teams/BlindPresetForm';
 
 const Teams: React.FC = () => {
   const { user } = useAuthStore();
-  const { teams, createTeam, fetchTeams, leaveTeam, joinTeam, deleteTeam, joinTeamByTag, addMemberByName, removePendingMember, deleteBlindPreset } = useTeamStore();
+  const { teams, createTeam, fetchTeams, leaveTeam, joinTeam, deleteTeam, joinTeamByTag, addMemberByName, deleteBlindPreset } = useTeamStore();
   const [newTeamName, setNewTeamName] = useState('');
   const [joinTag, setJoinTag] = useState('');
   const [joinMessage, setJoinMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -26,7 +27,7 @@ const Teams: React.FC = () => {
   const [addingMember, setAddingMember] = useState(false);
 
   // Confirm remove pending member state
-  const [confirmRemovePending, setConfirmRemovePending] = useState<{ teamId: string; name: string } | null>(null);
+  const [managedMember, setManagedMember] = useState<{ team: Team; source: { kind: 'account' | 'pending'; id: string; name: string } } | null>(null);
 
   const fetchMemberDetails = useCallback(async (memberIds: string[]) => {
     setLoadingMemberDetails(true);
@@ -64,7 +65,7 @@ const Teams: React.FC = () => {
 
   useEffect(() => {
     const allMemberIds = teams.reduce((acc, team) => {
-      team.members.forEach(id => acc.add(id));
+      [...team.members, ...(team.pastMembers || [])].forEach(id => acc.add(id));
       return acc;
     }, new Set<string>());
     if (allMemberIds.size > 0) fetchMemberDetails(Array.from(allMemberIds));
@@ -180,17 +181,6 @@ const Teams: React.FC = () => {
     }
   };
 
-  const handleRemovePendingMember = async () => {
-    if (!confirmRemovePending) return;
-    try {
-      await removePendingMember(confirmRemovePending.teamId, confirmRemovePending.name);
-    } catch (error) {
-      console.error('Error removing pending member:', error);
-    } finally {
-      setConfirmRemovePending(null);
-    }
-  };
-
   const handleDeleteBlindPreset = async (teamId: string, presetId: string) => {
     try {
       await deleteBlindPreset(teamId, presetId);
@@ -202,6 +192,7 @@ const Teams: React.FC = () => {
 
   return (
     <div className="container mx-auto p-4 max-w-2xl">
+      {managedMember && <MemberManager {...managedMember} names={memberDetails} onClose={() => setManagedMember(null)} />}
       {presetEditor && <BlindPresetForm {...presetEditor} onClose={() => setPresetEditor(null)} />}
       {/* Page Title */}
       <div className="mb-8">
@@ -316,7 +307,7 @@ const Teams: React.FC = () => {
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
-                    {team.members.includes(user?.uid || '') ? (
+                    {team.members.includes(user?.uid || '') && !isCreatorOfTeam ? (
                       <button
                         onClick={() => handleLeaveTeam(team.id)}
                         title="Quitter le groupe"
@@ -356,8 +347,9 @@ const Teams: React.FC = () => {
                       {team.members.map(memberId => (
                         <li key={memberId} className="text-sm text-gray-200 flex items-center gap-2">
                           <ShieldCheck className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
-                          <span>{memberDetails[memberId]?.name || memberId}</span>
+                          <span>{team.memberNames?.[memberId] || memberDetails[memberId]?.name || memberId}</span>
                           <div className="flex items-center gap-1 ml-auto">
+                            {isCreatorOfTeam && <button className="btn btn-ghost py-1 px-2 text-xs" aria-label={`Gérer ${team.memberNames?.[memberId] || memberDetails[memberId]?.name || memberId}`} onClick={() => setManagedMember({ team, source: { kind: 'account', id: memberId, name: team.memberNames?.[memberId] || memberDetails[memberId]?.name || memberId } })}>Gérer</button>}
                             {memberId === user?.uid && (
                               <span className="text-xs bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full">Vous</span>
                             )}
@@ -370,6 +362,13 @@ const Teams: React.FC = () => {
                     </ul>
                   )}
 
+                  {isCreatorOfTeam && (team.pastMembers || []).length > 0 && <details className="mb-3 text-sm text-gray-300">
+                    <summary className="cursor-pointer">Anciens membres ({team.pastMembers.length})</summary>
+                    {team.pastMembers.filter(id => !team.members.includes(id)).map(id => <div key={id} className="flex items-center justify-between gap-2 mt-2">
+                      <span>{team.memberNames?.[id] || memberDetails[id]?.name || id}</span>
+                      <button className="btn btn-ghost text-xs" onClick={() => setManagedMember({ team, source: { kind: 'account', id, name: team.memberNames?.[id] || memberDetails[id]?.name || id } })}>Gérer</button>
+                    </div>)}
+                  </details>}
                   {/* Pending / unverified members */}
                   {pendingMembers.length > 0 && (
                     <>
@@ -389,11 +388,11 @@ const Teams: React.FC = () => {
                               {/* Only creator can remove pending members */}
                               {isCreatorOfTeam && (
                                 <button
-                                  onClick={() => setConfirmRemovePending({ teamId: team.id, name: pm.name })}
-                                  title="Retirer ce membre"
+                                  onClick={() => setManagedMember({ team, source: { kind: 'pending', id: pm.name, name: pm.name } })}
+                                  title="Gérer ce membre"
                                   className="ml-auto text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded"
                                 >
-                                  <X className="w-3.5 h-3.5" />
+                                  Gérer
                                 </button>
                               )}
                             </li>
@@ -514,33 +513,6 @@ const Teams: React.FC = () => {
             )}
 
 
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal: Confirm remove pending member ── */}
-      {confirmRemovePending && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-          <div className="glass-card p-6 max-w-sm w-full mx-auto">
-            <h3 className="text-lg font-bold text-white mb-2">Retirer le membre ?</h3>
-            <p className="text-gray-300 mb-1">
-              Voulez-vous retirer <span className="font-semibold">"{confirmRemovePending.name}"</span> de la liste des membres ?
-            </p>
-            <p className="text-sm text-gray-400 mb-6">Ce membre n'est pas encore inscrit dans l'application.</p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setConfirmRemovePending(null)}
-                className="btn btn-ghost"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleRemovePendingMember}
-                className="btn btn-red"
-              >
-                Oui, retirer
-              </button>
-            </div>
           </div>
         </div>
       )}

@@ -40,6 +40,7 @@ export interface Team {
   creatorId: string;
   members: string[];
   pastMembers: string[];
+  memberNames?: Record<string, string>;
   pendingMembers: PendingMember[]; // Membres ajoutés par nom, non vérifiés
   blindPresets?: BlindPreset[];
   createdAt: Date;
@@ -138,7 +139,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
         }));
         fetchedTeams.push({ id: docSnap.id, ...data, createdAt, pendingMembers, blindPresets } as Team);
       });
-      set({ teams: fetchedTeams });
+      set(state => ({ teams: fetchedTeams, currentTeam: fetchedTeams.find(team => team.id === state.currentTeam?.id) || null }));
     } catch (error) {
       handleDatabaseError(error);
     }

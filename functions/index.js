@@ -796,3 +796,5 @@ exports.sendGameEventPush = onCall({ secrets: [webPushPrivateKey] }, async (requ
     failureCount,
   };
 });
+
+exports.manageTeamMember = require('./teamMembers').manageTeamMember;

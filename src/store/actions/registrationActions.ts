@@ -27,7 +27,10 @@ export const createRegistrationActionSlice: StateCreator<
     try {
       const tournamentRef = doc(db, "tournaments", tournamentId);
       const userDoc = await getDoc(doc(db, 'users', userId));
-      const userNickname = nickname || (userDoc.exists() ? userDoc.data().nickname : null);
+      const tournamentDoc = await getDoc(tournamentRef);
+      const teamId = tournamentDoc.data()?.teamId;
+      const teamDoc = teamId ? await getDoc(doc(db, 'teams', teamId)) : null;
+      const userNickname = teamDoc?.data()?.memberNames?.[player.id] || nickname || (userDoc.exists() ? userDoc.data().nickname : null);
 
       await updateDoc(tournamentRef, {
         registrations: arrayUnion({

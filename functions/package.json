@@ -12,5 +12,8 @@
   },
   "overrides": {
     "protobufjs": "^7.5.8"
+  },
+  "scripts": {
+    "test:members": "node --test teamMemberData.test.js teamMembers.test.js"
   }
 }

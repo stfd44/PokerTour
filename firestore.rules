@@ -29,9 +29,16 @@ service cloud.firestore {
       allow read: if isAuth();
       // Structures can be managed by group members; preserve other team actions.
       allow update: if request.auth != null && (
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['blindPresets']) ||
-        request.auth.uid in resource.data.members ||
-        request.auth.uid == resource.data.creatorId
+        request.auth.uid == resource.data.creatorId ||
+        (request.auth.uid in resource.data.members &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['blindPresets'])) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'pastMembers']) &&
+          request.auth.uid != resource.data.creatorId &&
+          request.resource.data.members is list && request.resource.data.pastMembers is list &&
+          request.resource.data.members.toSet().difference(resource.data.members.toSet()).hasOnly([request.auth.uid]) &&
+          resource.data.members.toSet().difference(request.resource.data.members.toSet()).hasOnly([request.auth.uid]) &&
+          request.resource.data.pastMembers.toSet().difference(resource.data.pastMembers.toSet()).hasOnly([request.auth.uid]) &&
+          resource.data.pastMembers.toSet().difference(request.resource.data.pastMembers.toSet()).hasOnly([request.auth.uid]))
       );
       allow delete: if isUser(resource.data.creatorId);
     }

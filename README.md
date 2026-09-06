@@ -121,3 +121,17 @@ npm run update-version
 ```
 
 Cette commande extrait le numéro de version du dernier commit et met à jour le fichier `src/version.ts`.
+
+### Gestion des membres d’un groupe
+
+Le créateur dispose du bouton **Gérer** sur les membres actifs, non vérifiés et anciens membres :
+
+- **Renommer** applique un nom propre au groupe, à ses invitations et à son historique, sans modifier le profil utilisateur.
+- **Supprimer** retire le membre du groupe en conservant les résultats et les règlements. Les comptes inscrits restent accessibles dans les anciens membres.
+- **Fusionner** transfère les données de la source vers un autre compte actif du groupe, puis retire la source. Le bilan indique les identités source/destination et le nombre de tournois affectés. Les participations à une même partie bloquent la fusion. Le créateur ne peut pas être retiré ni servir de source d’une fusion.
+
+La fonction callable `manageTeamMember` vérifie les droits et effectue les changements dans une transaction Firestore. Une modification des données depuis le bilan impose une nouvelle vérification. Les inscriptions communes sont regroupées, les bilans financiers additionnés et les dettes entre les deux identités supprimées puisqu’elles deviennent internes à la même personne. Les droits de création des tournois et les autres groupes restent inchangés.
+
+Pour activer cette fonctionnalité sur un environnement Firebase, déployer ensemble le frontend, la fonction `manageTeamMember` et les règles Firestore correspondantes. Les opérations affectant plus de 400 tournois sont refusées sans écriture et nécessitent une migration administrative.
+
+Tests : `npm --prefix functions run test:members` (transformation des données et contrôle de la fonction avec Firestore simulé).

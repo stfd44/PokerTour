@@ -60,7 +60,7 @@ export function CreateTournament({ onClose, onSuccess }: CreateTournamentProps) 
                     const data = await getUserData(id);
                     return {
                         id,
-                        name: data?.nickname || `Utilisateur_${id.substring(0, 5)}`
+                        name: selectedTeam.memberNames?.[id] || data?.nickname || `Utilisateur_${id.substring(0, 5)}`
                     };
                 }));
                 setTeamMembersDetails(membersData);
