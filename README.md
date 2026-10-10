@@ -135,3 +135,5 @@ La fonction callable `manageTeamMember` vérifie les droits et effectue les chan
 Pour activer cette fonctionnalité sur un environnement Firebase, déployer ensemble le frontend, la fonction `manageTeamMember` et les règles Firestore correspondantes. Les opérations affectant plus de 400 tournois sont refusées sans écriture et nécessitent une migration administrative.
 
 Tests : `npm --prefix functions run test:members` (transformation des données et contrôle de la fonction avec Firestore simulé).
+
+Déploiement de la gestion des membres : `npm run deploy:members:dev` pour le test, `npm run deploy:members:prod` pour la production. Publier seulement le frontend ne suffit pas : sans la fonction `manageTeamMember`, le SDK peut afficher une erreur `internal` dès la vérification.

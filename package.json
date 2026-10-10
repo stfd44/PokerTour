@@ -12,7 +12,9 @@
     "update-version": "node scripts/update-version.js",
     "postinstall": "npm run install-hooks",
     "deploy:rules:prod": "firebase deploy -P default --only firestore:rules",
-    "deploy:rules:dev": "firebase deploy -P dev --config firebase.dev.json --only firestore:rules"
+    "deploy:rules:dev": "firebase deploy -P dev --config firebase.dev.json --only firestore:rules",
+    "deploy:members:prod": "firebase deploy -P default --only functions:manageTeamMember,firestore:rules",
+    "deploy:members:dev": "firebase deploy -P dev --config firebase.dev.json --only functions:manageTeamMember,firestore:rules"
   },
   "dependencies": {
     "clsx": "^2.1.0",

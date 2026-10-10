@@ -31,7 +31,10 @@ export function MemberManager({ team, source, names, onClose }: {
         onClose();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de modifier ce membre.');
+      const code = err && typeof err === 'object' && 'code' in err ? err.code : '';
+      setError(code === 'functions/internal' || code === 'functions/unavailable' || code === 'functions/not-found'
+        ? 'Le service de gestion des membres est indisponible. Réessayez dans quelques instants. Si le problème persiste, contactez l’administrateur du groupe.'
+        : err instanceof Error ? err.message : 'Impossible de modifier ce membre.');
       setPreview(null);
     } finally { setBusy(false); }
   };
