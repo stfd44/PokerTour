@@ -11,6 +11,7 @@ const MENU_ITEMS = [
   { label: 'Communauté', path: '/teams' },
   { label: 'Statistiques', path: '/stats' },
   { label: 'Profil', path: '/profile' },
+  { label: 'Paramètres', path: '/settings' },
 ];
 
 export function AppShell() {

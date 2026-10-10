@@ -19,6 +19,7 @@ export const Header = ({ isMenuOpen = false, onToggleMenu }: HeaderProps) => {
     { label: 'Communauté', path: '/teams' },
     { label: 'Statistiques', path: '/stats' },
     { label: 'Profil', path: '/profile' },
+    { label: 'Paramètres', path: '/settings' },
   ];
 
   const handleSignOut = async () => {

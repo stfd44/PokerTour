@@ -68,6 +68,9 @@ const generateBreadcrumbs = (pathname: string, tournaments: Tournament[]): Bread
     } else if (segment === 'stats') {
       name = 'Statistiques';
       path = '/stats';
+    } else if (segment === 'settings') {
+      name = 'Paramètres';
+      path = '/settings';
     } else if (segment === 'profile') {
       name = 'Profil';
       path = '/profile';
@@ -119,6 +122,7 @@ export const Breadcrumbs: React.FC = () => {
                                      location.pathname === '/teams' ||
                                      location.pathname === '/stats' ||
                                      location.pathname === '/profile' ||
+                                     location.pathname === '/settings' ||
                                      location.pathname === '/tournaments/create';
           const renderAsText = isLastCrumb && pathMatches && isSpecificEndpoint;
           const isTournamentLink = crumb.path.startsWith('/tournament/') && crumb.path.split('/').length === 3;
