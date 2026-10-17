@@ -71,7 +71,7 @@ export interface Game {
   maxRebuysPerPlayer?: number;
   totalRebuys: number; // Count of rebuys made
   rebuyAmount: number; // Cost of one rebuy (usually tournament buyin)
-  rebuyDistributionRule: 'winner_takes_all' | 'cyclic_distribution'; // ADDED: Distribution rule for rebuys
+  rebuyDistributionRule: 'winner_takes_all' | 'cyclic_distribution' | 'cyclic_top_two'; // ADDED: Distribution rule for rebuys
   // ADDED: Pot management fields (optional for backward compatibility)
   potContributions?: PotContribution[]; // Who paid how much to the pot
   totalPotAmount?: number; // Total amount available in the pot
@@ -171,7 +171,7 @@ export interface TournamentStoreActions {
     gameId: string,
     prizePool: number,
     distributionPercentages: { first: number; second: number; third: number },
-    rebuyDistributionRule: 'winner_takes_all' | 'cyclic_distribution',
+    rebuyDistributionRule: 'winner_takes_all' | 'cyclic_distribution' | 'cyclic_top_two',
     winnings: { first: number; second: number; third: number },
     potContributions?: PotContribution[],
     totalPotAmount?: number
@@ -190,6 +190,7 @@ export interface TournamentStoreActions {
     maxRebuysPerPlayer?: number
   ) => Promise<void>;
   updateBlinds: (tournamentId: string, gameId: string, newBlinds: Blinds, userId: string) => Promise<void>;
+  previousBlindLevel: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
   pauseTimer: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
   resumeTimer: (tournamentId: string, gameId: string, userId: string) => Promise<void>;
   advanceBlindLevel: (tournamentId: string, gameId: string, userId: string) => Promise<void>;

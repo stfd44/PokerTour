@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Confetti from 'react-confetti';
 import { useTournamentStore } from '../../store/tournamentStore';
@@ -39,6 +39,15 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
   const [showConfirmEndGame, setShowConfirmEndGame] = useState(false);
   const [playerToEliminateFinal, setPlayerToEliminateFinal] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<'players' | 'blinds' | 'prizePool' | null>(null);
+
+  const [victorySize, setVictorySize] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  useEffect(() => {
+    if (!winnerName) return;
+    const resize = () => setVictorySize({ width: window.innerWidth, height: window.innerHeight });
+    resize();
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, [winnerName]);
 
   // Effect to check if animation should end
   useEffect(() => {
@@ -193,11 +202,12 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
   return (
     <div className="glass-card p-6 relative">
       {/* Victory Animation */}
-      {winnerName && (
-        <div className="fixed inset-0 z-[100] pointer-events-none">
+      {winnerName && createPortal(
+        <div className="fixed inset-0 z-[300] pointer-events-none overflow-hidden" role="status" aria-live="polite">
           <Confetti
-            width={window.innerWidth}
-            height={window.innerHeight}
+            width={victorySize.width}
+            height={victorySize.height}
+            style={{ position: 'absolute', inset: 0, zIndex: 1 }}
             recycle={true}
             numberOfPieces={500}
             gravity={0.2}
@@ -205,18 +215,19 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
             opacity={isFadingOut ? 0 : 1}
             tweenDuration={500}
           />
-          <div className={`absolute inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center transition-opacity duration-500 ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
+          <div className={`absolute inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center px-6 py-8 text-center transition-opacity duration-500 ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
             <div className="animate-bounce mb-4">
-              <p className="text-white text-3xl font-bold mb-2">🏆 FÉLICITATIONS 🏆</p>
+              <p className="text-white text-xl sm:text-3xl font-bold mb-2">🏆 FÉLICITATIONS 🏆</p>
             </div>
-            <div className="bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 p-8 rounded-lg shadow-2xl transform transition-transform duration-500 animate-wiggle scale-110">
-              <p className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-500 to-red-500 shadow-sm">
+            <div className="bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 max-w-[85vw] px-5 py-4 sm:p-8 rounded-lg shadow-2xl transform transition-transform duration-500 animate-wiggle">
+              <p className="text-3xl sm:text-5xl break-words font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-500 to-red-500 shadow-sm">
                 {winnerName}
               </p>
             </div>
-            <p className="text-white text-2xl mt-8 animate-pulse font-medium">a remporté la partie !</p>
+            <p className="text-white text-lg sm:text-2xl mt-6 sm:mt-8 animate-pulse font-medium">a remporté la partie !</p>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Header */}
@@ -298,7 +309,6 @@ export function GameView({ gameId, tournamentId, onClose }: GameViewProps) {
             <div className="p-4 overflow-y-auto">
               {activePanel === 'players' && (
                 <GamePlayersPanel 
-                  buyIn={tournament.buyin}
                   game={game} 
                   tournamentId={tournamentId} 
                   gameId={gameId} 

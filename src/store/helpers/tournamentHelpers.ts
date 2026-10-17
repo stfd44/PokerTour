@@ -198,7 +198,7 @@ export const calculateResultsForGame = (game: Game): { results: PlayerResult[], 
         });
     });
 
-    const totalRebuyAmount = (game.totalRebuys || 0) * (game.rebuyAmount || 0);
+    const totalRebuyAmount = game.players.reduce((sum, player) => sum + (player.rebuysMade ?? 0), 0) * (game.rebuyAmount ?? 0);
     const finalWinnings = { ...(game.winnings ?? { first: 0, second: 0, third: 0 }) };
     
     // CORRECTION DU BUG: Respecter la règle de distribution des rebuy
@@ -218,7 +218,7 @@ export const calculateResultsForGame = (game: Game): { results: PlayerResult[], 
                 });
                 console.log(`[calculateResultsForGame] Winner takes all rebuy: ${totalRebuyAmount}€ split among ${winners.length} winners (${rebuyPerWinner}€ each)`);
             }
-        } else if (rebuyDistributionRule === 'cyclic_distribution') {
+        } else if (rebuyDistributionRule === 'cyclic_distribution' || rebuyDistributionRule === 'cyclic_top_two') {
             // NOUVELLE RÈGLE: Distribution cyclique des rebuy
             const rebuyAmount = game.rebuyAmount || 0;
             const allRebuys: Array<{playerId: string, playerName: string}> = [];
@@ -236,16 +236,23 @@ export const calculateResultsForGame = (game: Game): { results: PlayerResult[], 
             console.log(`[calculateResultsForGame] Cyclic distribution: ${allRebuys.length} rebuys to distribute`);
             
             // Distribution cyclique des rebuy
-            allRebuys.forEach((rebuy, index) => {
-                const targetRank = (index % 3) + 1; // 1, 2, 3, 1, 2, 3, ...
-                const targetResultIndex = results.findIndex(r => r.rank === targetRank);
-                
-                if (targetResultIndex !== -1) {
-                    results[targetResultIndex].winnings += rebuyAmount;
-                    console.log(`[calculateResultsForGame] Rebuy ${index + 1} (${rebuyAmount}€) from ${rebuy.playerName} → Rank ${targetRank} (${results[targetResultIndex].name})`);
-                }
+            allRebuys.forEach((_, index) => {
+                const cycle = Math.min(players.length, rebuyDistributionRule === 'cyclic_top_two' ? 2 : 3);
+                const targetRank = (index % cycle) + 1;
+                // Active players share all awards for the ranks they occupy.
+                const recipients = targetRank <= totalActive
+                    ? results.filter(result => result.rank === 1)
+                    : results.filter(result => result.rank === targetRank);
+                recipients.forEach(result => { result.winnings += rebuyAmount / recipients.length; });
             });
         }
     }
+    const totalCents = Math.round(results.reduce((sum, result) => sum + result.winnings, 0) * 100);
+    const rounded = results.map((result, index) => ({ index, cents: Math.floor(result.winnings * 100 + 1e-8), remainder: result.winnings * 100 - Math.floor(result.winnings * 100 + 1e-8) }));
+    let remaining = totalCents - rounded.reduce((sum, entry) => sum + entry.cents, 0);
+    [...rounded].sort((a, b) => b.remainder - a.remainder).forEach(entry => {
+        if (remaining > 0) { entry.cents++; remaining--; }
+    });
+    rounded.forEach(entry => { results[entry.index].winnings = entry.cents / 100; });
     return { results, finalWinnings };
 };

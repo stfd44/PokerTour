@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useLocation, useNavigate, Link } from 'react-router-dom'; // Import useLocation, useNavigate, Link
 import { useTournamentStore } from '../../store/tournamentStore';
+import { TournamentPrizePool } from './TournamentPrizePool';
 import { GameForm } from './GameForm';
 import { GameView } from './GameView';
 import { GameList } from './GameList';
@@ -50,6 +51,7 @@ export function TournamentGames() {
   const tournament = tournaments.find(t => t.id === tournamentId);
   const { user } = useAuthStore();
 
+  const [showPrizePool, setShowPrizePool] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null);
   const [viewingGameId, setViewingGameId] = useState<string | null>(null);
@@ -279,6 +281,9 @@ export function TournamentGames() {
             </div>
             {/* --- Action Buttons Container --- */}
             <div className="border-t border-white/10 mt-4 pt-4 flex flex-wrap items-center justify-end gap-4">
+                <button type="button" onClick={() => setShowPrizePool(true)} className="btn btn-gold">
+                  <Award className="h-4 w-4 mr-2" />Prize pool
+                </button>
                 {/* Bilan Button - visible to team members if tournament is settled */}
                 {tournament.status === 'ended' && (
                   <Link
@@ -361,6 +366,10 @@ export function TournamentGames() {
           </div>
           {/* --- End Tournament Details Section --- */}
 
+
+          <Modal isOpen={showPrizePool} onClose={() => setShowPrizePool(false)} title="Prize pool">
+            <TournamentPrizePool tournament={tournament} />
+          </Modal>
 
           {/* Show GameForm in a Modal if creating or editing */}
           <Modal

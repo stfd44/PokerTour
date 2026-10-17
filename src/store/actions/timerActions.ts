@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 import { db, handleDatabaseError } from '../../lib/firebase';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, runTransaction } from 'firebase/firestore';
 import { Game, Player, TournamentStore, TournamentStoreActions } from '../types/tournamentTypes';
 import { updateGameState } from '../helpers/tournamentHelpers'; // Import helper
 
@@ -9,6 +9,7 @@ export type TimerActionSlice = Pick<TournamentStoreActions,
   'pauseTimer' |
   'resumeTimer' |
   'advanceBlindLevel' |
+  'previousBlindLevel' |
   'resetLevelTimer' |
   'updateLevelDuration'
 >;
@@ -154,6 +155,35 @@ export const createTimerActionSlice: StateCreator<
       }));
     } catch (error) {
       handleDatabaseError(error);
+    }
+  },
+
+  previousBlindLevel: async (tournamentId, gameId, userId) => {
+    try {
+      const tournamentRef = doc(db, 'tournaments', tournamentId);
+      const updates = await runTransaction(db, async transaction => {
+        const snapshot = await transaction.get(tournamentRef);
+        const data = snapshot.data();
+        if (!data) throw new Error('Tournoi introuvable.');
+        const game = (data.games as Game[]).find(item => item.id === gameId);
+        if (!game || game.status !== 'in_progress' || game.currentLevel <= 0) return null;
+        if (!game.players.some(player => player.id === userId)) {
+          throw new Error('Seuls les joueurs de la partie peuvent changer le niveau.');
+        }
+        const previousLevel = game.currentLevel - 1;
+        const duration = (game.levelDurations[previousLevel] ?? game.levelDurations[0] ?? 10) * 60 * 1000;
+        const changes: Partial<Game> = {
+          currentLevel: previousLevel,
+          levelStartTime: Date.now(),
+          remainingTimeOnPause: game.isPaused ? duration : null,
+        };
+        transaction.update(tournamentRef, { games: data.games.map((item: Game) => item.id === gameId ? { ...item, ...changes } : item) });
+        return changes;
+      });
+      if (updates) set(state => ({ tournaments: updateGameState(state, tournamentId, gameId, updates) }));
+    } catch (error) {
+      handleDatabaseError(error);
+      throw error;
     }
   },
 

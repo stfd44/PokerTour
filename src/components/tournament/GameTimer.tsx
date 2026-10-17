@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'; // Removed useCallback
-import { Clock, Play, Pause, SkipForward } from 'lucide-react';
+import { Clock, Play, Pause, SkipForward, SkipBack } from 'lucide-react';
 import type { Game } from '../../store/types/tournamentTypes'; // Corrected import path for types
 import { useTournamentStore } from '../../store/tournamentStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -38,11 +38,12 @@ const formatTime = (ms: number): string => {
 
 export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { // Destructure the new prop
   const { user } = useAuthStore();
-  const { pauseTimer, resumeTimer, advanceBlindLevel } = useTournamentStore(
+  const { pauseTimer, resumeTimer, advanceBlindLevel, previousBlindLevel } = useTournamentStore(
     (state) => ({
       pauseTimer: state.pauseTimer,
       resumeTimer: state.resumeTimer,
       advanceBlindLevel: state.advanceBlindLevel,
+      previousBlindLevel: state.previousBlindLevel,
     })
   );
 
@@ -71,6 +72,8 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
     };
   });
 
+  const [isGoingBack, setIsGoingBack] = useState(false);
+  const [timerError, setTimerError] = useState<string | null>(null);
   const [displayTime, setDisplayTime] = useState<string>('--:--');
   const [isLevelComplete, setIsLevelComplete] = useState<boolean>(false);
   const [isAlarmReady, setIsAlarmReady] = useState<boolean>(() => isTimerAlarmReady());
@@ -232,6 +235,22 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
     setIsLevelComplete(false);
   };
 
+  const handlePreviousLevel = async () => {
+    if (!user || currentLevel === 0 || isGoingBack) return;
+    setIsGoingBack(true);
+    setTimerError(null);
+    void unlockTimerAudio();
+    try {
+      await previousBlindLevel(game.tournamentId, game.id, user.uid);
+      completedLevelRef.current = null;
+      setIsLevelComplete(false);
+    } catch (error) {
+      setTimerError(error instanceof Error ? error.message : 'Impossible de revenir au niveau précédent.');
+    } finally {
+      setIsGoingBack(false);
+    }
+  };
+
   const handleEnableNotifications = async () => {
     if (!user) {
       return;
@@ -263,6 +282,11 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
         <div className="flex items-center space-x-2">
           {isCurrentUserParticipant && (
             <>
+              <button type="button" onClick={() => void handlePreviousLevel()} disabled={currentLevel === 0 || isGoingBack}
+                className="p-2 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Niveau précédent" title="Niveau précédent — durée réinitialisée">
+                <SkipBack className="w-6 h-6 text-gray-300" />
+              </button>
               {isPaused ? (
                 <button onClick={handleResume} className="p-1 rounded hover:bg-white/10" aria-label="Reprendre">
                   <Play className="w-6 h-6 text-green-400" />
@@ -283,6 +307,8 @@ export function GameTimer({ game, isCurrentUserParticipant }: GameTimerProps) { 
           )}
         </div>
       </div>
+
+      {timerError && <p role="alert" className="text-sm text-red-300">{timerError}</p>}
 
       {/* Blinds Information */}
       <div className="border-t border-white/10 pt-4 flex justify-between items-start">

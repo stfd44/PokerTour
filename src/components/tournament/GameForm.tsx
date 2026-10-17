@@ -13,7 +13,7 @@ interface GameFormProps {
   onClose: () => void; // Added onClose prop
 }
 
-type Step = 'players' | 'payment' | 'paidPlayers' | 'prizes' | 'structure' | 'customStructure' | 'review';
+type Step = 'players' | 'payment' | 'paidPlayers' | 'prizes' | 'rebuyRule' | 'structure' | 'customStructure' | 'review';
 
 interface DistributionPercentages {
   first: number;
@@ -51,7 +51,8 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
   const [rebuyLimitMode, setRebuyLimitMode] = useState<RebuyLimitMode>('max_per_player');
   const [rebuyLevel, setRebuyLevel] = useState<number>(4); // State for rebuy level
   const [maxRebuysPerPlayer, setMaxRebuysPerPlayer] = useState<number>(2);
-  const [rebuyDistributionRule, setRebuyDistributionRule] = useState<'winner_takes_all' | 'cyclic_distribution'>('cyclic_distribution'); // State for rebuy distribution rule
+  const [rebuyDistributionRule, setRebuyDistributionRule] = useState<'winner_takes_all' | 'cyclic_distribution' | 'cyclic_top_two'>('cyclic_distribution'); // State for rebuy distribution rule
+  const [rebuyRuleChosen, setRebuyRuleChosen] = useState(false);
   const [selectedPresetId, setSelectedPresetId] = useState<string>('');
   const [newPresetName, setNewPresetName] = useState<string>('');
   const [presetFeedback, setPresetFeedback] = useState<string | null>(null);
@@ -357,19 +358,22 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
     && Number.isFinite(gameForm.startingStack) && gameForm.startingStack >= 1000;
   const canCreate = selectedPlayers.size >= 2 && structureValid
     && paymentAnswer !== null && (paymentAnswer === false || playersWhoPaidPot.size > 0)
-    && useSavedStructure !== null && (!useSavedStructure || !!selectedPresetId);
+    && rebuyRuleChosen && useSavedStructure !== null && (!useSavedStructure || !!selectedPresetId);
   const selectedPlayersList = tournament.registrations.filter(player => selectedPlayers.has(player.id));
   const titles: Record<Step, string> = {
     players: 'Quels joueurs sont présents à la table ?',
     payment: 'Des joueurs ont-ils déjà payé le buy-in ?',
     paidPlayers: 'Quels joueurs ont déjà payé ?',
     prizes: 'Valider ou ajuster la répartition des gains',
+    rebuyRule: 'Comment répartir les recaves ?',
     structure: 'Voulez-vous utiliser une structure enregistrée ?',
     customStructure: 'Ajuster la structure de la partie',
     review: 'Tout est prêt pour votre partie ?',
   };
   const progress = step === 'players' ? 1 : ['payment', 'paidPlayers'].includes(step) ? 2
-    : step === 'prizes' ? 3 : step === 'review' ? 5 : 4;
+    : step === 'prizes' ? 3 : step === 'rebuyRule' ? 4 : step === 'review' ? 6 : 5;
+
+  const totalSteps = 6;
 
   const navigate = (target: Step, backwards = false) => {
     if (navigationLocked.current || submittingRef.current) return;
@@ -394,7 +398,7 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
     }
     const previous: Record<Step, Step> = {
       players: 'players', payment: 'players', paidPlayers: 'payment',
-      prizes: paymentAnswer ? 'paidPlayers' : 'payment', structure: 'prizes',
+      prizes: paymentAnswer ? 'paidPlayers' : 'payment', rebuyRule: 'prizes', structure: 'rebuyRule',
       customStructure: 'structure', review: 'structure',
     };
     navigate(previous[step], true);
@@ -450,9 +454,9 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
         }
       }}>
       <div className="pb-4 shrink-0">
-        <div className="flex justify-between text-xs text-gray-400 mb-2"><span>Joueurs · Paiements · Gains · Structure</span><span>{progress} / 5</span></div>
-        <div className="flex gap-1.5" aria-label={`Étape ${progress} sur 5`}>
-          {[1, 2, 3, 4, 5].map(index => <div key={index} className={`h-1 flex-1 rounded-full transition-colors ${index <= progress ? 'bg-poker-gold' : 'bg-white/10'}`} />)}
+        <div className="flex justify-between text-xs text-gray-400 mb-2"><span>Joueurs · Paiements · Gains · Recaves · Structure</span><span>{progress} / {totalSteps}</span></div>
+        <div className="flex gap-1.5" aria-label={`Étape ${progress} sur ${totalSteps}`}>
+          {Array.from({ length: totalSteps }, (_, index) => index + 1).map(index => <div key={index} className={`h-1 flex-1 rounded-full transition-colors ${index <= progress ? 'bg-poker-gold' : 'bg-white/10'}`} />)}
         </div>
       </div>
       <div className="overflow-hidden min-h-0 flex flex-col flex-1">
@@ -496,27 +500,23 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
                   <span className="w-16 text-right text-poker-gold">{estimatedWinnings[place]} €</span>
                 </div>
               ))}
-              <details className="text-sm"><summary className="cursor-pointer text-gray-300">Répartition des recaves</summary><div className="pt-3">        <div>
-          <label htmlFor="rebuyDistributionRule" className="block text-sm font-medium text-gray-200 mb-1">
-            Règle de distribution des rebuy
-          </label>
-          <select
-            id="rebuyDistributionRule"
-            value={rebuyDistributionRule}
-            onChange={(e) => setRebuyDistributionRule(e.target.value as 'winner_takes_all' | 'cyclic_distribution')}
-            className="glass-input w-full"
-          >
-            <option value="winner_takes_all">Tous les rebuy au vainqueur</option>
-            <option value="cyclic_distribution">Distribution cyclique (1er, 2ème, 3ème)</option>
-          </select>
-          <p className="text-xs text-gray-400 mt-1">
-            {rebuyDistributionRule === 'winner_takes_all'
-              ? 'Tous les rebuy iront au 1er place (règle actuelle).'
-              : 'Les rebuy seront distribués en cycle : 1er rebuy → 1er place, 2ème rebuy → 2ème place, 3ème rebuy → 3ème place, puis recommence.'}
-          </p>
-        </div>
-
-</div></details>
+            </>}
+            {step === 'rebuyRule' && <>
+              <p className="text-sm text-gray-400">Choisissez à qui reviennent les gains des recaves.</p>
+              <div className="space-y-3">
+                {([
+                  ['winner_takes_all', 'Tout au vainqueur', 'Toutes les recaves s’ajoutent aux gains de la 1re place.'],
+                  ['cyclic_top_two', 'Cyclique aux deux premiers', 'Les recaves alternent entre le 1er et le 2e. La 3e place ne reçoit aucune recave.'],
+                  ['cyclic_distribution', 'Cyclique aux trois premiers', 'Chaque recave va à la place suivante : 1er, 2e, 3e, puis on recommence.'],
+                ] as const).map(([rule, label, description]) => (
+                  <button key={rule} type="button" aria-pressed={rebuyRuleChosen && rebuyDistributionRule === rule}
+                    onClick={() => { setRebuyDistributionRule(rule); setRebuyRuleChosen(true); }}
+                    className={`w-full rounded-xl border p-4 text-left transition-colors ${rebuyRuleChosen && rebuyDistributionRule === rule ? 'border-poker-gold bg-poker-gold/10' : 'border-white/15 bg-white/5 hover:bg-white/10'}`}>
+                    <span className="block font-semibold text-white">{label}</span>
+                    <span className="mt-1 block text-sm text-gray-400">{description}</span>
+                  </button>
+                ))}
+              </div>
             </>}
             {step === 'structure' && <>
               <p className="text-sm text-gray-400">Retrouvez les structures de votre groupe ou utilisez la configuration par défaut.</p>
@@ -738,9 +738,10 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
               <p className="text-sm text-gray-400">Vérifiez vos choix, puis validez la création.</p>
               {reviewCard('Joueurs', 'players', <><p>{selectedPlayers.size} joueurs · Buy-in {tournament.buyin} €</p><p className="text-gray-400">{selectedPlayersList.map(player => player.nickname || player.name).join(', ')}</p></>)}
               {reviewCard('Buy-ins', 'payment', <><p>{playersWhoPaidPot.size} / {selectedPlayers.size} payés · {totalPotAmount} € encaissés</p>{playersWhoPaidPot.size > 0 && <p className="text-gray-400">{selectedPlayersList.filter(player => playersWhoPaidPot.has(player.id)).map(player => player.nickname || player.name).join(', ')}</p>}<p className="text-gray-400">{prizePool - totalPotAmount} € restent à régler</p></>)}
-              {reviewCard('Répartition des gains', 'prizes', <><p>Total : {prizePool} €</p><p>1re : {estimatedWinnings.first} € ({distributionPercentages.first} %) · 2e : {estimatedWinnings.second} € ({distributionPercentages.second} %) · 3e : {estimatedWinnings.third} € ({distributionPercentages.third} %)</p><p className="text-gray-400">Recaves : {rebuyDistributionRule === 'winner_takes_all' ? 'tout au vainqueur' : 'distribution cyclique'}</p></>)}
+              {reviewCard('Répartition des gains', 'prizes', <><p>Total : {prizePool} €</p><p>1re : {estimatedWinnings.first} € ({distributionPercentages.first} %) · 2e : {estimatedWinnings.second} € ({distributionPercentages.second} %) · 3e : {estimatedWinnings.third} € ({distributionPercentages.third} %)</p></>)}
+              {reviewCard('Répartition des recaves', 'rebuyRule', <p>{rebuyDistributionRule === 'winner_takes_all' ? 'Tout au vainqueur' : rebuyDistributionRule === 'cyclic_top_two' ? 'Distribution cyclique : 1er, 2e' : 'Distribution cyclique : 1er, 2e, 3e'}</p>)}
               {reviewCard('Structure', 'structure', <><p>{selectedPresetId ? blindPresets.find(preset => preset.id === selectedPresetId)?.name : 'Configuration personnalisable'}</p><p>{gameForm.startingStack.toLocaleString('fr-FR')} jetons · {gameForm.levels.length} niveaux</p><p>Départ : {gameForm.levels[0]?.blinds.small}/{gameForm.levels[0]?.blinds.big} · {gameForm.levels[0]?.duration} min</p><p className="text-gray-400">{rebuyLimitMode === 'max_per_player' ? `${maxRebuysPerPlayer} recave(s) maximum par joueur` : `Recaves jusqu’au niveau ${rebuyLevel}`}</p></>)}
-              {!canCreate && <p className="text-amber-200 text-sm">Complétez les choix avant de créer la partie : au moins 2 joueurs, les paiements et une structure valide.</p>}
+              {!canCreate && <p className="text-amber-200 text-sm">Complétez les choix avant de créer la partie : au moins 2 joueurs, les paiements, la règle des recaves et une structure valide.</p>}
             </>}
           </div>
           <div className="shrink-0 border-t border-white/10 pt-4 flex items-center justify-between gap-2">
@@ -749,7 +750,8 @@ export function GameForm({ tournament, editingGame, tournamentId, onClose }: Gam
             </button>
             {step === 'players' && primary('OK', () => finishStep('payment'), selectedPlayers.size < 2)}
             {step === 'paidPlayers' && primary('OK', () => finishStep('prizes'), playersWhoPaidPot.size === 0)}
-            {step === 'prizes' && primary('Valider les gains', () => finishStep('structure'))}
+            {step === 'prizes' && primary('Valider les gains', () => finishStep('rebuyRule'))}
+            {step === 'rebuyRule' && primary('Valider la règle', () => finishStep('structure'), !rebuyRuleChosen)}
             {step === 'structure' && primary('Voir le récapitulatif', () => finishStep('review'), useSavedStructure === null || (useSavedStructure && !selectedPresetId) || !structureValid)}
             {step === 'customStructure' && primary('Valider la structure', () => { setSelectedPresetId(''); setUseSavedStructure(false); navigate('structure', true); }, !structureValid)}
             {step === 'review' && <button type="submit" className="btn btn-gold" disabled={!canCreate || isSubmitting || transition !== 'idle'}>{isSubmitting ? 'Création…' : 'Créer la partie'}</button>}

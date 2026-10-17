@@ -1,3 +1,4 @@
+import { syncGamePayments } from '../helpers/gamePayments';
 import { StateCreator } from 'zustand';
 import { db, handleDatabaseError } from '../../lib/firebase';
 import { doc, updateDoc, getDoc, runTransaction } from 'firebase/firestore';
@@ -39,7 +40,7 @@ export const createPlayerActionSlice: StateCreator<
           index === rebuyIndex ? paid : (item.rebuyPayments?.[index] ?? false));
         return { ...item, rebuyPayments };
       });
-      const gamesToSave = games.map((item) => cleanGameForFirestore(item.id === gameId ? { ...item, players } : item));
+      const gamesToSave = games.map((item) => cleanGameForFirestore(item.id === gameId ? syncGamePayments({ ...item, players }, data.buyin) : item));
       transaction.update(tournamentRef, { games: gamesToSave });
       return gamesToSave;
     });

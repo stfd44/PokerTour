@@ -71,16 +71,21 @@ const scheduleTone = (
   const oscillator = context.createOscillator();
   const gainNode = context.createGain();
 
-  oscillator.type = 'triangle';
+  oscillator.type = 'sine';
   oscillator.frequency.setValueAtTime(frequency, startTime);
 
   gainNode.gain.setValueAtTime(0.0001, startTime);
-  gainNode.gain.exponentialRampToValueAtTime(peakGain, startTime + 0.02);
+  gainNode.gain.linearRampToValueAtTime(peakGain, startTime + 0.035);
+  gainNode.gain.exponentialRampToValueAtTime(peakGain * 0.3, startTime + 0.25);
   gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
 
   oscillator.connect(gainNode);
   gainNode.connect(context.destination);
 
+  oscillator.onended = () => {
+    oscillator.disconnect();
+    gainNode.disconnect();
+  };
   oscillator.start(startTime);
   oscillator.stop(startTime + duration + 0.02);
 };
@@ -155,7 +160,7 @@ export const playTimerCompleteAlarm = async (): Promise<boolean> => {
   }
 
   const now = Date.now();
-  if (now - lastPlaybackAt < 1500) {
+  if (now - lastPlaybackAt < 2200) {
     return false;
   }
 
@@ -166,23 +171,17 @@ export const playTimerCompleteAlarm = async (): Promise<boolean> => {
   }
 
   const startTime = context.currentTime + 0.02;
+  // A single C-major chime: warm fundamentals with a quiet octave shimmer.
+  // Overlapping tails avoid the abrupt, repeated beeps of the previous alarm.
   const tones = [
-    { frequency: 880, duration: 0.18, gain: 0.12, gap: 0.04 },
-    { frequency: 1174, duration: 0.18, gain: 0.12, gap: 0.04 },
-    { frequency: 1568, duration: 0.36, gain: 0.16, gap: 0 },
+    { frequency: 523.25, offset: 0, duration: 1.25, gain: 0.13 },
+    { frequency: 659.25, offset: 0.28, duration: 1.3, gain: 0.11 },
+    { frequency: 783.99, offset: 0.56, duration: 1.5, gain: 0.1 },
   ];
-
-  const melodyDuration = tones.reduce((total, tone) => total + tone.duration + tone.gap, 0);
-  const repeatGap = 0.3;
-
-  for (let repeatIndex = 0; repeatIndex < 3; repeatIndex += 1) {
-    let cursor = startTime + repeatIndex * (melodyDuration + repeatGap);
-
-    tones.forEach(({ frequency, duration, gain, gap }) => {
-      scheduleTone(context, cursor, frequency, duration, gain);
-      cursor += duration + gap;
-    });
-  }
+  tones.forEach(({ frequency, offset, duration, gain }) => {
+    scheduleTone(context, startTime + offset, frequency, duration, gain);
+    scheduleTone(context, startTime + offset, frequency * 2, duration * 0.65, gain * 0.12);
+  });
 
   return true;
 };

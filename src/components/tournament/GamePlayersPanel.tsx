@@ -8,7 +8,6 @@ interface GamePlayersPanelProps {
   game: Game;
   tournamentId: string;
   gameId: string;
-  buyIn: number;
   canManageGame: boolean;
   onEliminate: (playerId: string, isCurrentlyEliminated: boolean | undefined) => Promise<void>;
   onRebuy: (playerId: string) => Promise<void>;
@@ -17,7 +16,7 @@ interface GamePlayersPanelProps {
 }
 
 export function GamePlayersPanel({
-  game, tournamentId, gameId, buyIn, canManageGame,
+  game, tournamentId, gameId, canManageGame,
   onEliminate, onRebuy, rebuyLoading, rebuyError,
 }: GamePlayersPanelProps) {
   const { user } = useAuthStore();
@@ -111,7 +110,7 @@ export function GamePlayersPanel({
           <br />Total des recaves : {game.totalRebuys ?? 0} ({(game.totalRebuys ?? 0) * game.rebuyAmount} €)
         </div>
       )}
-      {canEdit && <p className="text-sm text-gray-400">Cliquez sur un joueur pour gérer ses paiements et sa participation.</p>}
+      {canEdit && <p className="text-sm text-gray-400">Cliquez sur un joueur pour gérer ses recaves et sa participation.</p>}
       {(error || rebuyError) && (
         <p role="alert" className="p-3 bg-red-500/15 border border-red-400/30 rounded-md text-sm text-red-300">
           {error || rebuyError}
@@ -128,7 +127,7 @@ export function GamePlayersPanel({
               ? rebuys < (game.maxRebuysPerPlayer ?? 0)
               : game.currentLevel < game.rebuyAllowedUntilLevel
           );
-          const paymentToggle = (label: string, paid: boolean, rebuyIndex: number | null) => (
+          const paymentToggle = (label: string, paid: boolean, rebuyIndex: number) => (
             <label className="flex items-center justify-between gap-3 py-2">
               <span>{label}</span>
               <span className="flex items-center gap-2 shrink-0">
@@ -175,7 +174,6 @@ export function GamePlayersPanel({
                     )}
                   </span>
                   <span className="sr-only">{player.eliminated ? 'Éliminé' : 'En jeu'}</span>
-                  <span className="block text-sm text-gray-200 mt-1">Buy-in : {player.buyInPaid ? 'payé' : 'non payé'}</span>
                   <span className="block text-sm text-gray-300">
                     {rebuys} recave{rebuys !== 1 ? 's' : ''}{rebuys > 0 && ` · ${paidRebuys} payée${paidRebuys !== 1 ? 's' : ''} · ${rebuys - paidRebuys} non payée${rebuys - paidRebuys !== 1 ? 's' : ''}`}
                   </span>
@@ -186,7 +184,6 @@ export function GamePlayersPanel({
                 <div id={`player-details-${player.id}`} className="border-t border-white/10 px-3 pb-3 text-sm text-white">
                   <fieldset disabled={busy} className="py-2">
                     <legend className="sr-only">Paiements de {player.nickname || player.name}</legend>
-                    {paymentToggle(`Buy-in (${buyIn} €)`, player.buyInPaid ?? false, null)}
                     {Array.from({ length: rebuys }, (_, index) => (
                       <div key={index}>{paymentToggle(`Recave ${index + 1} (${game.rebuyAmount} €)`, player.rebuyPayments?.[index] ?? false, index)}</div>
                     ))}

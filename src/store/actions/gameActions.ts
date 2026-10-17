@@ -1,3 +1,4 @@
+import { syncGamePayments } from '../helpers/gamePayments';
 import { StateCreator } from 'zustand';
 // Removed unused isCreator
 import { db, handleDatabaseError } from '../../lib/firebase';
@@ -92,7 +93,7 @@ export const createGameActionSlice: StateCreator<
       finalRebuyRule: newGame.rebuyDistributionRule
     });
     // Clean the object before saving
-    const cleanNewGame = cleanGameForFirestore(newGame);
+    const cleanNewGame = cleanGameForFirestore(syncGamePayments(newGame, tournamentData.buyin));
     await updateDoc(tournamentRef, {
       games: arrayUnion(cleanNewGame), // Add the cleaned game object
     });
@@ -110,7 +111,7 @@ export const createGameActionSlice: StateCreator<
     gameId: string,
     prizePool: number,
     distributionPercentages: { first: number; second: number; third: number },
-    rebuyDistributionRule: 'winner_takes_all' | 'cyclic_distribution',
+    rebuyDistributionRule: 'winner_takes_all' | 'cyclic_distribution' | 'cyclic_top_two',
     winnings: { first: number; second: number; third: number },
     potContributions?: PotContribution[],
     totalPotAmount?: number
@@ -146,11 +147,11 @@ export const createGameActionSlice: StateCreator<
         };
 
         if (potContributions) {
-          updatedGameData.potContributions = potContributions;
+          updatedGameData.players = gameToUpdate.players.map(player => ({ ...player, buyInPaid: potContributions.some(entry => entry.playerId === player.id && entry.amount > 0) }));
           updatedGameData.totalPotAmount = totalPotAmount || 0;
         }
 
-        const updatedGame = cleanGameForFirestore(updatedGameData as Game);
+        const updatedGame = cleanGameForFirestore(syncGamePayments(updatedGameData as Game, tournamentData.buyin));
         
         const updatedGames = [...tournamentData.games];
         updatedGames[gameIndex] = updatedGame;
