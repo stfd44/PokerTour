@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
@@ -31,7 +34,8 @@
     "zustand": "^4.5.2"
   },
   "overrides": {
-    "protobufjs": "^7.5.8"
+    "protobufjs": "^7.5.8",
+    "undici": "^6.29.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
