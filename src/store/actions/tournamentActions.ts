@@ -37,22 +37,28 @@ export const createTournamentActionSlice: StateCreator<
         const q = query(collection(db, "tournaments"), where("teamId", "in", userTeams));
         const querySnapshot = await getDocs(q);
 
-        // Fetch creator nicknames in parallel
-        const tournamentsPromises = querySnapshot.docs.map(async (doc): Promise<Tournament> => {
-            const data = doc.data() as Omit<Tournament, 'id' | 'creatorNickname'>; // Type assertion for raw data
-            let creatorNickname: string | undefined = undefined;
-            if (data.creatorId) {
-                const creatorData = await getUserData(data.creatorId);
-                creatorNickname = creatorData?.nickname ?? undefined; // Use nickname if available
-            }
-            return {
-                id: doc.id,
-                ...data,
-                creatorNickname: creatorNickname, // Add the fetched nickname
-            };
-        });
+        const rawTournaments = querySnapshot.docs.map(docSnap => ({
+            id: docSnap.id,
+            ...(docSnap.data() as Omit<Tournament, 'id' | 'creatorNickname'>),
+        }));
 
-        const tournaments = (await Promise.all(tournamentsPromises))
+        // Deduplicate creator IDs to fetch each creator's nickname only once
+        const uniqueCreatorIds = Array.from(
+            new Set(rawTournaments.map(t => t.creatorId).filter((id): id is string => Boolean(id)))
+        );
+        const creatorNicknamePairs = await Promise.all(
+            uniqueCreatorIds.map(async (creatorId) => {
+                const creatorData = await getUserData(creatorId);
+                return [creatorId, creatorData?.nickname ?? undefined] as const;
+            })
+        );
+        const creatorNicknames = new Map<string, string | undefined>(creatorNicknamePairs);
+
+        const tournaments = rawTournaments
+          .map((t): Tournament => ({
+              ...t,
+              creatorNickname: t.creatorId ? creatorNicknames.get(t.creatorId) : undefined,
+          }))
           .map(withConfirmedInvitationsFromStartedGames);
         set({ tournaments });
     } catch (error) {

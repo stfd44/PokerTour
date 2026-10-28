@@ -33,32 +33,38 @@ const Stats: React.FC = () => {
   const { user } = useAuthStore(); // Get the logged-in user
   const { teams, fetchTeams } = useTeamStore(); // Get teams and fetchTeams
   const { tournaments, fetchTournaments } = useTournamentStore();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => useTournamentStore.getState().tournaments.length === 0);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>('all'); // 'all' or team ID
   const [selectedPeriod, setSelectedPeriod] = useState<number | 'all'>(new Date().getFullYear());
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const periodLabel = selectedPeriod === 'all' ? 'Toutes périodes' : selectedPeriod;
 
   useEffect(() => {
-    // Fetch teams first if not already loaded
-    if (user?.uid && teams.length === 0) {
-      fetchTeams(); // Fetch teams associated with the user
-    }
-  }, [user, teams, fetchTeams]);
-
-
-  useEffect(() => {
+    let isMounted = true;
     const loadData = async () => {
-      setIsLoading(true);
-      if (user?.uid) {
-        // FetchTournaments already filters by user's teams based on useTeamStore state
-        // Ensure teams are loaded before fetching tournaments if needed, though fetchTournaments uses store state
-        await fetchTournaments(user.uid);
+      if (useTournamentStore.getState().tournaments.length === 0) {
+        setIsLoading(true);
       }
-      setIsLoading(false);
+      try {
+        if (user?.uid) {
+          if (useTeamStore.getState().teams.length === 0) {
+            await fetchTeams();
+          }
+          await fetchTournaments(user.uid);
+        }
+      } catch (error) {
+        console.error('Error loading stats data:', error);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
     };
     loadData();
-  }, [user, fetchTournaments]); // Depend on user and fetchTournaments
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.uid, fetchTeams, fetchTournaments]);
 
   // Determine available years from tournament data for the selector
   const availableYears = useMemo(() => {
